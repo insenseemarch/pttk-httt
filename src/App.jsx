@@ -1,5 +1,37 @@
 import { useState, useEffect } from 'react';
 
+function AnimatedCounter({ end, duration = 1500, suffix = "" }) {
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    const endNum = parseInt(end) || 0;
+    if (endNum === 0) {
+      setCount(0);
+      return;
+    }
+
+    const totalSteps = 40;
+    const stepTime = duration / totalSteps;
+    let currentStep = 0;
+
+    const timer = setInterval(() => {
+      currentStep++;
+      const progress = currentStep / totalSteps;
+      const currentVal = Math.floor(endNum * (progress * (2 - progress)));
+      setCount(currentVal);
+
+      if (currentStep >= totalSteps) {
+        clearInterval(timer);
+        setCount(endNum);
+      }
+    }, stepTime);
+
+    return () => clearInterval(timer);
+  }, [end, duration]);
+
+  return <>{count.toLocaleString('vi-VN')}{suffix}</>;
+}
+
 export default function App() {
   // Quản lý chuyển màn hình: 'guest_home', 'staff_reception', 'search_vacancy', hoặc 'room_detail'
   const [trangHienTai, setTrangHienTai] = useState('guest_home');
@@ -45,6 +77,11 @@ export default function App() {
     email: '',
     noiDung: ''
   });
+
+  // State tìm kiếm nhanh trên trang chủ Guest
+  const [timKiemNhanhKhuVuc, setTimKiemNhanhKhuVuc] = useState('Tất cả');
+  const [timKiemNhanhLoai, setTimKiemNhanhLoai] = useState('Tất cả');
+  const [timKiemNhanhGia, setTimKiemNhanhGia] = useState('5000000');
 
   // State form Tiếp nhận thông tin khách (Trang nhân viên)
   const [formKhachHang, setFormKhachHang] = useState({
@@ -97,7 +134,7 @@ export default function App() {
 
   // Hộp thoại modal xem chi tiết
   const [chiTietPhongModal, setChiTietPhongModal] = useState(null);
-  
+
   // Hộp thoại modal hẹn xem phòng
   const [henXemPhongModal, setHenXemPhongModal] = useState(null);
   const [formHenXem, setFormHenXem] = useState({
@@ -190,7 +227,7 @@ export default function App() {
             })
           }).then(r => r.json())
         ]);
-        
+
         if (resPhong.ok) ketQuaGop = [...ketQuaGop, ...resPhong.data];
         if (resGiuong.ok) ketQuaGop = [...ketQuaGop, ...resGiuong.data];
       } else {
@@ -298,6 +335,39 @@ export default function App() {
     return '/dorm_room.png';
   };
 
+  const cuonMuonDenSection = (e, sectionId) => {
+    e.preventDefault();
+    if (trangHienTai !== 'guest_home') {
+      setCheDoNhanVien(false);
+      chuyenTrang('guest_home');
+      setTimeout(() => {
+        const el = document.getElementById(sectionId);
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }, 150);
+    } else {
+      const el = document.getElementById(sectionId);
+      if (el) el.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const chuyenSangTraCuuNhanhFromHero = () => {
+    let mappedLoai = 'Tất cả';
+    if (timKiemNhanhLoai === 'Phong') mappedLoai = 'Phòng đơn';
+    if (timKiemNhanhLoai === 'Giuong') mappedLoai = 'Giường dorm';
+
+    setBoLocTraCuu({
+      khuVuc: timKiemNhanhKhuVuc,
+      loaiPhong: mappedLoai,
+      mucGiaTu: '',
+      gioiTinh: 'Tất cả',
+      soNguoi: '',
+      tienIch: 'Tất cả'
+    });
+
+    setCheDoNhanVien(false);
+    chuyenTrang('search_vacancy');
+  };
+
   const xuLyXoaPhongLichHen = (room) => {
     setDanhSachPhongDatHen(prev => prev.filter(r => r.maId !== room.maId));
   };
@@ -323,16 +393,16 @@ export default function App() {
       hienThongBao('error', 'Vui lòng chọn ít nhất một phòng/giường để đặt hẹn!');
       return;
     }
-    
+
     setDangXuLy(true);
     try {
       const customerName = formKhachHang.hoTen.trim() || 'Lê Thị Minh Anh';
       const customerPhone = formKhachHang.sdt.trim() || '0901234567';
       const customerEmail = formKhachHang.email.trim() || 'minhanh.le@example.com';
-      
+
       for (const room of danhSachPhongDatHen) {
         const ngayGioHenCombined = `${ngayHen}T${gioHen}:00`;
-        
+
         await fetch('/api/dat-lich-hen', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -347,7 +417,7 @@ export default function App() {
           })
         });
       }
-      
+
       hienThongBao('success', `Đã gửi thông báo lịch hẹn thành công đến khách hàng ${customerName}!`);
       setBookingSuccessModal(true);
     } catch (err) {
@@ -422,7 +492,7 @@ export default function App() {
         TenPhongGiuong: `P.${lich.MaPhong} (${lich.MaPhong % 2 === 0 ? 'Dorm A' : 'Dorm B'})`
       };
     });
-    
+
     return [...listDBMapped, ...lichHenMockup];
   };
 
@@ -441,7 +511,7 @@ export default function App() {
   const capNhatTrangThaiLichHen = async (maLich, trangThaiMoi) => {
     try {
       hienThongBao('success', `Đã cập nhật trạng thái lịch hẹn sang: ${trangThaiMoi}`);
-      
+
       if (typeof maLich === 'number') {
         const res = await fetch('/api/cap-nhat-trang-thai-hen', {
           method: 'POST',
@@ -619,7 +689,7 @@ export default function App() {
     // 3. Navigate to search vacancy screen
     setCheDoNhanVien(true);
     setTrangHienTai('search_vacancy');
-    
+
     // 4. Trigger search with new filters
     taiTatCaPhongTrong(newFilters);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -657,9 +727,9 @@ export default function App() {
             </li>
             {trangHienTai === 'guest_home' && (
               <>
-                <li><a href="#utilities">Tiện ích</a></li>
-                <li><a href="#reviews">Đánh giá</a></li>
-                <li><a href="#consult">Đăng ký tư vấn</a></li>
+                <li><a href="#utilities" onClick={(e) => cuonMuonDenSection(e, 'utilities')}>Tiện ích</a></li>
+                <li><a href="#reviews" onClick={(e) => cuonMuonDenSection(e, 'reviews')}>Đánh giá</a></li>
+                <li><a href="#consult" onClick={(e) => cuonMuonDenSection(e, 'consult')}>Đăng ký tư vấn</a></li>
               </>
             )}
           </ul>
@@ -702,37 +772,268 @@ export default function App() {
         // ==========================================
         <div className="guest-landing">
 
-          {/* HERO SECTION */}
-          <section className="hero-section">
-            <div className="hero-content">
-              <h1>Hệ thống HomeStay Dorm cao cấp</h1>
-              <p>Giải pháp lưu trú hoàn hảo, hiện đại, an toàn và đầy đủ tiện nghi hàng đầu tại TP. Hồ Chí Minh dành cho học sinh, sinh viên và người đi làm.</p>
-              <div className="hero-buttons">
-                <a href="#consult" className="hero-btn primary-btn">Đăng ký tư vấn ngay</a>
-                <button className="hero-btn secondary-btn" onClick={() => { setCheDoNhanVien(false); chuyenTrang('search_vacancy'); }}>Tra cứu phòng trống</button>
+          {/* NEW MODERN HERO SECTION */}
+          <section className="guest-hero-container">
+            <div className="hero-left-col">
+              <h1 className="hero-main-title">Tìm Phòng / Giường Phù Hợp Với Bạn</h1>
+              <p className="hero-subtitle">
+                Giải pháp lưu trú hoàn hảo, hiện đại, an toàn và đầy đủ tiện nghi hàng đầu tại TP. Hồ Chí Minh dành cho học sinh, sinh viên và người đi làm năng động.
+              </p>
+
+              <div className="hero-actions-row">
+                <a href="#consult" className="btn-get-started" onClick={(e) => cuonMuonDenSection(e, 'consult')}>Đăng ký tư vấn</a>
+                <button type="button" className="btn-explore-now" onClick={() => { setCheDoNhanVien(false); chuyenTrang('search_vacancy'); }}>
+                  Xem danh sách phòng
+                </button>
+              </div>
+
+              {/* Animated Counters Row */}
+              <div className="hero-stats-row">
+                <div className="animated-stat-item">
+                  <strong className="stat-number">
+                    <AnimatedCounter end={thongKeTongHop.soKhachHang || 2450} suffix="+" />
+                  </strong>
+                  <span className="stat-label">Khách hàng tin tưởng</span>
+                </div>
+                <div className="animated-stat-item">
+                  <strong className="stat-number">
+                    <AnimatedCounter end={thongKeTongHop.soPhongDangThue || 128} suffix="+" />
+                  </strong>
+                  <span className="stat-label">Phòng đang cho thuê</span>
+                </div>
+                <div className="animated-stat-item">
+                  <strong className="stat-number">
+                    <AnimatedCounter end={thongKeTongHop.soPhongConTrong || 15} suffix="+" />
+                  </strong>
+                  <span className="stat-label">Phòng còn trống</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="hero-right-col">
+              <div className="hero-collage-container">
+                <img
+                  src="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?q=80&width=600&auto=format&fit=crop"
+                  alt="Modern homestay building architecture"
+                  className="collage-img img-main"
+                />
+                <img
+                  src="/dorm_room.png"
+                  alt="Cozy interior room"
+                  className="collage-img img-sub-left"
+                />
+                <img
+                  src="/cozy_dorm_bed.png"
+                  alt="Lifestyle co-living"
+                  className="collage-img img-sub-right"
+                />
+              </div>
+            </div>
+
+            {/* Overlapping Floating Search Box */}
+            <div className="floating-search-bar">
+              <h3 className="search-bar-title">Tìm kiếm nhanh phòng trống</h3>
+
+              <div className="search-fields-row">
+                <div className="search-field-group">
+                  <label htmlFor="quick-khuvuc">Khu vực / Chi nhánh</label>
+                  <div className="select-input-wrapper">
+                    <span>📍</span>
+                    <select
+                      id="quick-khuvuc"
+                      value={timKiemNhanhKhuVuc}
+                      onChange={(e) => setTimKiemNhanhKhuVuc(e.target.value)}
+                    >
+                      <option value="Tất cả">Tất cả chi nhánh</option>
+                      <option value="Quận 1">Quận 1</option>
+                      <option value="Quận 3">Quận 3</option>
+                      <option value="Bình Thạnh">Bình Thạnh</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="search-field-group">
+                  <label htmlFor="quick-loaiphong">Loại phòng</label>
+                  <div className="select-input-wrapper">
+                    <span>🏢</span>
+                    <select
+                      id="quick-loaiphong"
+                      value={timKiemNhanhLoai}
+                      onChange={(e) => setTimKiemNhanhLoai(e.target.value)}
+                    >
+                      <option value="Tất cả">Tất cả các loại</option>
+                      <option value="Phong">Nguyên phòng</option>
+                      <option value="Giuong">Giường ghép (Dorm)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="search-field-group">
+                  <label htmlFor="quick-ngansach">Ngân sách tối đa</label>
+                  <div className="select-input-wrapper">
+                    <span>💵</span>
+                    <select
+                      id="quick-ngansach"
+                      value={timKiemNhanhGia}
+                      onChange={(e) => setTimKiemNhanhGia(e.target.value)}
+                    >
+                      <option value="5000000">Dưới 5 triệu / tháng</option>
+                      <option value="3000000">Dưới 3 triệu / tháng</option>
+                      <option value="2000000">Dưới 2 triệu / tháng</option>
+                    </select>
+                  </div>
+                </div>
+
+                <button type="button" className="btn-search-now" onClick={chuyenSangTraCuuNhanhFromHero}>
+                  Tìm kiếm ngay ➔
+                </button>
               </div>
             </div>
           </section>
 
-          {/* STATISTICS SECTION */}
-          <section className="stats-section">
-            <div className="stats-grid">
-              <div className="stat-card">
-                <div className="stat-value">{dangTaiStats ? '...' : thongKeTongHop.soKhachHang}</div>
-                <div className="stat-label">Khách hàng tin tưởng</div>
+          {/* POPULAR HOMES SECTION */}
+          <section className="popular-section" id="popular">
+            <div className="popular-header">
+              <div>
+                <span className="popular-tagline">🔥 PHỔ BIẾN</span>
+                <h2 className="popular-main-title">Phòng Nổi Bật Của Chúng Tôi</h2>
               </div>
-              <div className="stat-card">
-                <div className="stat-value">{dangTaiStats ? '...' : thongKeTongHop.soPhongDangThue}</div>
-                <div className="stat-label">Phòng/Giường đang thuê</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-value">{dangTaiStats ? '...' : thongKeTongHop.soPhongConTrong}</div>
-                <div className="stat-label">Phòng/Giường trống sẵn sàng</div>
-              </div>
+              <button
+                type="button"
+                className="btn-explore-all"
+                onClick={() => { setCheDoNhanVien(false); chuyenTrang('search_vacancy'); }}
+              >
+                Khám phá tất cả ➔
+              </button>
+            </div>
+
+            <div className="popular-grid">
+              {/* Popular Card 1 */}
+              <article className="popular-card">
+                <img
+                  src="/dorm_room.png"
+                  alt="Dorm room 1"
+                  className="popular-card-img"
+                />
+                <div className="popular-card-body">
+                  <div className="popular-location">📍 Vinhomes Central Park, Bình Thạnh</div>
+                  <h4 className="popular-title">Phòng Luxury 4 Giường - Tầng 4</h4>
+                  <div className="popular-specs">
+                    <span>🛌 4 Giường</span>
+                    <span>•</span>
+                    <span>❄️ Điều hòa</span>
+                    <span>•</span>
+                    <span>🧺 Máy giặt</span>
+                  </div>
+                  <div className="popular-footer">
+                    <button
+                      type="button"
+                      className="btn-book-now"
+                      onClick={() => {
+                        setPhongDaChon({
+                          maId: 101,
+                          ten: 'Phòng Luxury 4 Giường - Tầng 4',
+                          kieu: 'Giuong',
+                          giaThue: 2500000,
+                          chiNhanh: 'Bình Thạnh',
+                          diaChi: 'Vinhomes Central Park, Bình Thạnh',
+                          tienIch: 'Điều hòa, Wifi, Máy giặt, Tủ lạnh, An ninh'
+                        });
+                        setTrangHienTai('room_detail');
+                      }}
+                    >
+                      Xem chi tiết
+                    </button>
+                    <span className="popular-price">2,500,000đ<span>/tháng</span></span>
+                  </div>
+                </div>
+              </article>
+
+              {/* Popular Card 2 */}
+              <article className="popular-card">
+                <img
+                  src="/studio_loft.png"
+                  alt="Studio Loft"
+                  className="popular-card-img"
+                />
+                <div className="popular-card-body">
+                  <div className="popular-location">📍 123 Nguyễn Trãi, Quận 1</div>
+                  <h4 className="popular-title">Phòng Studio Loft Premium</h4>
+                  <div className="popular-specs">
+                    <span>🛌 Nguyên phòng</span>
+                    <span>•</span>
+                    <span>❄️ Điều hòa</span>
+                    <span>•</span>
+                    <span>🍳 Bếp riêng</span>
+                  </div>
+                  <div className="popular-footer">
+                    <button
+                      type="button"
+                      className="btn-book-now"
+                      onClick={() => {
+                        setPhongDaChon({
+                          maId: 202,
+                          ten: 'Phòng Studio Loft Premium',
+                          kieu: 'Phong',
+                          giaThue: 4500000,
+                          chiNhanh: 'Quận 1',
+                          diaChi: '123 Nguyễn Trãi, Quận 1',
+                          tienIch: 'Điều hòa, Wifi, Tủ lạnh, Bếp riêng, An ninh'
+                        });
+                        setTrangHienTai('room_detail');
+                      }}
+                    >
+                      Xem chi tiết
+                    </button>
+                    <span className="popular-price">4,500,000đ<span>/tháng</span></span>
+                  </div>
+                </div>
+              </article>
+
+              {/* Popular Card 3 */}
+              <article className="popular-card">
+                <img
+                  src="/cozy_dorm_bed.png"
+                  alt="Dorm Bed"
+                  className="popular-card-img"
+                />
+                <div className="popular-card-body">
+                  <div className="popular-location">📍 456 Lê Văn Sỹ, Quận 3</div>
+                  <h4 className="popular-title">Dorm Cao Cấp 6 Giường - Tầng 2</h4>
+                  <div className="popular-specs">
+                    <span>🛌 6 Giường</span>
+                    <span>•</span>
+                    <span>❄️ Điều hòa</span>
+                    <span>•</span>
+                    <span>🔒 Khóa từ</span>
+                  </div>
+                  <div className="popular-footer">
+                    <button
+                      type="button"
+                      className="btn-book-now"
+                      onClick={() => {
+                        setPhongDaChon({
+                          maId: 303,
+                          ten: 'Dorm Cao Cấp 6 Giường - Tầng 2',
+                          kieu: 'Giuong',
+                          giaThue: 2000000,
+                          chiNhanh: 'Quận 3',
+                          diaChi: '456 Lê Văn Sỹ, Quận 3',
+                          tienIch: 'Điều hòa, Wifi, Tủ lạnh, An ninh'
+                        });
+                        setTrangHienTai('room_detail');
+                      }}
+                    >
+                      Xem chi tiết
+                    </button>
+                    <span className="popular-price">2,000,000đ<span>/tháng</span></span>
+                  </div>
+                </div>
+              </article>
             </div>
           </section>
 
-          {/* TIỆN ÍCH NỔI BẬT (UTILITIES) */}
+          {/* DỊCH VỤ & TIỆN ÍCH NỔI BẬT */}
           <section className="features-section" id="utilities">
             <h2 className="section-title-landing">Dịch vụ &amp; Tiện ích nổi bật</h2>
             <p className="section-subtitle-landing">Trải nghiệm sống tuyệt vời với không gian chung cao cấp và dịch vụ chu đáo</p>
@@ -755,6 +1056,7 @@ export default function App() {
               </div>
             </div>
           </section>
+
 
           {/* ĐÁNH GIÁ CỦA KHÁCH HÀNG (REVIEWS) */}
           <section className="reviews-section" id="reviews">
@@ -905,12 +1207,12 @@ export default function App() {
           ========================================== */}
       {trangHienTai === 'search_vacancy' && (
         <div className="vacancy-search-page">
-          
+
           {/* Cover Hero + Filters Container */}
           <header className="vacancy-hero" style={{ backgroundImage: `url('/hero_cover.png')` }}>
             <div className="vacancy-hero-overlay"></div>
             <div className="vacancy-hero-container">
-              
+
               <div className="vacancy-hero-left">
                 <span className="hero-tagline">Buy, Rent, &amp; Sell Property</span>
                 <h2>Homestay Dorm</h2>
@@ -919,9 +1221,9 @@ export default function App() {
 
               <form className="search-filters-card" onSubmit={guiYeuCauTimKiemVacant}>
                 <h3>Find your Best Property <span>what do you want!</span></h3>
-                
+
                 <div className="filters-grid">
-                  
+
                   <div className="filter-group">
                     <label htmlFor="filter-khuVuc">Khu vực</label>
                     <select id="filter-khuVuc" name="khuVuc" value={boLocTraCuu.khuVuc} onChange={xuLyThayDoiBoLoc}>
@@ -976,7 +1278,7 @@ export default function App() {
 
                 <button type="submit" className="submit-btn" style={{ marginTop: '10px' }} disabled={dangTaiPhongTrong}>
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style={{ marginRight: '6px' }}>
-                    <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+                    <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z" />
                   </svg>
                   {dangTaiPhongTrong ? 'Đang tra cứu...' : 'Tìm kiếm'}
                 </button>
@@ -1025,7 +1327,7 @@ export default function App() {
                         <h4 className="vacancy-card-title" onClick={() => { setPhongDaChon(item); setTrangHienTai('room_detail'); }} style={{ cursor: 'pointer' }}>{item.ten}</h4>
                         <span className="vacancy-card-price">{Number(item.giaThue).toLocaleString('vi-VN')}đ<span>/tháng</span></span>
                       </div>
-                      
+
                       <div className="vacancy-card-address">
                         📍 {item.chiNhanh} • {item.diaChi}
                       </div>
@@ -1165,7 +1467,7 @@ export default function App() {
                 <form onSubmit={guiYeuCauDatLichHen}>
                   <div className="modal-body">
                     <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>Bạn đang đăng ký lịch xem phòng tại: <strong>{henXemPhongModal.chiNhanh} • {henXemPhongModal.diaChi}</strong></p>
-                    
+
                     <div className="input-group">
                       <label htmlFor="hen-hoTen">Họ và tên khách hàng</label>
                       <input type="text" id="hen-hoTen" name="hoTen" placeholder="Nguyễn Văn A" value={formHenXem.hoTen} onChange={xuLyThayDoiHenXem} required />
@@ -1210,7 +1512,7 @@ export default function App() {
           ========================================== */}
       {trangHienTai === 'room_detail' && phongDaChon && (
         <div className="room-detail-page">
-          
+
           <div className="back-navigation">
             <button type="button" className="btn-back-link" onClick={() => chuyenTrang('search_vacancy')}>
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
@@ -1221,7 +1523,7 @@ export default function App() {
           </div>
 
           <div className="detail-top-grid">
-            
+
             {/* Left Image Gallery */}
             <div className="detail-images-gallery">
               <div className="detail-main-img-wrapper">
@@ -1255,14 +1557,14 @@ export default function App() {
 
             {/* Right Information Panel */}
             <div className="detail-info-panel">
-              
+
               <div className="detail-meta-header">
                 <span className="badge-room-code">Mã phòng: SD-{phongDaChon.maId || 402}</span>
                 <span className="rating-stars">⭐ 4.8 (24 Đánh giá)</span>
               </div>
 
               <h2>{phongDaChon.ten}</h2>
-              
+
               <p className="detail-address">
                 Chi nhánh: <strong>{phongDaChon.chiNhanh} • {phongDaChon.diaChi}</strong>
               </p>
@@ -1375,7 +1677,7 @@ export default function App() {
 
           {/* Bottom Columns Section */}
           <div className="detail-bottom-section">
-            
+
             {/* Left: Detailed Description */}
             <div className="detail-description">
               <h3>Mô tả chi tiết</h3>
@@ -1402,7 +1704,7 @@ export default function App() {
                   <div className="pin-pulse"></div>
                   <div className="pin-icon">📍</div>
                 </div>
-                
+
                 {/* Address Card Overlay */}
                 <div className="map-address-overlay">
                   <strong>Căn hộ Landmark 81</strong>
@@ -1421,7 +1723,7 @@ export default function App() {
           ========================================== */}
       {trangHienTai === 'staff_booking' && (
         <div className="staff-booking-page">
-          
+
           {/* Breadcrumbs */}
           <nav className="breadcrumbs" aria-label="breadcrumb">
             <span style={{ cursor: 'pointer' }} onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>Khách hàng</span>
@@ -1435,7 +1737,7 @@ export default function App() {
           <p className="page-subtitle">Vui lòng hoàn tất thông tin lịch hẹn để gửi thông báo cho khách hàng.</p>
 
           <div className="booking-card">
-            
+
             {/* 1. Guest Information Box */}
             <div className="booking-guest-box">
               <div className="guest-box-header">
@@ -1463,7 +1765,7 @@ export default function App() {
             </div>
 
             <form onSubmit={guiLichHenNhanVien}>
-              
+
               {/* 2. Selected Rooms Section */}
               <div className="booking-section">
                 <h4>
@@ -1480,7 +1782,7 @@ export default function App() {
                   ) : (
                     <span className="no-rooms-selected-warning">Chưa có phòng nào được chọn. Vui lòng bấm thêm phòng.</span>
                   )}
-                  
+
                   <button type="button" className="btn-add-room" onClick={xuLyThemPhongLichHen}>
                     + Thêm phòng
                   </button>
@@ -2027,7 +2329,7 @@ export default function App() {
           ========================================== */}
       {trangHienTai === 'staff_contracts' && (
         <div className="staff-contracts-page">
-          
+
           <div className="contracts-header-row">
             <div>
               <h1 className="page-title" style={{ margin: 0 }}>Lịch hẹn xem phòng</h1>
@@ -2035,7 +2337,7 @@ export default function App() {
                 Quản lý và cập nhật trạng thái khách hàng đi xem phòng thực tế.
               </p>
             </div>
-            
+
             <div className="header-actions">
               <div className="search-bar-wrapper">
                 <span className="search-icon">🔍</span>
@@ -2067,7 +2369,7 @@ export default function App() {
                 'cho-xem': 'Chờ xem',
                 'da-xem': 'Đã xem'
               }[tab];
-              
+
               return (
                 <button
                   key={tab}
@@ -2122,16 +2424,16 @@ export default function App() {
                   {(() => {
                     const merged = layDanhSachLichHenGop();
                     const filtered = merged.filter(item => {
-                      const matchSearch = item.TenKhach.toLowerCase().includes(tuKhoaLichHen.toLowerCase()) || 
-                                          String(item.MaPhong).includes(tuKhoaLichHen);
+                      const matchSearch = item.TenKhach.toLowerCase().includes(tuKhoaLichHen.toLowerCase()) ||
+                        String(item.MaPhong).includes(tuKhoaLichHen);
                       if (!matchSearch) return false;
-                      
+
                       if (boLocLichHen === 'hom-nay') {
                         const d = new Date(item.NgayGioHen);
                         const today = new Date();
-                        return d.getDate() === today.getDate() && 
-                               d.getMonth() === today.getMonth() && 
-                               d.getFullYear() === today.getFullYear();
+                        return d.getDate() === today.getDate() &&
+                          d.getMonth() === today.getMonth() &&
+                          d.getFullYear() === today.getFullYear();
                       }
                       if (boLocLichHen === 'tuan-nay') {
                         const diffTime = Math.abs(new Date() - new Date(item.NgayGioHen));
@@ -2182,11 +2484,10 @@ export default function App() {
                           </span>
                         </td>
                         <td>
-                          <span className={`status-badge-pill status-${
-                            item.KetQua === 'Chờ xem' ? 'cho-xem' :
-                            item.KetQua === 'Đặt cọc' ? 'dat-coc' :
-                            item.KetQua === 'Hẹn thêm' ? 'hen-them' : 'khong-thue'
-                          }`}>
+                          <span className={`status-badge-pill status-${item.KetQua === 'Chờ xem' ? 'cho-xem' :
+                              item.KetQua === 'Đặt cọc' ? 'dat-coc' :
+                                item.KetQua === 'Hẹn thêm' ? 'hen-them' : 'khong-thue'
+                            }`}>
                             {item.KetQua === 'Chờ xem' && '• Chờ xem'}
                             {item.KetQua === 'Đặt cọc' && '• Đặt cọc'}
                             {item.KetQua === 'Hẹn thêm' && '• Hẹn thêm'}
@@ -2252,7 +2553,7 @@ export default function App() {
               <p style={{ fontSize: '14.5px', color: '#475569', lineHeight: '1.6', margin: '0 0 20px 0' }}>
                 Hệ thống đã lưu thông tin lịch hẹn và gửi thông báo xác nhận đến khách hàng. Bạn muốn đi đến đâu tiếp theo?
               </p>
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <button
                   type="button"
