@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 
 export default function App() {
-  // Quản lý chuyển màn hình: 'guest_home', 'staff_reception', hoặc 'search_vacancy'
+  // Quản lý chuyển màn hình: 'guest_home', 'staff_reception', 'search_vacancy', hoặc 'room_detail'
   const [trangHienTai, setTrangHienTai] = useState('guest_home');
 
   // Chế độ người dùng: false = Guest, true = Nhân viên
   const [cheDoNhanVien, setCheDoNhanVien] = useState(false);
+
+  // Phòng đang chọn xem chi tiết
+  const [phongDaChon, setPhongDaChon] = useState(null);
 
   // Thống kê tổng hợp trang chủ (Khách, Đang thuê, Còn trống)
   const [thongKeTongHop, setThongKeTongHop] = useState({
@@ -810,7 +813,7 @@ export default function App() {
               <div className="vacancy-grid-layout">
                 {danhSachTatCaPhongTrong.map((item) => (
                   <article key={`${item.kieu}-${item.maId}`} className="vacancy-room-card">
-                    <div className="vacancy-card-img-wrapper">
+                    <div className="vacancy-card-img-wrapper" onClick={() => { setPhongDaChon(item); setTrangHienTai('room_detail'); }} style={{ cursor: 'pointer' }}>
                       <img src={layAnhMinhHoaPhong(item)} alt={item.ten} className="vacancy-card-img" />
                       <div className="vacancy-card-badges">
                         <span className={`badge-type ${item.kieu === 'Phong' ? 'badge-phong-loai' : 'badge-giuong-loai'}`}>
@@ -822,7 +825,7 @@ export default function App() {
 
                     <div className="vacancy-card-body">
                       <div className="vacancy-card-title-row">
-                        <h4 className="vacancy-card-title">{item.ten}</h4>
+                        <h4 className="vacancy-card-title" onClick={() => { setPhongDaChon(item); setTrangHienTai('room_detail'); }} style={{ cursor: 'pointer' }}>{item.ten}</h4>
                         <span className="vacancy-card-price">{Number(item.giaThue).toLocaleString('vi-VN')}đ<span>/tháng</span></span>
                       </div>
                       
@@ -840,7 +843,7 @@ export default function App() {
                       </div>
 
                       <div className="vacancy-card-actions">
-                        <button type="button" className="btn-detail-outline" onClick={() => setChiTietPhongModal(item)}>
+                        <button type="button" className="btn-detail-outline" onClick={() => { setPhongDaChon(item); setTrangHienTai('room_detail'); }}>
                           Xem chi tiết
                         </button>
                         <button type="button" className="btn-book-filled" onClick={() => setHenXemPhongModal(item)}>
@@ -1001,6 +1004,210 @@ export default function App() {
               </div>
             </div>
           )}
+
+        </div>
+      )}
+
+      {/* ==========================================
+          TRANG CHI TIẾT PHÒNG/GIƯỜNG (ROOM DETAILS)
+          ========================================== */}
+      {trangHienTai === 'room_detail' && phongDaChon && (
+        <div className="room-detail-page">
+          
+          <div className="back-navigation">
+            <button type="button" className="btn-back-link" onClick={() => chuyenTrang('search_vacancy')}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
+                <path fillRule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z" />
+              </svg>
+              Quay lại danh sách
+            </button>
+          </div>
+
+          <div className="detail-top-grid">
+            
+            {/* Left Image Gallery */}
+            <div className="detail-images-gallery">
+              <div className="detail-main-img-wrapper">
+                <img src={layAnhMinhHoaPhong(phongDaChon)} alt={phongDaChon.ten} className="detail-main-img" />
+                <div className="detail-main-badges">
+                  <span className={`badge-type ${phongDaChon.kieu === 'Phong' ? 'badge-phong-loai' : 'badge-giuong-loai'}`}>
+                    {phongDaChon.kieu === 'Phong' ? 'PHÒNG ĐƠN' : 'PHÒNG GHÉP'}
+                  </span>
+                  <span className="badge-status-empty">
+                    {phongDaChon.kieu === 'Phong' ? 'Đang trống' : 'Đang Trống 2 Chỗ'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="detail-thumbnails-row">
+                <div className="thumb-wrapper active">
+                  <img src={layAnhMinhHoaPhong(phongDaChon)} alt="Ảnh phòng 1" />
+                </div>
+                <div className="thumb-wrapper">
+                  <img src="https://images.unsplash.com/photo-1505691938895-1758d7feb511?q=80&width=200&auto=format&fit=crop" alt="Ảnh phòng 2" />
+                </div>
+                <div className="thumb-wrapper">
+                  <img src="https://images.unsplash.com/photo-1552321554-5fefe8c9ef14?q=80&width=200&auto=format&fit=crop" alt="Ảnh phòng 3" />
+                </div>
+                <div className="thumb-wrapper thumb-overlay-container">
+                  <img src="https://images.unsplash.com/photo-1564013799919-ab600027ffc6?q=80&width=200&auto=format&fit=crop" alt="Ảnh phòng 4" />
+                  <div className="thumb-overlay-text">+8 Ảnh</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Information Panel */}
+            <div className="detail-info-panel">
+              
+              <div className="detail-meta-header">
+                <span className="badge-room-code">Mã phòng: SD-{phongDaChon.maId || 402}</span>
+                <span className="rating-stars">⭐ 4.8 (24 Đánh giá)</span>
+              </div>
+
+              <h2>{phongDaChon.ten}</h2>
+              
+              <p className="detail-address">
+                Chi nhánh: <strong>{phongDaChon.chiNhanh} • {phongDaChon.diaChi}</strong>
+              </p>
+
+              <div className="detail-price-box">
+                <span className="price-num">{Number(phongDaChon.giaThue).toLocaleString('vi-VN')}đ</span>
+                <span className="price-unit">/tháng / {phongDaChon.kieu === 'Phong' ? 'phòng' : 'giường'}</span>
+              </div>
+
+              {/* Specs Grid 2x2 */}
+              <div className="info-specs-grid">
+                <div className="spec-item">
+                  <span className="spec-icon">👥</span>
+                  <div>
+                    <span className="spec-title">Sức chứa</span>
+                    <span className="spec-val">{phongDaChon.kieu === 'Phong' ? `${phongDaChon.sucChua || 1} Khách` : '04 Giường'}</span>
+                  </div>
+                </div>
+                <div className="spec-item">
+                  <span className="spec-icon">🏢</span>
+                  <div>
+                    <span className="spec-title">Tầng</span>
+                    <span className="spec-val">Tầng 0{Math.floor(phongDaChon.maId / 100) || 4}</span>
+                  </div>
+                </div>
+                <div className="spec-item">
+                  <span className="spec-icon">📍</span>
+                  <div>
+                    <span className="spec-title">Khu vực</span>
+                    <span className="spec-val">{phongDaChon.chiNhanh}</span>
+                  </div>
+                </div>
+                <div className="spec-item">
+                  <span className="spec-icon">✔️</span>
+                  <div>
+                    <span className="spec-title">Tình trạng</span>
+                    <span className="spec-val font-green">Còn trống</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Occupancy Rate progress bar */}
+              <div className="occupancy-rate-section">
+                <div className="occupancy-labels">
+                  <span>Tỷ lệ lấp đầy</span>
+                  <strong>{phongDaChon.kieu === 'Phong' ? '0 / 1 phòng' : '2 / 4 giường'}</strong>
+                </div>
+                <div className="progress-occupancy-bar">
+                  <div className="progress-fill" style={{ width: phongDaChon.kieu === 'Phong' ? '0%' : '50%' }}></div>
+                </div>
+                <p className="occupancy-helper-text">
+                  {phongDaChon.kieu === 'Phong' ? 'Phòng đơn trống sẵn sàng dọn vào ở ngay.' : 'Đang có 2 khách hàng nữ sinh viên thuê.'}
+                </p>
+              </div>
+
+              {/* Utilities section */}
+              <div className="detail-utils-section">
+                <h4>Tiện ích bao gồm</h4>
+                <div className="detail-utils-row">
+                  {phongDaChon.tienIch ? phongDaChon.tienIch.split(',').map((u, i) => (
+                    <span key={i} className="detail-util-tag">
+                      {u.trim().includes('Điều hòa') && '❄️ '}
+                      {u.trim().includes('Wifi') && '📶 '}
+                      {u.trim().includes('giặt') && '🧺 '}
+                      {u.trim().includes('Tủ lạnh') && '🧊 '}
+                      {u.trim().includes('ninh') && '🔒 '}
+                      {u.trim()}
+                    </span>
+                  )) : (
+                    <>
+                      <span className="detail-util-tag">❄️ Điều hòa</span>
+                      <span className="detail-util-tag">📶 Wi-Fi</span>
+                      <span className="detail-util-tag">🧺 Máy giặt</span>
+                      <span className="detail-util-tag">🧊 Tủ lạnh</span>
+                      <span className="detail-util-tag">🔒 An ninh 24/7</span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="detail-action-buttons">
+                <button type="button" className="btn-action-orange btn-choose-room" onClick={() => xuLyDatPhong(phongDaChon)}>
+                  Chọn phòng này ➔
+                </button>
+                <div className="btn-divider-pipe">|</div>
+                <button type="button" className="btn-action-orange btn-book-visit" onClick={() => setHenXemPhongModal(phongDaChon)}>
+                  Đặt lịch hẹn
+                </button>
+              </div>
+
+              <div className="btn-action-outline-row">
+                <button type="button" className="btn-action-outline" onClick={() => hienThongBao('success', 'Đã sao chép liên kết chia sẻ!')}>
+                  🔗 Chia sẻ
+                </button>
+                <button type="button" className="btn-action-outline" onClick={() => hienThongBao('success', 'Đã lưu tin phòng này vào danh sách yêu thích!')}>
+                  ❤️ Lưu tin
+                </button>
+              </div>
+
+            </div>
+          </div>
+
+          {/* Bottom Columns Section */}
+          <div className="detail-bottom-section">
+            
+            {/* Left: Detailed Description */}
+            <div className="detail-description">
+              <h3>Mô tả chi tiết</h3>
+              <p>
+                Phòng Premium Homestay Dorm được thiết kế dành riêng cho sinh viên và người đi làm trẻ với không gian hiện đại, yên tĩnh và đầy đủ tiện nghi. Giường tầng được làm từ gỗ tự nhiên chắc chắn, tích hợp rèm che đảm bảo sự riêng tư tuyệt đối.
+              </p>
+              <p>
+                Hệ thống chiếu sáng thông minh và bàn làm việc cá nhân giúp tối ưu hiệu suất học tập và làm việc. Cư dân tại đây được sử dụng miễn phí các tiện ích chung như phòng gym, hồ bơi và khu vực làm việc chung (Co-working space) tại tầng 3.
+              </p>
+              <ul className="detail-bullet-points">
+                <li>Dọn phòng 3 lần/tuần (Thứ 2, 4, 6)</li>
+                <li>Thay ga giường 1 lần/tuần</li>
+                <li>Nước sinh hoạt và điện chiếu sáng đã bao gồm trong giá thuê</li>
+                <li>Sử dụng bếp chung đầy đủ lò vi sóng, bếp từ</li>
+              </ul>
+            </div>
+
+            {/* Right: Map Location */}
+            <div className="detail-location-map">
+              <h3>Vị trí</h3>
+              <div className="detail-map-mockup">
+                {/* Pin Point Indicator */}
+                <div className="map-pin-marker">
+                  <div className="pin-pulse"></div>
+                  <div className="pin-icon">📍</div>
+                </div>
+                
+                {/* Address Card Overlay */}
+                <div className="map-address-overlay">
+                  <strong>Căn hộ Landmark 81</strong>
+                  <p>208 Nguyễn Hữu Cảnh, Phường 22, Bình Thạnh</p>
+                </div>
+              </div>
+            </div>
+
+          </div>
 
         </div>
       )}

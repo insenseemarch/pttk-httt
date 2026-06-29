@@ -1950,3 +1950,516 @@ h1.page-title {
   color: #64748b;
 }
 
+/* ==========================================
+   TRANG CHI TIẾT PHÒNG/GIƯỜNG (ROOM DETAILS)
+   ========================================== */
+.room-detail-page {
+  max-width: 1200px;
+  margin: 24px auto;
+  padding: 0 24px;
+}
+
+.back-navigation {
+  margin-bottom: 24px;
+}
+
+.btn-back-link {
+  background: none;
+  border: none;
+  color: var(--primary-color);
+  font-size: 14.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  transition: color 0.2s;
+}
+
+.btn-back-link:hover {
+  color: var(--primary-hover);
+  text-decoration: underline;
+}
+
+.detail-top-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 40px;
+  margin-bottom: 40px;
+}
+
+@media (max-width: 1024px) {
+  .detail-top-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+}
+
+/* Left Image Gallery */
+.detail-images-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.detail-main-img-wrapper {
+  position: relative;
+  height: 420px;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  background-color: #f1f5f9;
+}
+
+@media (max-width: 640px) {
+  .detail-main-img-wrapper {
+    height: 280px;
+  }
+}
+
+.detail-main-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.detail-main-badges {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: flex;
+  gap: 10px;
+  z-index: 5;
+}
+
+.detail-thumbnails-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.thumb-wrapper {
+  height: 90px;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+  background-color: #f1f5f9;
+}
+
+@media (max-width: 480px) {
+  .thumb-wrapper {
+    height: 60px;
+  }
+}
+
+.thumb-wrapper:hover {
+  transform: translateY(-2px);
+}
+
+.thumb-wrapper.active {
+  border-color: var(--primary-color);
+  box-shadow: 0 4px 8px rgba(242, 106, 33, 0.15);
+}
+
+.thumb-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumb-overlay-container {
+  position: relative;
+}
+
+.thumb-overlay-text {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.6);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  backdrop-filter: blur(1px);
+}
+
+/* Right Information Panel */
+.detail-info-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-meta-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.badge-room-code {
+  background-color: #f1f5f9;
+  color: #475569;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.rating-stars {
+  font-size: 13.5px;
+  color: #fbbf24;
+  font-weight: 600;
+}
+
+.detail-info-panel h2 {
+  font-size: clamp(20px, 3.5vw, 28px);
+  font-weight: 800;
+  color: #1e293b;
+  line-height: 1.25;
+  margin-bottom: 12px;
+}
+
+.detail-address {
+  font-size: 14.5px;
+  color: var(--text-muted);
+  margin-bottom: 24px;
+}
+
+.detail-price-box {
+  background-color: #fff7ed;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  width: fit-content;
+}
+
+.price-num {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--primary-color);
+  line-height: 1;
+}
+
+.price-unit {
+  font-size: 14px;
+  color: #c2410c;
+  font-weight: 600;
+}
+
+/* 2x2 Specs Grid */
+.info-specs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 24px;
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+  padding: 20px 0;
+}
+
+.spec-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.spec-icon {
+  font-size: 20px;
+  width: 40px;
+  height: 40px;
+  background-color: #f8fafc;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+
+.spec-title {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.spec-val {
+  font-size: 14px;
+  font-weight: 700;
+  color: #334155;
+  margin-top: 2px;
+  display: block;
+}
+
+.font-green {
+  color: var(--success-color) !important;
+}
+
+/* Occupancy Rate progress bar */
+.occupancy-rate-section {
+  margin-bottom: 24px;
+  background-color: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+
+.occupancy-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13.5px;
+  margin-bottom: 8px;
+  color: #475569;
+}
+
+.occupancy-labels strong {
+  color: #1e293b;
+}
+
+.progress-occupancy-bar {
+  height: 8px;
+  background-color: #e2e8f0;
+  border-radius: 9999px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.progress-fill {
+  height: 100%;
+  background-color: var(--primary-color);
+  border-radius: 9999px;
+  transition: width 0.4s ease;
+}
+
+.occupancy-helper-text {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Utilities section */
+.detail-utils-section {
+  margin-bottom: 28px;
+}
+
+.detail-utils-section h4 {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+}
+
+.detail-utils-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.detail-util-tag {
+  background-color: #f1f5f9;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 14px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Action Buttons */
+.detail-action-buttons {
+  display: flex;
+  background-color: var(--primary-color);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 15px rgba(242, 106, 33, 0.2);
+  margin-bottom: 16px;
+  align-items: center;
+  height: 48px;
+}
+
+.btn-action-orange {
+  flex: 1;
+  border: none;
+  background: none;
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  transition: background-color 0.2s;
+}
+
+.btn-choose-room:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.btn-book-visit:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}
+
+.btn-divider-pipe {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 18px;
+  font-weight: 300;
+  user-select: none;
+}
+
+.btn-action-outline-row {
+  display: flex;
+  gap: 16px;
+}
+
+.btn-action-outline {
+  flex: 1;
+  height: 42px;
+  background-color: #ffffff;
+  border: 1px solid var(--border-color);
+  color: #475569;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.btn-action-outline:hover {
+  background-color: #f8fafc;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+/* Bottom columns section */
+.detail-bottom-section {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 40px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 40px;
+}
+
+@media (max-width: 1024px) {
+  .detail-bottom-section {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+}
+
+.detail-description h3,
+.detail-location-map h3 {
+  font-size: 18px;
+  font-weight: 800;
+  color: #1e293b;
+  margin-bottom: 16px;
+}
+
+.detail-description p {
+  font-size: 14.5px;
+  color: #475569;
+  line-height: 1.7;
+  margin-bottom: 16px;
+}
+
+.detail-bullet-points {
+  padding-left: 20px;
+  margin-bottom: 24px;
+}
+
+.detail-bullet-points li {
+  font-size: 14px;
+  color: #475569;
+  line-height: 1.8;
+  margin-bottom: 8px;
+}
+
+/* Mockup Map */
+.detail-map-mockup {
+  height: 300px;
+  background-color: #cbd5e1;
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+  background-image: url('https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&width=600&auto=format&fit=crop');
+  background-size: cover;
+  background-position: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.map-pin-marker {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 5;
+}
+
+.pin-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.pin-pulse {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  background-color: rgba(242, 106, 33, 0.4);
+  border-radius: 50%;
+  top: 16px;
+  animation: pulse-ring 1.8s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.5);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+.map-address-overlay {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 12px 16px;
+  box-shadow: var(--shadow-md);
+  z-index: 10;
+}
+
+.map-address-overlay strong {
+  font-size: 14px;
+  color: #1e293b;
+  display: block;
+}
+
+.map-address-overlay p {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 4px 0 0 0;
+  line-height: 1.4;
+}
+
+
