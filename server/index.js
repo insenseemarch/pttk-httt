@@ -425,6 +425,56 @@ async function xuLyDatLichXemPhong(req, res) {
   }
 }
 
+async function xuLyLayDanhSachLichHen(req, res) {
+  try {
+    const { data, error } = await supabase
+      .from('LichXemPhong')
+      .select(`
+        MaLich,
+        NgayGioHen,
+        KetQua,
+        GhiChu,
+        MaPhong,
+        YeuCauThue (
+          MaYC,
+          CCCD,
+          KhachHang (
+            CCCD,
+            HoTen,
+            SDT
+          )
+        )
+      `)
+      .order('NgayGioHen', { ascending: false });
+
+    if (error) throw error;
+    res.json({ ok: true, data });
+  } catch (error) {
+    console.error('Lỗi khi lấy danh sách lịch hẹn:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+}
+
+async function xuLyCapNhatTrangThaiHen(req, res) {
+  try {
+    const { maLich, ketQua } = req.body;
+    if (!maLich || !ketQua) {
+      return res.status(400).json({ ok: false, error: 'Thiếu thông tin maLich hoặc ketQua' });
+    }
+    const { data, error } = await supabase
+      .from('LichXemPhong')
+      .update({ KetQua: ketQua })
+      .eq('MaLich', Number(maLich))
+      .select();
+
+    if (error) throw error;
+    res.json({ ok: true, data });
+  } catch (error) {
+    console.error('Lỗi khi cập nhật trạng thái hẹn:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+}
+
 // REST API Endpoints
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, message: 'Server is running' });
@@ -436,6 +486,8 @@ app.post('/api/tiep-nhan', xuLyTiepNhanThongTin);
 app.post('/api/tra-cuu-phong', xuLyTraCuuPhong);
 app.post('/api/gui-tu-van', xuLyGuiYeuCauTuVan);
 app.post('/api/dat-lich-hen', xuLyDatLichXemPhong);
+app.get('/api/danh-sach-lich-hen', xuLyLayDanhSachLichHen);
+app.post('/api/cap-nhat-trang-thai-hen', xuLyCapNhatTrangThaiHen);
 
 app.get('/api/supabase-test', async (req, res) => {
   try {
