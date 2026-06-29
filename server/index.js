@@ -244,14 +244,198 @@ async function xuLyTraCuuPhong(req, res) {
   }
 }
 
+async function layThongKeTongHop() {
+  const { count: totalCustomers, error: errCust } = await supabase
+    .from('KhachHang')
+    .select('CCCD', { count: 'exact', head: true });
+  if (errCust) throw errCust;
+
+  const { count: vacantRooms, error: errVacRooms } = await supabase
+    .from('Phong')
+    .select('MaPhong', { count: 'exact', head: true })
+    .eq('LoaiPhong', 'Nguyên phòng')
+    .eq('TinhTrang', true);
+  if (errVacRooms) throw errVacRooms;
+
+  const { count: vacantBeds, error: errVacBeds } = await supabase
+    .from('Giuong')
+    .select('MaGiuong', { count: 'exact', head: true })
+    .eq('TinhTrang', true);
+  if (errVacBeds) throw errVacBeds;
+
+  const { count: rentedRooms, error: errRentRooms } = await supabase
+    .from('Phong')
+    .select('MaPhong', { count: 'exact', head: true })
+    .eq('LoaiPhong', 'Nguyên phòng')
+    .eq('TinhTrang', false);
+  if (errRentRooms) throw errRentRooms;
+
+  const { count: rentedBeds, error: errRentBeds } = await supabase
+    .from('Giuong')
+    .select('MaGiuong', { count: 'exact', head: true })
+    .eq('TinhTrang', false);
+  if (errRentBeds) throw errRentBeds;
+
+  return {
+    soKhachHang: totalCustomers || 0,
+    soPhongDangThue: (rentedRooms || 0) + (rentedBeds || 0),
+    soPhongConTrong: (vacantRooms || 0) + (vacantBeds || 0)
+  };
+}
+
+async function luuYeuCauTuVan(yc) {
+  const { hoTen, sdt, email, noiDung } = yc;
+  const numericCCCD = Number(sdt.replace(/\D/g, '')) || Math.floor(Math.random() * 9000000000) + 1000000000;
+
+  const { data: savedCust, error: errCust } = await supabase
+    .from('KhachHang')
+    .upsert({
+      CCCD: numericCCCD,
+      HoTen: hoTen,
+      SDT: sdt,
+      Email: email,
+      QuocTich: 'Việt Nam',
+      ThoaDK: true
+    }, { onConflict: 'CCCD' })
+    .select();
+  if (errCust) throw errCust;
+
+  const thoiGianThueDate = tinhNgayKetThuc(new Date().toISOString().split('T')[0], 6);
+
+  const { data: savedReq, error: errReq } = await supabase
+    .from('YeuCauThue')
+    .insert({
+      SoNguoiDuKien: 1,
+      GioiTinh: 'Tất cả',
+      KhuVucMongMuon: 'Tất cả',
+      LoaiPhong: 'Chưa xác định',
+      MucGia: null,
+      ThoiGianVao: new Date().toISOString(),
+      ThoiGianThue: thoiGianThueDate,
+      YeuCau: `Khách đăng ký nhận tư vấn: ${noiDung || 'Cần tư vấn thông tin homestay/dorm'}`,
+      TrangThai: false, // unprocessed
+      NgayTao: new Date().toISOString(),
+      CCCD: numericCCCD,
+      MaNV: null
+    })
+    .select();
+  if (errReq) throw errReq;
+
+  return {
+    khachHang: savedCust && savedCust.length > 0 ? savedCust[0] : null,
+    yeuCauThue: savedReq && savedReq.length > 0 ? savedReq[0] : null
+  };
+}
+
+async function xuLyLayThongKeTongHop(req, res) {
+  try {
+    const stats = await layThongKeTongHop();
+    res.json({ ok: true, data: stats });
+  } catch (error) {
+    console.error('Lỗi lấy thống kê tổng hợp:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+}
+
+async function xuLyGuiYeuCauTuVan(req, res) {
+  try {
+    const dataTuVan = req.body;
+    if (!dataTuVan.hoTen || !dataTuVan.sdt) {
+      return res.status(400).json({ ok: false, error: 'Thiếu thông tin bắt buộc (Họ tên, Số điện thoại)' });
+    }
+    const ketQua = await luuYeuCauTuVan(dataTuVan);
+    res.json({ ok: true, message: 'Gửi yêu cầu tư vấn thành công!', data: ketQua });
+  } catch (error) {
+    console.error('Lỗi gửi yêu cầu tư vấn:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+}
+
+async function datLichXemPhong(yc) {
+  const { hoTen, sdt, email, ngayGioHen, ghiChu, maPhong, loaiPhong } = yc;
+  const numericCCCD = Number(sdt.replace(/\D/g, '')) || Math.floor(Math.random() * 9000000000) + 1000000000;
+
+  // 1. Upsert customer
+  const { data: savedCust, error: errCust } = await supabase
+    .from('KhachHang')
+    .upsert({
+      CCCD: numericCCCD,
+      HoTen: hoTen,
+      SDT: sdt,
+      Email: email,
+      QuocTich: 'Việt Nam',
+      ThoaDK: true
+    }, { onConflict: 'CCCD' })
+    .select();
+  if (errCust) throw errCust;
+
+  // 2. Create YeuCauThue
+  const thoiGianThueDate = tinhNgayKetThuc(new Date().toISOString().split('T')[0], 6);
+  const { data: savedReq, error: errReq } = await supabase
+    .from('YeuCauThue')
+    .insert({
+      SoNguoiDuKien: 1,
+      GioiTinh: 'Tất cả',
+      KhuVucMongMuon: 'Chưa xác định',
+      LoaiPhong: loaiPhong === 'Giuong' ? 'Giường ghép' : 'Nguyên phòng',
+      MucGia: null,
+      ThoiGianVao: new Date().toISOString(),
+      ThoiGianThue: thoiGianThueDate,
+      YeuCau: `Đăng ký hẹn xem phòng #${maPhong} qua website`,
+      TrangThai: false,
+      NgayTao: new Date().toISOString(),
+      CCCD: numericCCCD,
+      MaNV: null
+    })
+    .select();
+  if (errReq) throw errReq;
+  const maYC = savedReq[0].MaYC;
+
+  // 3. Create LichXemPhong
+  const { data: savedLich, error: errLich } = await supabase
+    .from('LichXemPhong')
+    .insert({
+      NgayGioHen: new Date(ngayGioHen).toISOString(),
+      GhiChu: ghiChu || '',
+      MaPhong: Number(maPhong),
+      MaYC: maYC,
+      KetQua: 'Chưa xem'
+    })
+    .select();
+  if (errLich) throw errLich;
+
+  return {
+    khachHang: savedCust && savedCust.length > 0 ? savedCust[0] : null,
+    yeuCauThue: savedReq && savedReq.length > 0 ? savedReq[0] : null,
+    lichXemPhong: savedLich && savedLich.length > 0 ? savedLich[0] : null
+  };
+}
+
+async function xuLyDatLichXemPhong(req, res) {
+  try {
+    const dataLich = req.body;
+    if (!dataLich.hoTen || !dataLich.sdt || !dataLich.ngayGioHen || !dataLich.maPhong) {
+      return res.status(400).json({ ok: false, error: 'Thiếu thông tin bắt buộc (Họ tên, Số điện thoại, Ngày giờ hẹn, Mã phòng)' });
+    }
+    const ketQua = await datLichXemPhong(dataLich);
+    res.json({ ok: true, message: 'Đăng ký lịch hẹn xem phòng thành công!', data: ketQua });
+  } catch (error) {
+    console.error('Lỗi đặt lịch hẹn xem phòng:', error);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+}
+
 // REST API Endpoints
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, message: 'Server is running' });
 });
 
 app.get('/api/thong-ke-phong', xuLyLayThongKe);
+app.get('/api/thong-ke-tong-hop', xuLyLayThongKeTongHop);
 app.post('/api/tiep-nhan', xuLyTiepNhanThongTin);
 app.post('/api/tra-cuu-phong', xuLyTraCuuPhong);
+app.post('/api/gui-tu-van', xuLyGuiYeuCauTuVan);
+app.post('/api/dat-lich-hen', xuLyDatLichXemPhong);
 
 app.get('/api/supabase-test', async (req, res) => {
   try {
