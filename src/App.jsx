@@ -16,6 +16,13 @@ export default function App() {
   const [gioHen, setGioHen] = useState('09:00');
   const [hinhThucThongBao, setHinhThucThongBao] = useState('email');
   const [ghiChuLichHen, setGhiChuLichHen] = useState('');
+  const [bookingSuccessModal, setBookingSuccessModal] = useState(false);
+
+  // --- TRANG DANH SÁCH LỊCH HẸN NHÂN VIÊN (STAFF CONTRACTS/APPOINTMENTS) ---
+  const [danhSachLichHenDB, setDanhSachLichHenDB] = useState([]);
+  const [boLocLichHen, setBoLocLichHen] = useState('tat-ca');
+  const [tuKhoaLichHen, setTuKhoaLichHen] = useState('');
+  const [trangHienHen, setTrangHienHen] = useState(1);
 
   // Thống kê tổng hợp trang chủ (Khách, Đang thuê, Còn trống)
   const [thongKeTongHop, setThongKeTongHop] = useState({
@@ -268,6 +275,21 @@ export default function App() {
     }
   };
 
+  const formatNgayGio = (dateStr) => {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    const today = new Date();
+    if (d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear()) {
+      return `Hôm nay, ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    }
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (d.getDate() === yesterday.getDate() && d.getMonth() === yesterday.getMonth() && d.getFullYear() === yesterday.getFullYear()) {
+      return `Hôm qua, ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    }
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}, ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+
   const layAnhMinhHoaPhong = (item) => {
     if (item.kieu === 'Phong') {
       if (item.maId % 2 === 0) return '/cozy_dorm_bed.png';
@@ -327,12 +349,116 @@ export default function App() {
       }
       
       hienThongBao('success', `Đã gửi thông báo lịch hẹn thành công đến khách hàng ${customerName}!`);
-      setTrangHienTai('staff_reception');
+      setBookingSuccessModal(true);
     } catch (err) {
       console.error('Lỗi khi nhân viên đặt lịch hẹn:', err);
       hienThongBao('error', 'Có lỗi xảy ra khi tạo lịch hẹn!');
     } finally {
       setDangXuLy(false);
+    }
+  };
+
+  const lichHenMockup = [
+    {
+      MaLich: 'M-01',
+      NgayGioHen: new Date().toISOString(),
+      KetQua: 'Chờ xem',
+      GhiChu: '',
+      MaPhong: 402,
+      TenKhach: 'Nguyễn Lam Anh',
+      SDT: '0987-xxx-123',
+      AvatarName: 'NL',
+      TenPhongGiuong: 'P.402 (Dorm A)'
+    },
+    {
+      MaLich: 'M-02',
+      NgayGioHen: new Date(Date.now() - 86400000).toISOString(),
+      KetQua: 'Đặt cọc',
+      GhiChu: '',
+      MaPhong: 201,
+      TenKhach: 'Trần Huy Hoàng',
+      SDT: '0905-xxx-789',
+      AvatarName: 'TH',
+      TenPhongGiuong: 'P.201 (Dorm B)'
+    },
+    {
+      MaLich: 'M-03',
+      NgayGioHen: '2023-10-15T10:00:00.000Z',
+      KetQua: 'Hẹn thêm',
+      GhiChu: '',
+      MaPhong: 105,
+      TenKhach: 'Lê Thanh Thảo',
+      SDT: '0912-xxx-456',
+      AvatarName: 'LT',
+      TenPhongGiuong: 'P.105 (Dorm A)'
+    },
+    {
+      MaLich: 'M-04',
+      NgayGioHen: '2023-10-14T16:45:00.000Z',
+      KetQua: 'Không thuê',
+      GhiChu: 'Tài chính không đủ',
+      MaPhong: 503,
+      TenKhach: 'Phạm Minh Đức',
+      SDT: '0345-xxx-888',
+      AvatarName: 'PM',
+      TenPhongGiuong: 'P.503 (Dorm C)'
+    }
+  ];
+
+  const layDanhSachLichHenGop = () => {
+    const listDBMapped = danhSachLichHenDB.map((lich) => {
+      const tenKhach = lich.YeuCauThue?.KhachHang?.HoTen || 'Khách Vãng Lai';
+      const sdt = lich.YeuCauThue?.KhachHang?.SDT || 'Không có';
+      const initials = tenKhach.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+      return {
+        MaLich: lich.MaLich,
+        NgayGioHen: lich.NgayGioHen,
+        KetQua: lich.KetQua || 'Chờ xem',
+        GhiChu: lich.GhiChu || '',
+        MaPhong: lich.MaPhong,
+        TenKhach: tenKhach,
+        SDT: sdt,
+        AvatarName: initials,
+        TenPhongGiuong: `P.${lich.MaPhong} (${lich.MaPhong % 2 === 0 ? 'Dorm A' : 'Dorm B'})`
+      };
+    });
+    
+    return [...listDBMapped, ...lichHenMockup];
+  };
+
+  const taiDanhSachLichHen = async () => {
+    try {
+      const res = await fetch('/api/danh-sach-lich-hen');
+      const json = await res.json();
+      if (json.ok) {
+        setDanhSachLichHenDB(json.data || []);
+      }
+    } catch (err) {
+      console.error('Lỗi khi tải danh sách lịch hẹn:', err);
+    }
+  };
+
+  const capNhatTrangThaiLichHen = async (maLich, trangThaiMoi) => {
+    try {
+      hienThongBao('success', `Đã cập nhật trạng thái lịch hẹn sang: ${trangThaiMoi}`);
+      
+      if (typeof maLich === 'number') {
+        const res = await fetch('/api/cap-nhat-trang-thai-hen', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ maLich, ketQua: trangThaiMoi })
+        });
+        const json = await res.json();
+        if (json.ok) {
+          taiDanhSachLichHen();
+        }
+      } else {
+        // Cập nhật giả lập nếu là dữ liệu mockup
+        hienThongBao('success', `Đã cập nhật giả lập trạng thái lịch hẹn ${maLich} sang: ${trangThaiMoi}`);
+      }
+    } catch (err) {
+      console.error('Lỗi khi cập nhật trạng thái lịch hẹn:', err);
+      hienThongBao('error', 'Không thể cập nhật trạng thái lịch hẹn!');
     }
   };
 
@@ -343,6 +469,8 @@ export default function App() {
       taiThongKePhongTrong();
     } else if (trangHienTai === 'search_vacancy') {
       taiTatCaPhongTrong();
+    } else if (trangHienTai === 'staff_contracts') {
+      taiDanhSachLichHen();
     }
   }, [trangHienTai]);
 
@@ -539,15 +667,17 @@ export default function App() {
           // Menu dành cho Nhân viên
           <ul className="nav-links">
             <li><a href="#" onClick={() => { setCheDoNhanVien(false); chuyenTrang('guest_home'); }}>Trang chủ Guest</a></li>
-            <li><a href="#">Dashboard</a></li>
+            <li><a href="#" onClick={() => { hienThongBao('info', 'Trang Dashboard đang được phát triển.'); setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>Dashboard</a></li>
             <li className={trangHienTai === 'search_vacancy' ? 'active' : ''}>
               <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('search_vacancy'); }}>Phòng/Giường</a>
             </li>
             <li className={trangHienTai === 'staff_reception' ? 'active' : ''}>
               <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>Khách hàng</a>
             </li>
-            <li><a href="#">Hợp đồng</a></li>
-            <li><a href="#">Thanh toán</a></li>
+            <li className={trangHienTai === 'staff_contracts' ? 'active' : ''}>
+              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_contracts'); }}>Hợp đồng</a>
+            </li>
+            <li><a href="#" onClick={() => hienThongBao('info', 'Trang Thanh toán đang được phát triển.')}>Thanh toán</a></li>
           </ul>
         )}
 
@@ -1888,6 +2018,283 @@ export default function App() {
                 )}
               </section>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ==========================================
+          TRANG DANH SÁCH LỊCH HẸN (CONTRACTS / APPOINTMENTS)
+          ========================================== */}
+      {trangHienTai === 'staff_contracts' && (
+        <div className="staff-contracts-page">
+          
+          <div className="contracts-header-row">
+            <div>
+              <h1 className="page-title" style={{ margin: 0 }}>Lịch hẹn xem phòng</h1>
+              <p className="page-subtitle" style={{ margin: '4px 0 0 0' }}>
+                Quản lý và cập nhật trạng thái khách hàng đi xem phòng thực tế.
+              </p>
+            </div>
+            
+            <div className="header-actions">
+              <div className="search-bar-wrapper">
+                <span className="search-icon">🔍</span>
+                <input
+                  type="text"
+                  placeholder="Tìm tên khách, số phòng..."
+                  value={tuKhoaLichHen}
+                  onChange={(e) => setTuKhoaLichHen(e.target.value)}
+                  className="search-input-field"
+                />
+              </div>
+              <button
+                type="button"
+                className="btn-add-appointment"
+                onClick={() => hienThongBao('info', 'Chức năng Tạo lịch hẹn mới ngay tại bảng đang được phát triển.')}
+              >
+                + Thêm lịch hẹn
+              </button>
+            </div>
+          </div>
+
+          {/* Sub-tab Filters Row */}
+          <div className="subtabs-filters-bar">
+            {['tat-ca', 'hom-nay', 'tuan-nay', 'cho-xem', 'da-xem'].map((tab) => {
+              const label = {
+                'tat-ca': 'Tất cả',
+                'hom-nay': 'Hôm nay',
+                'tuan-nay': 'Tuần này',
+                'cho-xem': 'Chờ xem',
+                'da-xem': 'Đã xem'
+              }[tab];
+              
+              return (
+                <button
+                  key={tab}
+                  type="button"
+                  className={`subtab-filter-btn ${boLocLichHen === tab ? 'active' : ''}`}
+                  onClick={() => {
+                    setBoLocLichHen(tab);
+                    setTrangHienHen(1);
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Overview Counts Grid */}
+          <div className="overview-counts-grid">
+            <div className="count-card">
+              <span className="count-title">TỔNG LỊCH HẸN</span>
+              <strong className="count-num">128</strong>
+            </div>
+            <div className="count-card count-blue">
+              <span className="count-title">CHỜ XEM HÔM NAY</span>
+              <strong className="count-num">12</strong>
+            </div>
+            <div className="count-card count-orange">
+              <span className="count-title">HẸN THÊM</span>
+              <strong className="count-num">05</strong>
+            </div>
+            <div className="count-card count-green">
+              <span className="count-title">ĐÃ CHỐT (CỌC)</span>
+              <strong className="count-num">42</strong>
+            </div>
+          </div>
+
+          {/* Main Appointments Table */}
+          <div className="table-card">
+            <div className="table-responsive">
+              <table className="appointments-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: '60px' }}>STT</th>
+                    <th>Tên khách</th>
+                    <th>Phòng hẹn</th>
+                    <th>Ngày giờ</th>
+                    <th>Trạng thái</th>
+                    <th style={{ textAlign: 'right' }}>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const merged = layDanhSachLichHenGop();
+                    const filtered = merged.filter(item => {
+                      const matchSearch = item.TenKhach.toLowerCase().includes(tuKhoaLichHen.toLowerCase()) || 
+                                          String(item.MaPhong).includes(tuKhoaLichHen);
+                      if (!matchSearch) return false;
+                      
+                      if (boLocLichHen === 'hom-nay') {
+                        const d = new Date(item.NgayGioHen);
+                        const today = new Date();
+                        return d.getDate() === today.getDate() && 
+                               d.getMonth() === today.getMonth() && 
+                               d.getFullYear() === today.getFullYear();
+                      }
+                      if (boLocLichHen === 'tuan-nay') {
+                        const diffTime = Math.abs(new Date() - new Date(item.NgayGioHen));
+                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        return diffDays <= 7;
+                      }
+                      if (boLocLichHen === 'cho-xem') {
+                        return item.KetQua === 'Chờ xem';
+                      }
+                      if (boLocLichHen === 'da-xem') {
+                        return item.KetQua !== 'Chờ xem';
+                      }
+                      return true;
+                    });
+
+                    if (filtered.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan="6" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
+                            Không tìm thấy lịch hẹn nào khớp với bộ lọc hiện tại.
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return filtered.map((item, idx) => (
+                      <tr key={item.MaLich}>
+                        <td>{String(idx + 1).padStart(2, '0')}</td>
+                        <td>
+                          <div className="table-client-cell">
+                            <span className={`client-initials-badge initials-color-${(idx % 4) + 1}`}>
+                              {item.AvatarName}
+                            </span>
+                            <div>
+                              <strong className="client-name">{item.TenKhach}</strong>
+                              <span className="client-phone">{item.SDT}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="room-badge-table">
+                            {item.TenPhongGiuong}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="datetime-cell-content">
+                            📅 {formatNgayGio(item.NgayGioHen)}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`status-badge-pill status-${
+                            item.KetQua === 'Chờ xem' ? 'cho-xem' :
+                            item.KetQua === 'Đặt cọc' ? 'dat-coc' :
+                            item.KetQua === 'Hẹn thêm' ? 'hen-them' : 'khong-thue'
+                          }`}>
+                            {item.KetQua === 'Chờ xem' && '• Chờ xem'}
+                            {item.KetQua === 'Đặt cọc' && '• Đặt cọc'}
+                            {item.KetQua === 'Hẹn thêm' && '• Hẹn thêm'}
+                            {item.KetQua === 'Không thuê' && '• Không thuê'}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          {item.KetQua === 'Chờ xem' || item.KetQua === 'Hẹn thêm' ? (
+                            <div className="table-select-wrapper">
+                              <select
+                                value=""
+                                onChange={(e) => capNhatTrangThaiLichHen(item.MaLich, e.target.value)}
+                                className="select-action-table"
+                              >
+                                <option value="" disabled>Cập nhật kết quả</option>
+                                <option value="Đặt cọc">Đặt cọc</option>
+                                <option value="Hẹn thêm">Hẹn thêm</option>
+                                <option value="Không thuê">Không thuê</option>
+                              </select>
+                            </div>
+                          ) : item.KetQua === 'Đặt cọc' ? (
+                            <a href="#" className="table-action-link" onClick={(e) => { e.preventDefault(); hienThongBao('info', 'Đang tải hợp đồng đặt cọc...'); }}>
+                              Xem hợp đồng cọc
+                            </a>
+                          ) : (
+                            <span className="table-reason-text">Lý do: {item.GhiChu || 'Tài chính không đủ'}</span>
+                          )}
+                        </td>
+                      </tr>
+                    ));
+                  })()}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Table Footer / Pagination */}
+            <div className="table-footer-row">
+              <span className="footer-entries-info">
+                Hiển thị 4 trên 128 lịch hẹn
+              </span>
+              <div className="table-pagination">
+                <button type="button" className="pag-btn" onClick={() => hienThongBao('info', 'Trang trước')}>&lt;</button>
+                <button type="button" className="pag-btn active">1</button>
+                <button type="button" className="pag-btn" onClick={() => hienThongBao('info', 'Đến trang 2')}>2</button>
+                <button type="button" className="pag-btn" onClick={() => hienThongBao('info', 'Đến trang 3')}>3</button>
+                <button type="button" className="pag-btn" onClick={() => hienThongBao('info', 'Trang sau')}>&gt;</button>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
+      {/* MODAL HỎI ĐIỀU HƯỚNG SAU KHI ĐẶT LỊCH HẸN THÀNH CÔNG */}
+      {bookingSuccessModal && (
+        <div className="modal-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div className="modal-container" style={{ maxWidth: '450px', width: '90%', margin: '0 auto' }}>
+            <div className="modal-header">
+              <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>🎉 Đặt lịch hẹn thành công!</h3>
+            </div>
+            <div className="modal-body" style={{ padding: '20px 24px', textAlign: 'center' }}>
+              <p style={{ fontSize: '14.5px', color: '#475569', lineHeight: '1.6', margin: '0 0 20px 0' }}>
+                Hệ thống đã lưu thông tin lịch hẹn và gửi thông báo xác nhận đến khách hàng. Bạn muốn đi đến đâu tiếp theo?
+              </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <button
+                  type="button"
+                  className="btn-book-filled"
+                  style={{ width: '100%', padding: '12px', borderRadius: '10px', fontWeight: '700' }}
+                  onClick={() => {
+                    setBookingSuccessModal(false);
+                    setCheDoNhanVien(true);
+                    chuyenTrang('staff_contracts');
+                  }}
+                >
+                  Đến Danh sách lịch hẹn 📅
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-detail-outline"
+                  style={{ width: '100%', padding: '12px', borderRadius: '10px', color: 'var(--primary-color)', borderColor: 'var(--primary-color)', fontWeight: '700' }}
+                  onClick={() => {
+                    setBookingSuccessModal(false);
+                    hienThongBao('info', 'Trang Dashboard đang được phát triển. Bạn sẽ được chuyển hướng sau.');
+                    setCheDoNhanVien(true);
+                    chuyenTrang('staff_reception');
+                  }}
+                >
+                  Đi đến Dashboard (Sắp ra mắt) 📊
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-detail-outline"
+                  style={{ width: '100%', padding: '10px', borderRadius: '10px', fontSize: '13px' }}
+                  onClick={() => {
+                    setBookingSuccessModal(false);
+                    setCheDoNhanVien(true);
+                    chuyenTrang('staff_reception');
+                  }}
+                >
+                  Quay lại Tiếp nhận thông tin
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
