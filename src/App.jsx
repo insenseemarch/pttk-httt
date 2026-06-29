@@ -10,6 +10,13 @@ export default function App() {
   // Phòng đang chọn xem chi tiết
   const [phongDaChon, setPhongDaChon] = useState(null);
 
+  // --- TRANG ĐẶT LỊCH HẸN NHÂN VIÊN (STAFF BOOKING) ---
+  const [danhSachPhongDatHen, setDanhSachPhongDatHen] = useState([]);
+  const [ngayHen, setNgayHen] = useState(new Date(Date.now() + 86400000).toISOString().split('T')[0]);
+  const [gioHen, setGioHen] = useState('09:00');
+  const [hinhThucThongBao, setHinhThucThongBao] = useState('email');
+  const [ghiChuLichHen, setGhiChuLichHen] = useState('');
+
   // Thống kê tổng hợp trang chủ (Khách, Đang thuê, Còn trống)
   const [thongKeTongHop, setThongKeTongHop] = useState({
     soKhachHang: 0,
@@ -267,6 +274,66 @@ export default function App() {
       return '/studio_loft.png';
     }
     return '/dorm_room.png';
+  };
+
+  const xuLyXoaPhongLichHen = (room) => {
+    setDanhSachPhongDatHen(prev => prev.filter(r => r.maId !== room.maId));
+  };
+
+  const xuLyThemPhongLichHen = () => {
+    const demoRoom = {
+      maId: 405,
+      ten: 'Phòng Premium G-405',
+      kieu: 'Phong',
+      giaThue: 3500000,
+      chiNhanh: 'Vinhomes Central Park',
+      diaChi: 'Bình Thạnh, TP.HCM'
+    };
+    setDanhSachPhongDatHen(prev => {
+      if (prev.some(r => r.maId === demoRoom.maId)) return prev;
+      return [...prev, demoRoom];
+    });
+  };
+
+  const guiLichHenNhanVien = async (e) => {
+    if (e) e.preventDefault();
+    if (danhSachPhongDatHen.length === 0) {
+      hienThongBao('error', 'Vui lòng chọn ít nhất một phòng/giường để đặt hẹn!');
+      return;
+    }
+    
+    setDangXuLy(true);
+    try {
+      const customerName = formKhachHang.hoTen.trim() || 'Lê Thị Minh Anh';
+      const customerPhone = formKhachHang.sdt.trim() || '0901234567';
+      const customerEmail = formKhachHang.email.trim() || 'minhanh.le@example.com';
+      
+      for (const room of danhSachPhongDatHen) {
+        const ngayGioHenCombined = `${ngayHen}T${gioHen}:00`;
+        
+        await fetch('/api/dat-lich-hen', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            hoTen: customerName,
+            sdt: customerPhone,
+            email: customerEmail,
+            ngayGioHen: ngayGioHenCombined,
+            ghiChu: `[Nhân viên đặt lịch - Thông báo qua ${hinhThucThongBao}] ${ghiChuLichHen}`,
+            maPhong: room.maId || room.maPhong,
+            loaiPhong: room.kieu
+          })
+        });
+      }
+      
+      hienThongBao('success', `Đã gửi thông báo lịch hẹn thành công đến khách hàng ${customerName}!`);
+      setTrangHienTai('staff_reception');
+    } catch (err) {
+      console.error('Lỗi khi nhân viên đặt lịch hẹn:', err);
+      hienThongBao('error', 'Có lỗi xảy ra khi tạo lịch hẹn!');
+    } finally {
+      setDangXuLy(false);
+    }
   };
 
   useEffect(() => {
@@ -1152,7 +1219,14 @@ export default function App() {
                   Chọn phòng này ➔
                 </button>
                 <div className="btn-divider-pipe">|</div>
-                <button type="button" className="btn-action-orange btn-book-visit" onClick={() => setHenXemPhongModal(phongDaChon)}>
+                <button type="button" className="btn-action-orange btn-book-visit" onClick={() => {
+                  if (cheDoNhanVien) {
+                    setDanhSachPhongDatHen([phongDaChon]);
+                    setTrangHienTai('staff_booking');
+                  } else {
+                    setHenXemPhongModal(phongDaChon);
+                  }
+                }}>
                   Đặt lịch hẹn
                 </button>
               </div>
@@ -1209,6 +1283,189 @@ export default function App() {
 
           </div>
 
+        </div>
+      )}
+
+      {/* ==========================================
+          TRANG ĐẶT LỊCH HẸN NHÂN VIÊN (STAFF BOOKING)
+          ========================================== */}
+      {trangHienTai === 'staff_booking' && (
+        <div className="staff-booking-page">
+          
+          {/* Breadcrumbs */}
+          <nav className="breadcrumbs" aria-label="breadcrumb">
+            <span style={{ cursor: 'pointer' }} onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>Khách hàng</span>
+            <span className="separator">&gt;</span>
+            <span style={{ cursor: 'pointer' }} onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>Chi tiết khách</span>
+            <span className="separator">&gt;</span>
+            <span className="current">Đặt lịch hẹn</span>
+          </nav>
+
+          <h1 className="page-title">Đặt lịch hẹn xem phòng</h1>
+          <p className="page-subtitle">Vui lòng hoàn tất thông tin lịch hẹn để gửi thông báo cho khách hàng.</p>
+
+          <div className="booking-card">
+            
+            {/* 1. Guest Information Box */}
+            <div className="booking-guest-box">
+              <div className="guest-box-header">
+                <h3>
+                  <span className="icon-user">👤</span> Thông tin khách
+                </h3>
+                <button type="button" className="btn-edit-guest" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>
+                  ✏️ Chỉnh sửa
+                </button>
+              </div>
+              <div className="guest-info-grid">
+                <div className="guest-info-cell">
+                  <span className="cell-label">Họ và tên</span>
+                  <strong className="cell-value">{formKhachHang.hoTen || 'Lê Thị Minh Anh'}</strong>
+                </div>
+                <div className="guest-info-cell">
+                  <span className="cell-label">Số điện thoại</span>
+                  <strong className="cell-value">{formKhachHang.sdt || '090 1234 567'}</strong>
+                </div>
+                <div className="guest-info-cell" style={{ gridColumn: 'span 2' }}>
+                  <span className="cell-label">Email</span>
+                  <strong className="cell-value">{formKhachHang.email || 'minhanh.le@example.com'}</strong>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={guiLichHenNhanVien}>
+              
+              {/* 2. Selected Rooms Section */}
+              <div className="booking-section">
+                <h4>
+                  <span className="icon-house">🏢</span> Phòng/giường được chọn
+                </h4>
+                <div className="selected-rooms-container">
+                  {danhSachPhongDatHen.length > 0 ? (
+                    danhSachPhongDatHen.map((room, idx) => (
+                      <span key={idx} className="room-tag-badge">
+                        Phòng {room.maId || room.maPhong} - {room.kieu === 'Phong' ? 'Toàn phòng' : `Giường ${room.maId % 2 === 0 ? 'A' : 'B'}`}
+                        <button type="button" className="btn-remove-tag" onClick={() => xuLyXoaPhongLichHen(room)} aria-label="Xóa">×</button>
+                      </span>
+                    ))
+                  ) : (
+                    <span className="no-rooms-selected-warning">Chưa có phòng nào được chọn. Vui lòng bấm thêm phòng.</span>
+                  )}
+                  
+                  <button type="button" className="btn-add-room" onClick={xuLyThemPhongLichHen}>
+                    + Thêm phòng
+                  </button>
+                </div>
+              </div>
+
+              {/* 3. Date & Time Selection Section */}
+              <div className="booking-datetime-row">
+                <div className="input-group">
+                  <label htmlFor="ngayHen">
+                    <span className="icon-calendar">📅</span> Ngày hẹn
+                  </label>
+                  <input
+                    type="date"
+                    id="ngayHen"
+                    value={ngayHen}
+                    onChange={(e) => setNgayHen(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="input-group">
+                  <label htmlFor="gioHen">
+                    <span className="icon-clock">🕒</span> Giờ hẹn
+                  </label>
+                  <input
+                    type="time"
+                    id="gioHen"
+                    value={gioHen}
+                    onChange={(e) => setGioHen(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* 4. Notification channel selection */}
+              <div className="booking-section">
+                <h4>
+                  <span className="icon-bell">📢</span> Hình thức thông báo
+                </h4>
+                <div className="radio-group-row">
+                  <label className="radio-label">
+                    <input
+                      type="radio"
+                      name="hinhThucThongBao"
+                      value="email"
+                      checked={hinhThucThongBao === 'email'}
+                      onChange={() => setHinhThucThongBao('email')}
+                    />
+                    Email
+                  </label>
+                  <label className="radio-label">
+                    <input
+                      type="radio"
+                      name="hinhThucThongBao"
+                      value="sms"
+                      checked={hinhThucThongBao === 'sms'}
+                      onChange={() => setHinhThucThongBao('sms')}
+                    />
+                    SMS
+                  </label>
+                  <label className="radio-label">
+                    <input
+                      type="radio"
+                      name="hinhThucThongBao"
+                      value="both"
+                      checked={hinhThucThongBao === 'both'}
+                      onChange={() => setHinhThucThongBao('both')}
+                    />
+                    Cả hai (Email &amp; SMS)
+                  </label>
+                </div>
+              </div>
+
+              {/* 5. Notes for guest */}
+              <div className="input-group" style={{ marginTop: '20px' }}>
+                <label htmlFor="ghiChuLichHen">
+                  <span className="icon-note">📝</span> Ghi chú cho khách
+                </label>
+                <textarea
+                  id="ghiChuLichHen"
+                  rows="3"
+                  placeholder="Nhập lời nhắn hoặc hướng dẫn tìm đường cho khách..."
+                  value={ghiChuLichHen}
+                  onChange={(e) => setGhiChuLichHen(e.target.value)}
+                  style={{
+                    padding: '12px 16px',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: '10px',
+                    backgroundColor: '#ffffff',
+                    fontSize: '14px',
+                    fontFamily: 'inherit',
+                    resize: 'vertical',
+                    width: '100%'
+                  }}
+                ></textarea>
+              </div>
+
+              {/* 6. Form Actions */}
+              <div className="booking-form-actions">
+                <button type="button" className="btn-cancel-booking" onClick={() => {
+                  if (phongDaChon) {
+                    setTrangHienTai('room_detail');
+                  } else {
+                    setTrangHienTai('search_vacancy');
+                  }
+                }}>
+                  Hủy
+                </button>
+                <button type="submit" className="btn-submit-booking" disabled={dangXuLy}>
+                  {dangXuLy ? 'Đang gửi...' : 'Gửi thông báo lịch hẹn ✉️'}
+                </button>
+              </div>
+
+            </form>
+          </div>
         </div>
       )}
 
