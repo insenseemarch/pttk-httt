@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Xác Nhận Đối Soát Với Khách - HomeStay Dorm</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    body {
+      background-color: #F8F9FA;
+    }
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-sub);
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 15px;
+      margin-bottom: 24px;
+      transition: var(--transition);
+    }
+    .btn-back:hover {
+      color: var(--primary);
+    }
+    .sec-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sec-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 16px;
+      background-color: var(--bg-app);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      margin-bottom: 8px;
+      font-size: 13.5px;
+      font-weight: 600;
+    }
+    .sec-row-val {
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    .sec-row-total {
+      background-color: #F3F4F6;
+      border-color: #D1D5DB;
+      font-weight: 700;
+      color: var(--text-main);
+      font-size: 14px;
+    }
+    .btn-action-green {
+      width: 100%;
+      background-color: #059669;
+      color: #FFFFFF;
+      border: none;
+      padding: 16px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      transition: var(--transition);
+      box-shadow: 0 4px 12px rgba(5, 150, 105, 0.15);
+    }
+    .btn-action-green:hover {
+      background-color: #047857;
+    }
+    .btn-action-red {
+      width: 100%;
+      background-color: #EF4444;
+      color: #FFFFFF;
+      border: none;
+      padding: 16px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      transition: var(--transition);
+      box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+    }
+    .btn-action-red:hover {
+      background-color: #DC2626;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="logo">
+        HomeStay <span class="logo-dot"></span>
+      </div>
+      <nav class="main-nav">
+        <ul>
+          <li><a href="#">Tổng quan</a></li>
+          <li><a href="#">Phòng</a></li>
+          <li><a href="/index.html" class="active">Hợp đồng</a></li>
+          <li><a href="#">Thu chi</a></li>
+          <li><a href="#">Báo cáo</a></li>
+        </ul>
+      </nav>
+      <div class="user-profile">
+        <div class="user-info">
+          <div class="user-name">Nguyễn Văn B</div>
+          <div class="user-role">Quản lý chi nhánh</div>
+        </div>
+        <div class="user-avatar" style="background-color: #3B82F6;">B</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- App Main Content -->
+  <main class="app-main">
+    
+    <!-- Back Button -->
+    <a href="/index.html?tab=yeucau&role=quanly" class="btn-back">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      Quay lại danh sách
+    </a>
+
+    <!-- Title Section -->
+    <div class="page-title-section" style="margin-bottom: 28px;">
+      <h1 class="page-title">Thông báo &amp; Xác nhận đối soát với khách</h1>
+      <p class="page-subtitle" id="khach-thue-info">Xem thông tin chi tiết bảng tất toán và xác nhận phản hồi đồng ý trả phòng từ khách thuê</p>
+    </div>
+
+    <!-- Details Grid -->
+    <div class="detail-grid">
+      
+      <!-- Left Column: All calculated values -->
+      <div class="info-card" style="display: flex; flex-direction: column; gap: 20px;">
+        <h2 class="card-title" style="margin-bottom: 8px;">Chi tiết đối soát tất toán</h2>
+        <span id="label-room-desc" style="font-size: 13px; font-weight: 700; color: var(--text-sub); display: block; margin-bottom: 12px;">Phòng P.402 - Khách hàng: Nguyễn Văn An</span>
+
+        <!-- Section 1: Refund items -->
+        <div>
+          <div class="sec-title" style="color: #065F46;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            Các khoản hoàn lại
+          </div>
+          <div class="sec-row">
+            <span>Tiền cọc phòng</span>
+            <span id="val-tien-coc-phong" class="sec-row-val">-</span>
+          </div>
+          <div class="sec-row">
+            <span>Tiền phòng thừa (dư ngày)</span>
+            <span id="val-tien-phong-thua" class="sec-row-val">0 VNĐ</span>
+          </div>
+          <div class="sec-row sec-row-total" style="color: #065F46; background-color: #ECFDF5; border-color: #A7F3D0;">
+            <span>Tổng cộng hoàn</span>
+            <span id="val-tong-hoan-co-ban">-</span>
+          </div>
+        </div>
+
+        <!-- Section 2: Deduct items -->
+        <div>
+          <div class="sec-title" style="color: #991B1B;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+            Các khoản khấu trừ &amp; chi phí phát sinh
+          </div>
+          <div class="sec-row">
+            <span>Dư nợ tiền nhà</span>
+            <span id="val-no-nha" class="sec-row-val">-</span>
+          </div>
+          <div class="sec-row">
+            <span>Tiền điện, nước, dịch vụ</span>
+            <span id="val-no-dien-nuoc" class="sec-row-val">-</span>
+          </div>
+          <div class="sec-row">
+            <span>Khấu trừ hư hỏng tài sản</span>
+            <span id="val-no-hu-hong" class="sec-row-val">-</span>
+          </div>
+          <div class="sec-row">
+            <span>Phí vệ sinh cố định</span>
+            <span class="sec-row-val">150.000 VNĐ</span>
+          </div>
+          <div class="sec-row sec-row-total" style="color: #991B1B; background-color: #FEF2F2; border-color: #FCA5A5;">
+            <span>Tổng cộng trừ</span>
+            <span id="val-tong-khau-tru">-</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Column: Settlement summary and Action feedback -->
+      <div style="display: flex; flex-direction: column; gap: 24px;">
+        
+        <!-- Big settlement box -->
+        <div class="info-card" style="padding: 28px 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;">
+          <span class="info-label" style="font-size: 12px; font-weight: 800; text-transform: uppercase; color: var(--text-sub); letter-spacing: 0.5px; margin-bottom: 8px;">Kết quả tất toán</span>
+          <div id="big-result-box" style="width: 100%; border-radius: 8px; padding: 24px 16px; margin-bottom: 16px;">
+            <div id="big-result-title" style="font-weight: 800; font-size: 14px; text-transform: uppercase; margin-bottom: 6px;">KHÁCH ĐƯỢC HOÀN</div>
+            <div id="big-result-val" style="font-weight: 800; font-size: 26px;">-</div>
+          </div>
+          <p id="label-result-msg" style="font-size: 12px; color: var(--text-muted); font-weight: 600; line-height: 1.5;">*Số tiền này sẽ được chuyển vào số tài khoản đã đăng ký của khách sau khi ký biên bản thanh lý hợp đồng.</p>
+        </div>
+
+        <!-- Feedback buttons -->
+        <div class="info-card">
+          <h2 class="card-title" style="margin-bottom: 16px; font-size: 15px;">Xác nhận phản hồi từ khách</h2>
+          
+          <div style="display: flex; flex-direction: column; gap: 14px;">
+            <button type="button" id="btn-agree" class="btn-action-green">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              Khách đồng ý — Tiến hành thanh lý
+            </button>
+            <button type="button" id="btn-disagree" class="btn-action-red">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+              Khách không đồng ý — Tranh chấp
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Success Modal -->
+  <div id="success-modal" class="success-modal">
+    <div class="modal-content">
+      <div class="success-icon-box" style="background-color: #D1FAE5; color: #10B981;">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+      <h3 class="modal-title" id="modal-title-text">Xác Nhận Đối Soát Thành Công</h3>
+      <p id="modal-msg" class="modal-text">Hồ sơ đối soát đã được phê duyệt. Hệ thống đã chuyển tiếp trạng thái sang Chờ thanh lý hợp đồng.</p>
+      
+      <button type="button" id="modal-close-btn" class="modal-btn" style="background-color: var(--primary); color: #FFFFFF; font-weight: 700; width: 100%;">Quay lại danh sách yêu cầu</button>
+    </div>
+  </div>
+
+  <!-- App Footer -->
+  <footer class="app-footer">
+    <div class="footer-copy">
+      Homestay Dorm Management System &copy; 2026. All rights reserved.
+    </div>
+    <div class="footer-links">
+      <a href="#">Hướng dẫn sử dụng</a>
+      <a href="#">Chính sách bảo mật</a>
+      <a href="#">Hỗ trợ kỹ thuật</a>
+    </div>
+  </footer>
+
+  <script src="/js/xacnhandoisoat.js"></script>
+</body>
+</html>

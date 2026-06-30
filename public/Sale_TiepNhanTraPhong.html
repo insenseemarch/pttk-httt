@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chi Tiết Yêu Cầu Trả Phòng - HomeStay Dorm</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    /* Tuỳ chỉnh thêm cho giao diện độc lập */
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-sub);
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 15px;
+      margin-bottom: 24px;
+      transition: var(--transition);
+    }
+    .btn-back:hover {
+      color: var(--primary);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="logo">
+        HomeStay <span class="logo-dot"></span>
+      </div>
+      <nav class="main-nav">
+        <ul>
+          <li><a href="#">Tổng quan</a></li>
+          <li><a href="#">Phòng</a></li>
+          <li><a href="/index.html" class="active">Hợp đồng</a></li>
+          <li><a href="#">Thu chi</a></li>
+          <li><a href="#">Báo cáo</a></li>
+        </ul>
+      </nav>
+      <div class="user-profile">
+        <div class="user-info">
+          <div class="user-name">Nguyễn Văn A</div>
+          <div class="user-role">Chuyên viên Sale</div>
+        </div>
+        <div class="user-avatar">A</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- App Main Content -->
+  <main class="app-main">
+    
+    <!-- Back Button -->
+    <a href="/index.html?tab=yeucau&role=sale" class="btn-back">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      Quay lại danh sách
+    </a>
+
+    <!-- Title Section -->
+    <div class="page-title-section" style="margin-bottom: 28px;">
+      <h1 class="page-title">Xử lý yêu cầu trả phòng</h1>
+      <p class="page-subtitle">Kiểm tra thông tin lưu trú của khách hàng và thiết lập phiếu thông tin trả phòng</p>
+    </div>
+
+    <!-- Quy trình Xử lý Trả phòng (Step Tracker) -->
+    <div class="step-tracker">
+      <div class="step-item active">
+        <div class="step-number">1</div>
+        <div class="step-label">Tiếp nhận yêu cầu</div>
+      </div>
+      <div class="step-item">
+        <div class="step-number">2</div>
+        <div class="step-label">Kiểm tra phòng</div>
+      </div>
+      <div class="step-item">
+        <div class="step-number">3</div>
+        <div class="step-label">Đối soát tài chính</div>
+      </div>
+      <div class="step-item">
+        <div class="step-number">4</div>
+        <div class="step-label">Thanh lý &amp; Hoàn tất</div>
+      </div>
+    </div>
+
+    <!-- Main Workspace (Always active on this page) -->
+    <div id="checkout-workspace" class="checkout-workspace active">
+      
+      <!-- Details Grid -->
+      <div class="detail-grid">
+        
+        <!-- Left: Contract/Deposit Info Card -->
+        <div class="info-card">
+          <div class="info-card-header">
+            <span id="card-ma-so" class="code-title">HĐ-XXXX-XXXX</span>
+            <span id="card-status" class="badge badge-active">Chờ tải</span>
+          </div>
+
+          <div class="info-list">
+            <!-- Guest Name -->
+            <div class="info-item">
+              <div class="info-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+              </div>
+              <div>
+                <div class="info-label">Khách thuê</div>
+                <div id="card-ten-khach" class="info-value">-</div>
+              </div>
+            </div>
+
+            <!-- Contact Info -->
+            <div class="info-item">
+              <div class="info-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                </svg>
+              </div>
+              <div>
+                <div class="info-label">Liên hệ</div>
+                <div id="card-lien-he" class="info-value">-</div>
+              </div>
+            </div>
+
+            <!-- Room / Property Branch -->
+            <div class="info-item">
+              <div class="info-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                  <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
+              </div>
+              <div>
+                <div class="info-label">Phòng / Cơ sở</div>
+                <div id="card-phong-co-so" class="info-value">-</div>
+              </div>
+            </div>
+
+            <!-- Monthly rent price -->
+            <div class="info-item">
+              <div class="info-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="12" y1="1" x2="12" y2="23"></line>
+                  <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                </svg>
+              </div>
+              <div>
+                <div class="info-label">Giá thuê</div>
+                <div id="card-gia-thue" class="info-value">-</div>
+              </div>
+            </div>
+
+            <!-- Deposit paid -->
+            <div class="info-item" id="card-tien-coc-tiem-nang">
+              <div class="info-icon-box">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
+                  <line x1="12" y1="10" x2="12" y2="10"></line>
+                  <line x1="12" y1="14" x2="12" y2="14"></line>
+                </svg>
+              </div>
+              <div>
+                <div class="info-label">Tiền cọc đã đóng (2 tháng)</div>
+                <div id="card-tien-coc" class="info-value">-</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Timeline / Milestones Card -->
+        <div id="timeline-card" class="timeline-card">
+          <div class="card-title">Lộ trình hợp đồng</div>
+          
+          <!-- Timeline progress bar -->
+          <div class="timeline-progress-wrapper">
+            <div class="timeline-bar-container">
+              <div id="timeline-bar" class="timeline-bar-active"></div>
+              <div class="timeline-point start-point"></div>
+              <div id="point-today" class="timeline-point today-point"></div>
+              <div class="timeline-point end-point"></div>
+            </div>
+            
+            <div class="timeline-dates">
+              <div class="timeline-date-item start">
+                <span class="timeline-date-label">Ngày bắt đầu</span>
+                <span id="time-ngay-bat-dau">-</span>
+              </div>
+              <div class="timeline-date-item today">
+                <span class="timeline-date-label">Hôm nay</span>
+                <span id="time-ngay-hom-nay">-</span>
+              </div>
+              <div class="timeline-date-item end">
+                <span class="timeline-date-label">Ngày kết thúc</span>
+                <span id="time-ngay-kthuc">-</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stats Grid -->
+          <div class="timeline-stats">
+            <div class="stat-item">
+              <span class="stat-label">Tổng thời hạn</span>
+              <span id="stat-tong-thoi-gian" class="stat-value">-</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Đã ở</span>
+              <span id="stat-da-o" class="stat-value">-</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Còn lại</span>
+              <span id="stat-con-lai" class="stat-value">-</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Bottom: Checkout Form Section -->
+      <div class="form-card">
+        <h2 class="card-title" style="margin-bottom: 24px;">Phiếu thông tin trả phòng</h2>
+        
+        <form id="checkout-form">
+          <div class="form-grid">
+            
+            <!-- Expected Checkout Date -->
+            <div class="form-group">
+              <label for="input-ngay-tra" class="form-label">Ngày trả phòng dự kiến <span class="required">*</span></label>
+              <input type="date" id="input-ngay-tra" class="form-input" required>
+            </div>
+
+            <!-- Checkout Type -->
+            <div class="form-group">
+              <label for="input-loai-hinh" class="form-label">Loại hình trả phòng</label>
+              <select id="input-loai-hinh" class="form-input" disabled>
+                <option value="truoc_han">Trả trước thời hạn</option>
+                <option value="dung_han">Trả đúng hạn</option>
+                <option value="huy_thue">Hủy cọc trước khi ký HĐ</option>
+              </select>
+            </div>
+
+            <!-- Dynamic Alert Box -->
+            <div class="form-group full-width">
+              <div id="alert-box" class="alert-box">
+                <div class="alert-icon-box">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                  </svg>
+                </div>
+                <div class="alert-content">
+                  <span id="alert-title" class="alert-title">TRẢ TRƯỚC HẠN — Hoàn cọc theo tỷ lệ quy định</span>
+                  <span id="alert-text" class="alert-text">
+                    Đang tính toán chính sách phạt cọc...
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Reason Area -->
+            <div class="form-group full-width">
+              <label for="input-ly-do" class="form-label" id="ly-do-wrapper">Lý do trả sớm <span class="required" id="label-ly-do-required">*</span></label>
+              <textarea id="input-ly-do" class="form-input" rows="4" placeholder="Nhập chi tiết lý do khách hàng trả phòng trước hạn..." style="resize: vertical; min-height: 100px;"></textarea>
+            </div>
+
+            <!-- Recipient name (Sale) -->
+            <div class="form-group">
+              <label for="input-nguoi-nhan" class="form-label">Người tiếp nhận</label>
+              <input type="text" id="input-nguoi-nhan" class="form-input" value="Nguyễn Văn A (Sale)" disabled>
+            </div>
+
+            <!-- Refund Method (CK / Cash) -->
+            <div class="form-group">
+              <label class="form-label">Phương thức hoàn tiền mong muốn (nếu có)</label>
+              <div class="radio-group">
+                <label class="radio-label">
+                  <input type="radio" name="phuong-thuc" value="chuyen_khoan" id="radio-ck" class="radio-input" checked>
+                  Chuyển khoản
+                </label>
+                <label class="radio-label">
+                  <input type="radio" name="phuong-thuc" value="tien_mat" id="radio-tm" class="radio-input">
+                  Tiền mặt
+                </label>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Form Buttons -->
+          <div class="form-actions">
+            <a href="/index.html?tab=yeucau&role=sale" class="btn-secondary" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">Hủy bỏ</a>
+            <button type="submit" class="btn-primary">Xác nhận tạo yêu cầu trả phòng</button>
+          </div>
+        </form>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- Success Modal -->
+  <div id="success-modal" class="success-modal">
+    <div class="modal-content">
+      <div class="success-icon-box">
+        <!-- Checkmark SVG -->
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+      <h3 class="modal-title">Ghi Nhận Yêu Cầu Thành Công</h3>
+      <p id="modal-msg" class="modal-text">Yêu cầu trả phòng đã được ghi nhận trên hệ thống và chuyển đến nhân viên quản lý chi nhánh.</p>
+      <div class="info-item" style="justify-content: center; background-color: var(--bg-app); padding: 12px; border-radius: var(--radius-sm); margin-bottom: 24px;">
+        <span class="info-label" style="margin-bottom: 0;">Mã phiếu yêu cầu:</span>
+        <span id="modal-req-code" class="info-value" style="margin-left: 8px; color: var(--primary);">YCTP-XXXXXX</span>
+      </div>
+      <button type="button" id="modal-close-btn" class="modal-btn" style="background-color: var(--primary); color: #FFFFFF; font-weight: 700; width: 100%;">Quay lại danh sách yêu cầu</button>
+    </div>
+  </div>
+
+  <!-- App Footer -->
+  <footer class="app-footer">
+    <div class="footer-copy">
+      Homestay Dorm Management System &copy; 2026. All rights reserved.
+    </div>
+    <div class="footer-links">
+      <a href="#">Hướng dẫn sử dụng</a>
+      <a href="#">Chính sách bảo mật</a>
+      <a href="#">Hỗ trợ kỹ thuật</a>
+    </div>
+  </footer>
+
+  <script src="/js/traphong.js"></script>
+</body>
+</html>

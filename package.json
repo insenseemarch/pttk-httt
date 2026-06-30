@@ -1,0 +1,16 @@
+{
+  "name": "pttk-httt-homestay-checkout",
+  "version": "1.0.0",
+  "description": "Giao dien tiep nhan yeu cau tra phong Homestay Dorm",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
