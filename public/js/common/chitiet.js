@@ -179,7 +179,7 @@ function hienThiChiTiet(duLieu) {
 // Hàm điều hướng sang trang tạo yêu cầu trả phòng của hợp đồng này
 function chuyenSangHuongTraPhong() {
   if (duLieuHienTai) {
-    window.location.href = `/Sale_TiepNhanTraPhong.html?id=${encodeURIComponent(duLieuHienTai.maSo)}`;
+    window.location.href = `/views/sale/TiepNhanTraPhong.html?id=${encodeURIComponent(duLieuHienTai.maSo)}`;
   }
 }
 
