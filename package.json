@@ -1,16 +1,26 @@
 {
-  "name": "pttk-httt-homestay-checkout",
+  "name": "pttk-httt",
+  "private": true,
   "version": "1.0.0",
-  "description": "Giao dien tiep nhan yeu cau tra phong Homestay Dorm",
-  "main": "server.js",
+  "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "dev:server": "node server/index.js",
+    "dev:client": "vite",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "start": "node server/index.js",
+    "build": "vite build"
   },
   "dependencies": {
-    "express": "^4.19.2"
+    "@supabase/supabase-js": "^2.108.2",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
   },
-  "engines": {
-    "node": ">=18.0.0"
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.7.0",
+    "concurrently": "^9.2.3",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "vite": "^7.3.6"
   }
 }
