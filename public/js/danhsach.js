@@ -359,35 +359,35 @@ function locDanhSach() {
 
 // --- Các hàm chuyển hướng / liên kết trang ---
 function xemChiTietHĐ(maSo) {
-  window.location.href = `/TatCa_ChiTietHopDong.html?id=${encodeURIComponent(maSo)}`;
+  window.location.href = `/views/common/ChiTietHopDong.html?id=${encodeURIComponent(maSo)}`;
 }
 
 function xemChiTietPhieuYeuCau(maSo) {
-  window.location.href = `/TatCa_XemPhieuYeuCau.html?id=${encodeURIComponent(maSo)}`;
+  window.location.href = `/views/common/XemPhieuYeuCau.html?id=${encodeURIComponent(maSo)}`;
 }
 
 function chuyenSangTaoYeuCau(maSo) {
-  window.location.href = `/Sale_TiepNhanTraPhong.html?id=${encodeURIComponent(maSo)}`;
+  window.location.href = `/views/sale/TiepNhanTraPhong.html?id=${encodeURIComponent(maSo)}`;
 }
 
 function chuyenSangKiemTraPhong(maSo) {
-  window.location.href = `/QuanLy_KiemTraPhong.html?id=${encodeURIComponent(maSo)}`;
+  window.location.href = `/views/quanly/KiemTraPhong.html?id=${encodeURIComponent(maSo)}`;
 }
 
 function chuyenSangDoiSoat(maSo) {
-  window.location.href = `/KeToan_LapPhieuDoiSoat.html?id=${encodeURIComponent(maSo)}`;
+  window.location.href = `/views/ketoan/LapPhieuDoiSoat.html?id=${encodeURIComponent(maSo)}`;
 }
 
 function chuyenSangThanhLy(maSo) {
-  window.location.href = `/QuanLy_ThanhLyHopDong.html?id=${encodeURIComponent(maSo)}`;
+  window.location.href = `/views/quanly/ThanhLyHopDong.html?id=${encodeURIComponent(maSo)}`;
 }
 
 function chuyenSangHoanCoc(maSo) {
-  window.location.href = `/KeToan_HoanCocThuTien.html?id=${encodeURIComponent(maSo)}`;
+  window.location.href = `/views/ketoan/HoanCocThuTien.html?id=${encodeURIComponent(maSo)}`;
 }
 
 function chuyenSangXacNhanDoiSoat(maSo) {
-  window.location.href = `/QuanLy_XacNhanDoiSoat.html?id=${encodeURIComponent(maSo)}`;
+  window.location.href = `/views/quanly/XacNhanDoiSoat.html?id=${encodeURIComponent(maSo)}`;
 }
 
 // Xuất các hàm ra window namespace

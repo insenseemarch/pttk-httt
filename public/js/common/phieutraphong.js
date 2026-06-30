@@ -160,25 +160,25 @@ function hienThiPhiieuYeuCau(duLieu) {
     oNutHanhDong.textContent = 'Tiến hành kiểm tra phòng';
     oNutHanhDong.style.display = 'inline-flex';
     oNutHanhDong.onclick = function() {
-      window.location.href = `/QuanLy_KiemTraPhong.html?id=${encodeURIComponent(duLieu.maSo)}`;
+      window.location.href = `/views/quanly/KiemTraPhong.html?id=${encodeURIComponent(duLieu.maSo)}`;
     };
   } else if (duLieu.trangThai === 'Chờ đối soát') {
     oNutHanhDong.textContent = 'Tiến hành đối soát tài chính';
     oNutHanhDong.style.display = 'inline-flex';
     oNutHanhDong.onclick = function() {
-      window.location.href = `/KeToan_LapPhieuDoiSoat.html?id=${encodeURIComponent(duLieu.maSo)}`;
+      window.location.href = `/views/ketoan/LapPhieuDoiSoat.html?id=${encodeURIComponent(duLieu.maSo)}`;
     };
   } else if (duLieu.trangThai === 'Chờ xác nhận đối soát') {
     oNutHanhDong.textContent = 'Tiến hành xác nhận đối soát';
     oNutHanhDong.style.display = 'inline-flex';
     oNutHanhDong.onclick = function() {
-      window.location.href = `/QuanLy_XacNhanDoiSoat.html?id=${encodeURIComponent(duLieu.maSo)}`;
+      window.location.href = `/views/quanly/XacNhanDoiSoat.html?id=${encodeURIComponent(duLieu.maSo)}`;
     };
   } else if (duLieu.trangThai === 'Chờ thanh lý') {
     oNutHanhDong.textContent = 'Tiến hành thanh lý hợp đồng';
     oNutHanhDong.style.display = 'inline-flex';
     oNutHanhDong.onclick = function() {
-      window.location.href = `/QuanLy_ThanhLyHopDong.html?id=${encodeURIComponent(duLieu.maSo)}`;
+      window.location.href = `/views/quanly/ThanhLyHopDong.html?id=${encodeURIComponent(duLieu.maSo)}`;
     };
   } else {
     // Đã thanh lý hoàn tất hoặc đang hoàn cọc
