@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chi Tiết Phiếu Yêu Cầu Trả Phòng - HomeStay Dorm</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-sub);
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 15px;
+      margin-bottom: 24px;
+      transition: var(--transition);
+    }
+    .btn-back:hover {
+      color: var(--primary);
+    }
+    .action-card {
+      background: var(--bg-card);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
+      padding: 24px 32px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      justify-content: flex-end;
+      gap: 16px;
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="logo">
+        HomeStay <span class="logo-dot"></span>
+      </div>
+      <nav class="main-nav">
+        <ul>
+          <li><a href="#">Tổng quan</a></li>
+          <li><a href="#">Phòng</a></li>
+          <li><a href="/index.html" class="active">Hợp đồng</a></li>
+          <li><a href="#">Thu chi</a></li>
+          <li><a href="#">Báo cáo</a></li>
+        </ul>
+      </nav>
+      <div class="user-profile">
+        <div class="user-info">
+          <div class="user-name">Nguyễn Văn A</div>
+          <div class="user-role">Quản lý chi nhánh</div>
+        </div>
+        <div class="user-avatar">A</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- App Main Content -->
+  <main class="app-main">
+    
+    <!-- Back Button -->
+    <a href="/index.html?tab=yeucau" class="btn-back">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      Quay lại danh sách
+    </a>
+
+    <!-- Title Section -->
+    <div class="page-title-section" style="margin-bottom: 28px;">
+      <h1 class="page-title">Chi tiết Phiếu yêu cầu trả phòng</h1>
+      <p class="page-subtitle">Xem thông tin chi tiết về yêu cầu trả phòng đã đăng ký và các hành động xử lý liên quan</p>
+    </div>
+
+    <!-- Details Grid -->
+    <div class="detail-grid">
+      
+      <!-- Left: Request Details Card -->
+      <div class="info-card" style="grid-column: span 2;">
+        <div class="info-card-header">
+          <span id="card-ma-so" class="code-title">YCTP-XXXXXX</span>
+          <span id="card-status" class="badge badge-pending">Chờ xử lý</span>
+        </div>
+
+        <div class="form-grid" style="margin-top: 20px; row-gap: 20px;">
+          <!-- Guest Name -->
+          <div class="form-group">
+            <label class="form-label" style="margin-bottom: 4px; color: var(--text-sub);">Khách thuê</label>
+            <div id="val-ten-khach" style="font-weight: 700; color: var(--text-main); font-size: 15px;">-</div>
+          </div>
+
+          <!-- Room / Property Branch -->
+          <div class="form-group">
+            <label class="form-label" style="margin-bottom: 4px; color: var(--text-sub);">Phòng / Cơ sở</label>
+            <div id="val-phong-co-so" style="font-weight: 700; color: var(--text-main); font-size: 15px;">-</div>
+          </div>
+
+          <!-- Expected Checkout Date -->
+          <div class="form-group">
+            <label class="form-label" style="margin-bottom: 4px; color: var(--text-sub);">Ngày trả phòng dự kiến</label>
+            <div id="val-ngay-tra" style="font-weight: 700; color: var(--text-main); font-size: 15px;">-</div>
+          </div>
+
+          <!-- Checkout Type -->
+          <div class="form-group">
+            <label class="form-label" style="margin-bottom: 4px; color: var(--text-sub);">Loại hình trả phòng</label>
+            <div id="val-loai-hinh" style="font-weight: 700; color: var(--text-main); font-size: 15px;">-</div>
+          </div>
+
+          <!-- Reason -->
+          <div class="form-group full-width">
+            <label class="form-label" style="margin-bottom: 4px; color: var(--text-sub);">Lý do trả phòng</label>
+            <div id="val-ly-do" style="font-weight: 600; color: var(--text-main); font-size: 14px; background-color: var(--bg-app); padding: 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">-</div>
+          </div>
+
+          <!-- Recipient -->
+          <div class="form-group">
+            <label class="form-label" style="margin-bottom: 4px; color: var(--text-sub);">Người tiếp nhận</label>
+            <div id="val-nguoi-nhan" style="font-weight: 700; color: var(--text-main); font-size: 15px;">-</div>
+          </div>
+
+          <!-- Refund Method -->
+          <div class="form-group">
+            <label class="form-label" style="margin-bottom: 4px; color: var(--text-sub);">Phương thức hoàn tiền mong muốn</label>
+            <div id="val-phuong-thuc" style="font-weight: 700; color: var(--text-main); font-size: 15px;">-</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Actions Panel -->
+    <div class="action-card">
+      <a href="/index.html?tab=yeucau" class="btn-secondary" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center;">Quay lại trang chủ</a>
+      <button type="button" id="btn-process-request" class="btn-primary">Tiến hành kiểm tra phòng</button>
+    </div>
+
+  </main>
+
+  <!-- App Footer -->
+  <footer class="app-footer">
+    <div class="footer-copy">
+      Homestay Dorm Management System &copy; 2026. All rights reserved.
+    </div>
+    <div class="footer-links">
+      <a href="#">Hướng dẫn sử dụng</a>
+      <a href="#">Chính sách bảo mật</a>
+      <a href="#">Hỗ trợ kỹ thuật</a>
+    </div>
+  </footer>
+
+  <script src="/js/phieutraphong.js"></script>
+</body>
+</html>
