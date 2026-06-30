@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 function AnimatedCounter({ end, duration = 1500, suffix = "" }) {
   const [count, setCount] = useState(0);
@@ -34,7 +34,48 @@ function AnimatedCounter({ end, duration = 1500, suffix = "" }) {
 
 export default function App() {
   // Quản lý chuyển màn hình: 'guest_home', 'staff_reception', 'search_vacancy', hoặc 'room_detail'
+  // Các màn hình mới (luồng đặt cọc - vùng xanh lá trên flow):
+  // 'review_info' (2.1 Sale rà soát), 'confirm_status' (2.2 Quản lý xác nhận),
+  // 'payment_request' (2.3 Sale lập yêu cầu thanh toán), 'payment_receive' (2.4 Kế toán tiếp nhận),
+  // 'deposit_approve' (2.5 Quản lý phê duyệt cọc)
   const [trangHienTai, setTrangHienTai] = useState('guest_home');
+
+  // --- STATE CHO 2.1 RÀ SOÁT THÔNG TIN THUÊ (SALE) ---
+  const [checklistRaSoat, setChecklistRaSoat] = useState({
+    gioiTinh: true,
+    quocTich: true,
+    giayTo: false,
+    taiChinh: false
+  });
+
+  // --- STATE CHO 2.2 XÁC NHẬN TÌNH TRẠNG (QUẢN LÝ) ---
+  const [ketQuaXacNhanTinhTrang, setKetQuaXacNhanTinhTrang] = useState(null);
+
+  // --- STATE CHO 2.3 YÊU CẦU THANH TOÁN (SALE) ---
+  const [thongTinThanhToanCoc, setThongTinThanhToanCoc] = useState({
+    hinhThucThue: 'Nguyên phòng',
+    soGiuong: 4,
+    maPhong: 'P-402-A',
+    ngayBatDau: new Date().toISOString().split('T')[0],
+    ghiChu: ''
+  });
+
+  // --- STATE CHO 2.4 TIẾP NHẬN THANH TOÁN (KẾ TOÁN) ---
+  const [formTiepNhanThanhToan, setFormTiepNhanThanhToan] = useState({
+    hinhThuc: 'chuyen-khoan',
+    soTienThucThu: '',
+    thoiDiemThu: '',
+    maGiaoDich: ''
+  });
+  const [chungTuThanhToanFile, setChungTuThanhToanFile] = useState(null);
+  const [chungTuThanhToanPreview, setChungTuThanhToanPreview] = useState(null);
+
+  // --- STATE CHO 2.5 PHÊ DUYỆT CỌC (QUẢN LÝ) ---
+  const [trangThaiPheDuyetCoc, setTrangThaiPheDuyetCoc] = useState('cho-xac-nhan'); // cho-xac-nhan | da-duyet | da-tu-choi
+
+  // --- ĐỒNG HỒ ĐẾM NGƯỢC (dùng chung cho 2.3 và 2.4) ---
+  const [giayConLaiThanhToan, setGiayConLaiThanhToan] = useState(23 * 3600 + 45 * 60 + 10); // 2.3: 23:45:10
+  const [giayConLaiTiepNhan, setGiayConLaiTiepNhan] = useState(14 * 60 + 56); // 2.4: 14:56
 
   // Chế độ người dùng: false = Guest, true = Nhân viên
   const [cheDoNhanVien, setCheDoNhanVien] = useState(false);
@@ -107,6 +148,12 @@ export default function App() {
     thoiHanThue: '6'
   });
 
+  // State tab cho Phòng/Giường nhân viên
+  const [tabPhongGiuongNhanVien, setTabPhongGiuongNhanVien] = useState('danh-sach'); // 'danh-sach' hoặc 'xac-nhan'
+
+  // State tab cho Hợp đồng nhân viên
+  const [tabHopDongNhanVien, setTabHopDongNhanVien] = useState('danh-sach-hen'); // 'danh-sach-hen' hoặc 'phe-duyet'
+
   // Tiêu chí ưu tiên của nhân viên chọn
   const [tieuChiUuTien, setTieuChiUuTien] = useState({
     yenTinh: false,
@@ -129,7 +176,8 @@ export default function App() {
     mucGiaTu: '',
     gioiTinh: 'Tất cả',
     soNguoi: '',
-    tienIch: 'Tất cả'
+    tienIch: 'Tất cả',
+    yeuCauList: []
   });
 
   // Hộp thoại modal xem chi tiết
@@ -199,7 +247,9 @@ export default function App() {
       }
 
       const paramKhuVuc = boLocHienTai.khuVuc === 'Tất cả' ? '' : boLocHienTai.khuVuc;
-      const paramYeuCauList = boLocHienTai.tienIch === 'Tất cả' ? [] : [boLocHienTai.tienIch];
+      const paramYeuCauList = boLocHienTai.yeuCauList?.length
+        ? boLocHienTai.yeuCauList
+        : (boLocHienTai.tienIch === 'Tất cả' ? [] : [boLocHienTai.tienIch]);
 
       let ketQuaGop = [];
       if (boLocHienTai.loaiPhong === 'Tất cả') {
@@ -537,12 +587,43 @@ export default function App() {
       taiThongKeTongHop();
     } else if (trangHienTai === 'staff_reception') {
       taiThongKePhongTrong();
-    } else if (trangHienTai === 'search_vacancy') {
+    } else if (trangHienTai === 'search_vacancy' || (trangHienTai === 'confirm_status' && tabPhongGiuongNhanVien === 'danh-sach')) {
       taiTatCaPhongTrong();
     } else if (trangHienTai === 'staff_contracts') {
       taiDanhSachLichHen();
     }
+  }, [trangHienTai, tabPhongGiuongNhanVien]);
+
+  // Đếm ngược thời hạn thanh toán cọc (màn 2.3) — chạy mỗi giây khi đang ở màn hình này
+  useEffect(() => {
+    if (trangHienTai !== 'payment_request') return;
+    const timer = setInterval(() => {
+      setGiayConLaiThanhToan(prev => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
   }, [trangHienTai]);
+
+  // Đếm ngược thời gian còn lại để tiếp nhận thanh toán (màn 2.4)
+  useEffect(() => {
+    if (trangHienTai !== 'payment_receive') return;
+    const timer = setInterval(() => {
+      setGiayConLaiTiepNhan(prev => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [trangHienTai]);
+
+  const formatDemHoGioPhutGiay = (tongGiay) => {
+    const h = Math.floor(tongGiay / 3600);
+    const m = Math.floor((tongGiay % 3600) / 60);
+    const s = tongGiay % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
+  const formatDemPhutGiay = (tongGiay) => {
+    const m = Math.floor(tongGiay / 60);
+    const s = tongGiay % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
 
   // 4. Xử lý thay đổi form tư vấn (Guest)
   const xuLyThayDoiTuVan = (e) => {
@@ -635,7 +716,14 @@ export default function App() {
   };
 
   const chuyenSangTraCuuTuNhanVien = async () => {
-    // 1. Map filters
+    const danhSachTieuChi = layDanhSachTieuChiChuoi();
+
+    if (danhSachTieuChi.length === 0) {
+      hienThongBao('error', 'Vui lòng chọn ít nhất một tiêu chí ưu tiên trước khi tra cứu!');
+      return;
+    }
+
+    // 1. Map bộ lọc từ form yêu cầu thuê + tiêu chí ưu tiên
     let mappedKhuVuc = 'Tất cả';
     const kv = (formYeuCauThue.khuVucMongMuon || '').toLowerCase();
     if (kv.includes('quận 1') || kv.includes('q1')) mappedKhuVuc = 'Quận 1';
@@ -646,21 +734,19 @@ export default function App() {
     if (formYeuCauThue.loaiPhong === 'Nguyên phòng') mappedLoaiPhong = 'Phòng đơn';
     else if (formYeuCauThue.loaiPhong === 'Giường ghép') mappedLoaiPhong = 'Giường dorm';
 
-    const danhSachTieuChi = layDanhSachTieuChiChuoi();
-    const mappedTienIch = danhSachTieuChi.length > 0 ? danhSachTieuChi[0] : 'Tất cả';
-
     const newFilters = {
       khuVuc: mappedKhuVuc,
       loaiPhong: mappedLoaiPhong,
       mucGiaTu: formYeuCauThue.mucGiaTu || '',
       gioiTinh: formYeuCauThue.gioiTinh || 'Tất cả',
       soNguoi: formYeuCauThue.soNguoi || '',
-      tienIch: mappedTienIch
+      tienIch: danhSachTieuChi.length === 1 ? danhSachTieuChi[0] : 'Tất cả',
+      yeuCauList: danhSachTieuChi
     };
 
     setBoLocTraCuu(newFilters);
 
-    // 2. Try to save the lead in the background if data is valid
+    // 2. Lưu thông tin tiếp nhận nếu đủ dữ liệu khách hàng
     const cccdHopLe = /^\d+$/.test(formKhachHang.cccd) && formKhachHang.cccd.length >= 9 && formKhachHang.cccd.length <= 12;
     const coHoTen = formKhachHang.hoTen && formKhachHang.hoTen.trim() !== '';
 
@@ -678,30 +764,115 @@ export default function App() {
             maNV: 101
           })
         });
-        hienThongBao('success', 'Đã lưu thông tin tiếp nhận và đang chuyển sang trang tra cứu...');
       } catch (err) {
         console.error('Lỗi lưu thông tin tiếp nhận:', err);
       }
-    } else {
-      hienThongBao('success', 'Đang chuyển sang trang tra cứu phòng trống...');
     }
 
-    // 3. Navigate to search vacancy screen
+    // 3. Chuyển sang tab Danh sách phòng/giường (nhân viên)
     setCheDoNhanVien(true);
-    setTrangHienTai('search_vacancy');
+    setTabPhongGiuongNhanVien('danh-sach');
+    chuyenTrang('confirm_status');
 
-    // 4. Trigger search with new filters
-    taiTatCaPhongTrong(newFilters);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // 4. Tra cứu phòng theo tiêu chí đã chọn
+    await taiTatCaPhongTrong(newFilters);
+    hienThongBao('success', `Đang hiển thị phòng phù hợp với ${danhSachTieuChi.length} tiêu chí đã chọn.`);
   };
 
   const xuLyGuiYeuCauNhanVien = async (e) => {
     if (e) e.preventDefault();
-    await chuyenSangTraCuuTuNhanVien();
+    setDangXuLy(true);
+    try {
+      await chuyenSangTraCuuTuNhanVien();
+    } finally {
+      setDangXuLy(false);
+    }
   };
 
   const xuLyDatPhong = (item) => {
     hienThongBao('success', `Đã tạo yêu cầu giữ chỗ cho ${item.ten} thành công!`);
+  };
+
+  // --- LOGIC 2.1 RÀ SOÁT THÔNG TIN THUÊ (SALE) ---
+  const xuLyToggleChecklist = (key) => {
+    setChecklistRaSoat(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const xuLyTuChoiRaSoat = () => {
+    hienThongBao('error', 'Đã từ chối — khách không đủ điều kiện thuê.');
+  };
+
+  const xuLyGuiQuanLyKiemTra = () => {
+    const soDieuKienDat = Object.values(checklistRaSoat).filter(Boolean).length;
+    hienThongBao('success', `Đã gửi yêu cầu kiểm tra tình trạng phòng cho Quản lý (${soDieuKienDat}/4 điều kiện đạt).`);
+  };
+
+  // --- LOGIC 2.2 XÁC NHẬN TÌNH TRẠNG (QUẢN LÝ) ---
+  const xuLyXacNhanConTrong = () => {
+    setKetQuaXacNhanTinhTrang('con-trong');
+    hienThongBao('success', 'Đã xác nhận giường còn trống. Cho phép Sale tiếp tục đặt cọc.');
+  };
+
+  const xuLyXacNhanDaGiuCho = () => {
+    setKetQuaXacNhanTinhTrang('da-giu-cho');
+    hienThongBao('error', 'Đã thông báo cho Sale phòng/giường này đã được giữ chỗ.');
+  };
+
+  // --- LOGIC 2.3 YÊU CẦU THANH TOÁN (SALE) ---
+  const xuLyThayDoiThanhToanCoc = (e) => {
+    const { name, value } = e.target;
+    setThongTinThanhToanCoc(prev => ({ ...prev, [name]: value }));
+  };
+
+  const tinhTienCocDeXuat = () => {
+    const giaThueThang = 2500000;
+    const soGiuong = Number(thongTinThanhToanCoc.soGiuong) || 0;
+    return giaThueThang * 2 * soGiuong;
+  };
+
+  const xuLyGuiYeuCauThanhToanChoKhach = () => {
+    hienThongBao('success', `Đã gửi yêu cầu thanh toán cọc ${tinhTienCocDeXuat().toLocaleString('vi-VN')}đ cho khách hàng.`);
+  };
+
+  // --- LOGIC 2.4 TIẾP NHẬN THANH TOÁN (KẾ TOÁN) ---
+  const inputChungTuRef = useRef(null);
+
+  const xuLyChonFileChungTu = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setChungTuThanhToanFile(file);
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (ev) => setChungTuThanhToanPreview(ev.target.result);
+      reader.readAsDataURL(file);
+    } else {
+      setChungTuThanhToanPreview(null);
+    }
+    hienThongBao('success', `Đã đính kèm file: ${file.name}`);
+  };
+
+  const xuLyThayDoiTiepNhanThanhToan = (e) => {
+    const { name, value } = e.target;
+    setFormTiepNhanThanhToan(prev => ({ ...prev, [name]: value }));
+  };
+
+  const xuLyXacNhanTiepNhanGuiQuanLy = () => {
+    if (!formTiepNhanThanhToan.soTienThucThu) {
+      hienThongBao('error', 'Vui lòng nhập số tiền thực thu trước khi xác nhận!');
+      return;
+    }
+    hienThongBao('success', 'Đã xác nhận tiếp nhận thanh toán và gửi Quản lý duyệt.');
+  };
+
+  // --- LOGIC 2.5 PHÊ DUYỆT CỌC (QUẢN LÝ) ---
+  const xuLyDuyetCoc = () => {
+    setTrangThaiPheDuyetCoc('da-duyet');
+    hienThongBao('success', 'Đã duyệt — Xác nhận đã nhận tiền cọc hợp lệ. Trạng thái phòng đã chuyển sang Đã đặt cọc.');
+  };
+
+  const xuLyTuChoiCoc = () => {
+    setTrangThaiPheDuyetCoc('da-tu-choi');
+    hienThongBao('error', 'Đã từ chối yêu cầu đặt cọc này.');
   };
 
   // --- RENDER GIAO DIỆN ---
@@ -738,16 +909,18 @@ export default function App() {
           <ul className="nav-links">
             <li><a href="#" onClick={() => { setCheDoNhanVien(false); chuyenTrang('guest_home'); }}>Trang chủ Guest</a></li>
             <li><a href="#" onClick={() => { hienThongBao('info', 'Trang Dashboard đang được phát triển.'); setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>Dashboard</a></li>
-            <li className={trangHienTai === 'search_vacancy' ? 'active' : ''}>
-              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('search_vacancy'); }}>Phòng/Giường</a>
+            <li className={trangHienTai === 'confirm_status' ? 'active' : ''}>
+              <a href="#" onClick={() => { setCheDoNhanVien(true); setTabPhongGiuongNhanVien('danh-sach'); chuyenTrang('confirm_status'); }}>Phòng/Giường</a>
             </li>
-            <li className={trangHienTai === 'staff_reception' ? 'active' : ''}>
+            <li className={['staff_reception', 'review_info'].includes(trangHienTai) ? 'active' : ''}>
               <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>Khách hàng</a>
             </li>
-            <li className={trangHienTai === 'staff_contracts' ? 'active' : ''}>
-              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_contracts'); }}>Hợp đồng</a>
+            <li className={['staff_contracts', 'deposit_approve'].includes(trangHienTai) ? 'active' : ''}>
+              <a href="#" onClick={() => { setCheDoNhanVien(true); setTabHopDongNhanVien('danh-sach-hen'); chuyenTrang('staff_contracts'); }}>Hợp đồng</a>
             </li>
-            <li><a href="#" onClick={() => hienThongBao('info', 'Trang Thanh toán đang được phát triển.')}>Thanh toán</a></li>
+            <li className={['payment_request', 'payment_receive'].includes(trangHienTai) ? 'active' : ''}>
+              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('payment_request'); }}>Thanh toán</a>
+            </li>
           </ul>
         )}
 
@@ -1205,8 +1378,15 @@ export default function App() {
       {/* ==========================================
           TRANG TRA CỨU PHÒNG TRỐNG (VACANCY SEARCH)
           ========================================== */}
-      {trangHienTai === 'search_vacancy' && (
+      {((trangHienTai === 'search_vacancy' && !cheDoNhanVien) || (trangHienTai === 'confirm_status' && tabPhongGiuongNhanVien === 'danh-sach')) && (
         <div className="vacancy-search-page">
+
+          {cheDoNhanVien && (
+            <div className="payment-subtabs" style={{ padding: '16px 24px', background: '#fff', borderBottom: '1px solid #e2e8f0' }}>
+              <button type="button" className="payment-subtab active" onClick={() => setTabPhongGiuongNhanVien('danh-sach')}>Danh sách phòng/giường</button>
+              <button type="button" className="payment-subtab" onClick={() => setTabPhongGiuongNhanVien('xac-nhan')}>Xác nhận tình trạng</button>
+            </div>
+          )}
 
           {/* Cover Hero + Filters Container */}
           <header className="vacancy-hero" style={{ backgroundImage: `url('/hero_cover.png')` }}>
@@ -1345,9 +1525,15 @@ export default function App() {
                         <button type="button" className="btn-detail-outline" onClick={() => { setPhongDaChon(item); setTrangHienTai('room_detail'); }}>
                           Xem chi tiết
                         </button>
-                        <button type="button" className="btn-book-filled" onClick={() => setHenXemPhongModal(item)}>
-                          Chọn để hẹn
-                        </button>
+                        {cheDoNhanVien ? (
+                          <button type="button" className="btn-book-filled" onClick={() => setTabPhongGiuongNhanVien('xac-nhan')}>
+                            Xác nhận yêu cầu
+                          </button>
+                        ) : (
+                          <button type="button" className="btn-book-filled" onClick={() => setHenXemPhongModal(item)}>
+                            Chọn để hẹn
+                          </button>
+                        )}
                       </div>
                     </div>
                   </article>
@@ -1514,7 +1700,7 @@ export default function App() {
         <div className="room-detail-page">
 
           <div className="back-navigation">
-            <button type="button" className="btn-back-link" onClick={() => chuyenTrang('search_vacancy')}>
+            <button type="button" className="btn-back-link" onClick={() => { if (cheDoNhanVien) setTabPhongGiuongNhanVien('danh-sach'); chuyenTrang(cheDoNhanVien ? 'confirm_status' : 'search_vacancy'); }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
                 <path fillRule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z" />
               </svg>
@@ -1914,6 +2100,11 @@ export default function App() {
 
           <h1 className="page-title">Tiếp nhận thông tin &amp; yêu cầu thuê</h1>
           <p className="page-subtitle">Vui lòng nhập chính xác thông tin để tìm kiếm phòng phù hợp nhất cho khách hàng.</p>
+
+          <div className="payment-subtabs" style={{ marginTop: '16px', marginBottom: '24px' }}>
+            <button type="button" className={`payment-subtab ${trangHienTai === 'staff_reception' ? 'active' : ''}`} onClick={() => chuyenTrang('staff_reception')}>Tiếp nhận thông tin</button>
+            <button type="button" className={`payment-subtab ${trangHienTai === 'review_info' ? 'active' : ''}`} onClick={() => chuyenTrang('review_info')}>Rà soát thông tin</button>
+          </div>
 
           <div className="content-grid">
             <form className="form-card" onSubmit={xuLyGuiYeuCauNhanVien}>
@@ -2323,68 +2514,366 @@ export default function App() {
           </div>
         </div>
       )}
-
-      {/* ==========================================
-          TRANG DANH SÁCH LỊCH HẸN (CONTRACTS / APPOINTMENTS)
-          ========================================== */}
-      {trangHienTai === 'staff_contracts' && (
-        <div className="staff-contracts-page">
-
-          <div className="contracts-header-row">
+      {trangHienTai === 'review_info' && (
+        <div className="deposit-flow-page">
+          <div className="deposit-page-header">
             <div>
-              <h1 className="page-title" style={{ margin: 0 }}>Lịch hẹn xem phòng</h1>
-              <p className="page-subtitle" style={{ margin: '4px 0 0 0' }}>
-                Quản lý và cập nhật trạng thái khách hàng đi xem phòng thực tế.
-              </p>
+              <p className="payment-breadcrumb">Khách hàng &nbsp;&gt;&nbsp; <span>Rà soát thông tin</span></p>
+              <h1 className="page-title" style={{ margin: 0 }}>Quy trình đặt cọc &amp; xác nhận thuê</h1>
+              <p className="page-subtitle" style={{ margin: '4px 0 0 0' }}>Khách hàng đã quyết định thuê — rà soát kỹ thông tin trước khi gửi Quản lý xác nhận.</p>
+            </div>
+          </div>
+
+          <div className="payment-subtabs">
+            <button type="button" className={`payment-subtab ${trangHienTai === 'staff_reception' ? 'active' : ''}`} onClick={() => chuyenTrang('staff_reception')}>Tiếp nhận thông tin</button>
+            <button type="button" className={`payment-subtab ${trangHienTai === 'review_info' ? 'active' : ''}`} onClick={() => chuyenTrang('review_info')}>Rà soát thông tin</button>
+          </div>
+
+          <div className="review-banner">
+            <span className="review-banner-icon">✨</span>
+            <div>
+              <strong>Khách hàng đã quyết định thuê</strong>
+              <p>Vui lòng rà soát kỹ các điều kiện trước khi gửi yêu cầu xác nhận phòng cho Quản lý.</p>
+            </div>
+          </div>
+
+          <div className="review-content-grid">
+            {/* Cột trái: thông tin khách thuê */}
+            <div className="review-card">
+              <div className="review-card-head">
+                <span className="review-card-icon">👤</span>
+                <h3>Thông tin khách thuê</h3>
+                <span className="review-update-tag">Cập nhật nếu có thay đổi</span>
+              </div>
+
+              <div className="review-form-grid">
+                <div className="form-group">
+                  <label>Họ và tên</label>
+                  <input type="text" defaultValue="Nguyễn Hoàng Nam" className="form-control" />
+                </div>
+                <div className="form-group">
+                  <label>Số điện thoại</label>
+                  <input type="text" defaultValue="0988 123 456" className="form-control" />
+                </div>
+                <div className="form-group">
+                  <label>Email</label>
+                  <input type="email" defaultValue="nam.nguyen@gmail.com" className="form-control" />
+                </div>
+                <div className="form-group">
+                  <label>Số CCCD/Passport</label>
+                  <input type="text" defaultValue="001203004567" className="form-control" />
+                </div>
+                <div className="form-group full-width">
+                  <label>Địa chỉ thường trú</label>
+                  <input type="text" defaultValue="45 Lê Lợi, Phường Bến Nghé, Quận 1, TP.HCM" className="form-control" />
+                </div>
+                <div className="form-group">
+                  <label>Ngày bắt đầu thuê</label>
+                  <input type="date" defaultValue="2023-01-11" className="form-control" />
+                </div>
+                <div className="form-group">
+                  <label>Thời hạn thuê</label>
+                  <select className="form-control" defaultValue="12">
+                    <option value="6">6 tháng</option>
+                    <option value="12">12 tháng</option>
+                    <option value="24">24 tháng</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginTop: '8px' }}>
+                <label>Ghi chú bổ sung (nếu có)</label>
+                <textarea
+                  className="form-control"
+                  rows="3"
+                  placeholder="Nhập yêu cầu đặc biệt hoặc ghi chú về khách hàng..."
+                ></textarea>
+              </div>
             </div>
 
-            <div className="header-actions">
-              <div className="search-bar-wrapper">
-                <span className="search-icon">🔍</span>
-                <input
-                  type="text"
-                  placeholder="Tìm tên khách, số phòng..."
-                  value={tuKhoaLichHen}
-                  onChange={(e) => setTuKhoaLichHen(e.target.value)}
-                  className="search-input-field"
-                />
+            {/* Cột phải: thông tin phòng + checklist */}
+            <div className="review-side-col">
+              <div className="review-room-card">
+                <div className="review-room-img-wrap">
+                  <img src="/cozy_dorm_bed.png" alt="Phòng VIP A204" className="review-room-img" />
+                  <span className="review-room-tag">Phòng VIP A204</span>
+                </div>
+                <div className="review-room-info">
+                  <strong>Giường đơn - Cửa sổ lớn</strong>
+                  <span className="review-room-price">3.500.000<small>đ/tháng</small></span>
+                  <p className="review-room-addr">Khu vực: Quận 1, TP. Hồ Chí Minh</p>
+                  <div className="review-room-amenities">
+                    <span className="review-amenity-item">
+                      <svg className="amenity-icon wifi-icon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.08 2.93 1 9zm8 8l3 3 3-3c-1.65-1.66-4.34-1.66-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.87 9.14 5 13z" />
+                      </svg>
+                      Free WiFi
+                    </span>
+                    <span className="review-amenity-item">❄️ Điều hòa</span>
+                    <span className="review-amenity-item">🧹 Vệ sinh 2 lần/tuần</span>
+                  </div>
+                </div>
               </div>
-              <button
-                type="button"
-                className="btn-add-appointment"
-                onClick={() => hienThongBao('info', 'Chức năng Tạo lịch hẹn mới ngay tại bảng đang được phát triển.')}
-              >
-                + Thêm lịch hẹn
+
+              <div className="review-card">
+                <div className="review-card-head">
+                  <span className="review-card-icon">📋</span>
+                  <h3>Kiểm tra điều kiện khách thuê</h3>
+                </div>
+                <div className="checklist-list">
+                  <label className="checklist-item">
+                    <input type="checkbox" checked={checklistRaSoat.gioiTinh} onChange={() => xuLyToggleChecklist('gioiTinh')} />
+                    <span>Giới tính phù hợp (Nam/Nữ theo quy định khu vực)</span>
+                  </label>
+                  <label className="checklist-item">
+                    <input type="checkbox" checked={checklistRaSoat.quocTich} onChange={() => xuLyToggleChecklist('quocTich')} />
+                    <span>Quốc tịch hợp lệ &amp; rõ ràng</span>
+                  </label>
+                  <label className="checklist-item">
+                    <input type="checkbox" checked={checklistRaSoat.giayTo} onChange={() => xuLyToggleChecklist('giayTo')} />
+                    <span>Giấy tờ định danh hợp pháp (CCCD/Passport)</span>
+                  </label>
+                  <label className="checklist-item">
+                    <input type="checkbox" checked={checklistRaSoat.taiChinh} onChange={() => xuLyToggleChecklist('taiChinh')} />
+                    <span>Khả năng tài chính ổn định</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="review-info-note">
+            <span>ℹ️</span>
+            <p>Phòng sẽ tạm chuyển trạng thái "Chờ xác nhận Quản lý" ngay khi bạn nhấn gửi. Hãy chắc chắn rằng thông tin là chính xác.</p>
+          </div>
+
+          <div className="deposit-action-bar">
+            <button type="button" className="btn-detail-outline btn-reject-wide" onClick={xuLyTuChoiRaSoat}>
+              Từ chối — Khách không đủ điều kiện
+            </button>
+            <button type="button" className="btn-book-filled btn-submit-wide" onClick={xuLyGuiQuanLyKiemTra}>
+              Gửi Quản lý kiểm tra tình trạng phòng →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===========================================================
+           2.2 XÁC NHẬN TÌNH TRẠNG (QUẢN LÝ)
+      =========================================================== */}
+      {trangHienTai === 'confirm_status' && tabPhongGiuongNhanVien === 'xac-nhan' && (
+        <div className="deposit-flow-page">
+          <div className="deposit-page-header">
+            <div>
+              <p className="payment-breadcrumb">Phòng/Giường &nbsp;&gt;&nbsp; <span>Xác nhận yêu cầu</span></p>
+              <h1 className="page-title" style={{ margin: 0 }}>Kiểm tra &amp; Xác nhận tình trạng</h1>
+            </div>
+            <div className="header-actions">
+              <button type="button" className="btn-detail-outline btn-back-header" onClick={() => setTabPhongGiuongNhanVien('danh-sach')}>
+                Quay lại
               </button>
             </div>
           </div>
 
-          {/* Sub-tab Filters Row */}
-          <div className="subtabs-filters-bar">
-            {['tat-ca', 'hom-nay', 'tuan-nay', 'cho-xem', 'da-xem'].map((tab) => {
-              const label = {
-                'tat-ca': 'Tất cả',
-                'hom-nay': 'Hôm nay',
-                'tuan-nay': 'Tuần này',
-                'cho-xem': 'Chờ xem',
-                'da-xem': 'Đã xem'
-              }[tab];
-
-              return (
-                <button
-                  key={tab}
-                  type="button"
-                  className={`subtab-filter-btn ${boLocLichHen === tab ? 'active' : ''}`}
-                  onClick={() => {
-                    setBoLocLichHen(tab);
-                    setTrangHienHen(1);
-                  }}
-                >
-                  {label}
-                </button>
-              );
-            })}
+          <div className="payment-subtabs">
+            <button type="button" className="payment-subtab" onClick={() => setTabPhongGiuongNhanVien('danh-sach')}>Danh sách phòng/giường</button>
+            <button type="button" className="payment-subtab active">Xác nhận tình trạng</button>
           </div>
+
+          <div className="confirm-status-grid">
+            <div className="confirm-side-col">
+              <div className="confirm-request-card">
+                <div className="confirm-request-head">
+                  <span className="confirm-request-icon">!</span>
+                  <strong>YÊU CẦU MỚI</strong>
+                </div>
+                <p className="confirm-request-from">Yêu cầu kiểm tra từ Sale Minh Tuấn</p>
+                <p className="confirm-request-quote">
+                  "Khách cần giữ chỗ gấp trong 24h để làm thủ tục đặt cọc. Vui lòng xác nhận giường 202-B còn trống thực tế."
+                </p>
+                <div className="confirm-request-meta">
+                  <span>🕒 15 phút trước</span>
+                  <span>👤 Khách: Trần Văn A</span>
+                </div>
+              </div>
+
+              <div className="confirm-live-card">
+                <div className="confirm-live-head">
+                  <span>🛡️</span>
+                  <strong>Kiểm tra xung đột Live</strong>
+                  <span className="confirm-live-dot">• ĐANG THEO DÕI</span>
+                </div>
+                <div className="confirm-live-ok">
+                  <span className="confirm-live-check">✅</span>
+                  <div>
+                    <strong>Không có yêu cầu song song</strong>
+                    <p>Phòng này chưa có Sale nào khác đang mở tab đặt chỗ hoặc gửi yêu cầu giữ chỗ trong 30 phút qua.</p>
+                  </div>
+                </div>
+                <div className="confirm-live-progress">
+                  <span>Tỉ lệ giữ chỗ khu vực</span>
+                  <strong>65%</strong>
+                </div>
+                <div className="confirm-progress-bar">
+                  <div className="confirm-progress-fill" style={{ width: '65%' }}></div>
+                </div>
+              </div>
+            </div>
+
+            <div className="confirm-main-col">
+              <div className="confirm-room-card">
+                <div className="confirm-room-head">
+                  <span className="confirm-room-icon">🛏️</span>
+                  <div>
+                    <div className="confirm-room-title-row">
+                      <strong>Giường 202-B</strong>
+                      <span className="status-pill-green">SẴN SÀNG</span>
+                    </div>
+                    <p>Phòng Superior - Tầng 2 - Cơ sở Quận 1</p>
+                  </div>
+                  <div className="confirm-room-price">
+                    <span>GIÁ THUÊ NIÊM YẾT</span>
+                    <strong>3.200.000đ<small>/tháng</small></strong>
+                  </div>
+                </div>
+
+                <div className="confirm-room-stats">
+                  <div>
+                    <span>Diện tích thực</span>
+                    <strong>24 m² (Phòng chung)</strong>
+                  </div>
+                  <div>
+                    <span>Thiết bị kèm theo</span>
+                    <strong>Nệm cao su, Tủ cá nhân, Rèm</strong>
+                  </div>
+                  <div>
+                    <span>Số khách hiện tại</span>
+                    <strong>3/4 giường đã có khách</strong>
+                  </div>
+                </div>
+
+                <p className="confirm-question">Bạn đã kiểm tra thực tế tình trạng giường này?</p>
+
+                <div className="confirm-decision-row">
+                  <button
+                    type="button"
+                    className={`confirm-decision-btn confirm-green ${ketQuaXacNhanTinhTrang === 'con-trong' ? 'selected' : ''}`}
+                    onClick={xuLyXacNhanConTrong}
+                  >
+                    <span className="confirm-decision-icon">✔️</span>
+                    <strong>Xác nhận còn trống</strong>
+                    <small>Cho phép Sale tiếp tục đặt cọc</small>
+                  </button>
+                  <button
+                    type="button"
+                    className={`confirm-decision-btn confirm-red ${ketQuaXacNhanTinhTrang === 'da-giu-cho' ? 'selected' : ''}`}
+                    onClick={xuLyXacNhanDaGiuCho}
+                  >
+                    <span className="confirm-decision-icon">🚫</span>
+                    <strong>Phòng đã được giữ chỗ</strong>
+                    <small>Thông báo cho Sale tìm phòng khác</small>
+                  </button>
+                </div>
+              </div>
+
+              <div className="confirm-history-card">
+                <div className="confirm-history-head">
+                  <strong>Lịch sử yêu cầu gần đây cho phòng này</strong>
+                  <a href="#" onClick={(e) => { e.preventDefault(); hienThongBao('info', 'Đang tải toàn bộ lịch sử...'); }}>↻ Xem tất cả</a>
+                </div>
+                <div className="table-responsive">
+                  <table className="appointments-table confirm-history-table">
+                    <thead>
+                      <tr>
+                        <th>THỜI GIAN</th>
+                        <th>NHÂN VIÊN SALE</th>
+                        <th>KHÁCH HÀNG</th>
+                        <th>TRẠNG THÁI XỬ LÝ</th>
+                        <th style={{ textAlign: 'right' }}>HÀNH ĐỘNG</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>Hôm nay, 09:15</td>
+                        <td>
+                          <div className="table-client-cell">
+                            <span className="client-initials-badge initials-color-2">MT</span>
+                            <strong className="client-name">Minh Tuấn</strong>
+                          </div>
+                        </td>
+                        <td>Trần Văn A</td>
+                        <td><span className="status-badge-pill status-cho-xem">ĐANG CHỜ</span></td>
+                        <td style={{ textAlign: 'right' }}>•••</td>
+                      </tr>
+                      <tr>
+                        <td>12/10, 14:30</td>
+                        <td>
+                          <div className="table-client-cell">
+                            <span className="client-initials-badge initials-color-3">KH</span>
+                            <strong className="client-name">Khánh Huyền</strong>
+                          </div>
+                        </td>
+                        <td>Lê Thị B</td>
+                        <td><span className="status-badge-pill status-khong-thue">BỊ TỪ CHỐI</span></td>
+                        <td style={{ textAlign: 'right' }}>•••</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==========================================
+          TRANG DANH SÁCH LỊCH HẸN (CONTRACTS / APPOINTMENTS) VỚI TAB PHÊ DUYỆT CỌC
+          ========================================== */}
+      {trangHienTai === 'staff_contracts' && (
+        <div className={tabHopDongNhanVien === 'danh-sach-hen' ? 'staff-contracts-page' : 'deposit-flow-page'}>
+          {tabHopDongNhanVien === 'danh-sach-hen' ? (
+            <>
+              <div className="contracts-header-row">
+                <div>
+                  <h1 className="page-title" style={{ margin: 0 }}>Lịch hẹn xem phòng</h1>
+                  <p className="page-subtitle" style={{ margin: '4px 0 0 0' }}>
+                    Quản lý và cập nhật trạng thái khách hàng đi xem phòng thực tế.
+                  </p>
+                </div>
+
+                <div className="header-actions">
+                  <div className="search-bar-wrapper">
+                    <span className="search-icon">🔍</span>
+                    <input
+                      type="text"
+                      placeholder="Tìm tên khách, số phòng..."
+                      value={tuKhoaLichHen}
+                      onChange={(e) => setTuKhoaLichHen(e.target.value)}
+                      className="search-input-field"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-add-appointment"
+                    onClick={() => hienThongBao('info', 'Chức năng Tạo lịch hẹn mới ngay tại bảng đang được phát triển.')}
+                  >
+                    + Thêm lịch hẹn
+                  </button>
+                </div>
+              </div>
+
+              <div className="payment-subtabs" style={{ marginBottom: '16px' }}>
+                <button type="button" className={`payment-subtab ${tabHopDongNhanVien === 'danh-sach-hen' ? 'active' : ''}`} onClick={() => setTabHopDongNhanVien('danh-sach-hen')}>Danh sách lịch hẹn</button>
+                <button type="button" className={`payment-subtab ${tabHopDongNhanVien === 'phe-duyet' ? 'active' : ''}`} onClick={() => setTabHopDongNhanVien('phe-duyet')}>Phê duyệt cọc</button>
+              </div>
+
+              <div className="subtabs-filters-bar">
+                <button type="button" className="subtab-filter-btn active" onClick={() => setBoLocLichHen('tat-ca')}>Tất cả</button>
+                <button type="button" className="subtab-filter-btn" onClick={() => setBoLocLichHen('hom-nay')}>Hôm nay</button>
+                <button type="button" className="subtab-filter-btn" onClick={() => setBoLocLichHen('tuan-nay')}>Tuần này</button>
+                <button type="button" className="subtab-filter-btn" onClick={() => setBoLocLichHen('cho-xem')}>Chờ xem</button>
+                <button type="button" className="subtab-filter-btn" onClick={() => setBoLocLichHen('da-xem')}>Đã xem</button>
+              </div>
 
           {/* Overview Counts Grid */}
           <div className="overview-counts-grid">
@@ -2538,10 +3027,429 @@ export default function App() {
             </div>
 
           </div>
+            </>
+          ) : (
+            <>
+              <div className="deposit-page-header">
+                <div>
+                  <p className="payment-breadcrumb">Hợp đồng &nbsp;&gt;&nbsp; <span>Phê duyệt cọc</span></p>
+                  <h1 className="page-title approve-subtitle" style={{ margin: 0 }}>Phê duyệt yêu cầu đặt cọc</h1>
+                </div>
+                <span className={`status-pill-${trangThaiPheDuyetCoc === 'da-duyet' ? 'green' : trangThaiPheDuyetCoc === 'da-tu-choi' ? 'red' : 'blue'}`}>
+                  {trangThaiPheDuyetCoc === 'da-duyet' ? '● Đã duyệt' : trangThaiPheDuyetCoc === 'da-tu-choi' ? '● Đã từ chối' : '● Chờ xác nhận'}
+                </span>
+              </div>
 
+              <div className="payment-subtabs">
+                <button type="button" className={`payment-subtab ${tabHopDongNhanVien === 'danh-sach-hen' ? 'active' : ''}`} onClick={() => setTabHopDongNhanVien('danh-sach-hen')}>Danh sách lịch hẹn</button>
+                <button type="button" className={`payment-subtab ${tabHopDongNhanVien === 'phe-duyet' ? 'active' : ''}`} onClick={() => setTabHopDongNhanVien('phe-duyet')}>Phê duyệt cọc</button>
+              </div>
+
+              <div className="approve-grid">
+                <div className="approve-side-card">
+                  <div className="approve-side-head">Tổng quan hồ sơ</div>
+                  <div className="approve-side-row">
+                    <span>Loại hợp đồng</span>
+                    <strong>Dài hạn (12 tháng)</strong>
+                  </div>
+                  <div className="approve-side-row">
+                    <span>Ngày tạo yêu cầu</span>
+                    <strong>14:25 — 24/05/2024</strong>
+                  </div>
+                  <div className="approve-side-row">
+                    <span>Nguồn khách</span>
+                    <strong>Facebook Ads</strong>
+                  </div>
+                  <div className="approve-note-box">
+                    <span>📝 Ghi chú từ khách hàng:</span>
+                    <p>"Em đã chuyển cọc trước 1 tháng, nhờ anh/chị giữ chỗ giúp em ạ. Em sẽ dọn vào cuối tuần này."</p>
+                  </div>
+                  <div className="approve-warning-box">
+                    <span>⚠ Lưu ý nghiệp vụ</span>
+                    <p>Xác nhận "Duyệt" sẽ ngay lập tức thay đổi trạng thái phòng trên bản đồ mặt bằng sang <strong>Đã đặt cọc 🔑</strong>.</p>
+                  </div>
+                </div>
+
+                <div className="approve-evidence-card">
+                  <div className="approve-evidence-head">
+                    <span>Chứng từ thanh toán</span>
+                    <div className="approve-evidence-tools">
+                      <span title="Phóng to">🔍</span>
+                      <span title="Tải xuống">⬇️</span>
+                      <span title="In">🖨️</span>
+                    </div>
+                  </div>
+                  <div className="approve-evidence-img-wrap">
+                    <img src="https://images.unsplash.com/photo-1556742111-a301076d9d18?q=80&w=600&auto=format&fit=crop" alt="Chứng từ chuyển khoản" className="approve-evidence-img" />
+                  </div>
+                </div>
+
+                <div className="approve-verify-card">
+                  <div className="approve-verify-head">🛡️ Thông tin xác thực</div>
+                  <div className="approve-verify-customer">
+                    <img src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?q=80&w=200&auto=format&fit=crop" alt="Nguyễn Thu Hà" className="receive-avatar" />
+                    <div>
+                      <strong>Nguyễn Thu Hà</strong>
+                      <p>0987 *** 456 • Khách hàng mới</p>
+                    </div>
+                  </div>
+
+                  <div className="approve-verify-grid">
+                    <div className="approve-verify-box">
+                      <span>Mã phòng</span>
+                      <strong>P.302-A</strong>
+                    </div>
+                    <div className="approve-verify-box">
+                      <span>Cơ sở</span>
+                      <strong>Dorm Q.1</strong>
+                    </div>
+                  </div>
+
+                  <div className="approve-amount-box">
+                    <span>SỐ TIỀN CỌC THỰC NHẬN</span>
+                    <strong>5.000.000 VNĐ</strong>
+                  </div>
+
+                  <div className="approve-verify-row">
+                    <span>Phương thức:</span>
+                    <strong>Chuyển khoản (Techcombank)</strong>
+                  </div>
+                  <div className="approve-verify-row">
+                    <span>Mã giao dịch:</span>
+                    <strong>FT2414502834</strong>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="approve-btn-confirm"
+                    onClick={xuLyDuyetCoc}
+                    disabled={trangThaiPheDuyetCoc !== 'cho-xac-nhan'}
+                  >
+                    ✓ DUYỆT — Xác nhận đã nhận tiền cọc hợp lệ
+                  </button>
+                  <button
+                    type="button"
+                    className="approve-btn-reject"
+                    onClick={xuLyTuChoiCoc}
+                    disabled={trangThaiPheDuyetCoc !== 'cho-xac-nhan'}
+                  >
+                    ✗ Từ chối
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
+      {/* ===========================================================
+           2.3 YÊU CẦU THANH TOÁN CỌC (NHÂN VIÊN SALE)
+      =========================================================== */}
+      {trangHienTai === 'payment_request' && (
+        <div className="deposit-flow-page">
+          <div className="deposit-page-header">
+            <div>
+              <p className="payment-breadcrumb">Thanh toán &nbsp;&gt;&nbsp; <span>Lập yêu cầu thanh toán cọc</span></p>
+              <h1 className="page-title" style={{ margin: 0 }}>Lập yêu cầu thanh toán cọc</h1>
+              <p className="page-subtitle" style={{ margin: '4px 0 0 0' }}>Tính tiền cọc theo quy định và gửi yêu cầu thanh toán cho khách hàng.</p>
+            </div>
+            <div className="header-actions">
+              <button type="button" className="btn-detail-outline" onClick={() => hienThongBao('info', 'Đã gia hạn thêm 24 giờ thanh toán.')}>Gia hạn thanh toán</button>
+              <button type="button" className="btn-book-filled" onClick={xuLyGuiYeuCauThanhToanChoKhach}>Gửi yêu cầu thanh toán cho khách</button>
+            </div>
+          </div>
+
+          <div className="payment-subtabs">
+            <button type="button" className={`payment-subtab ${trangHienTai === 'payment_request' ? 'active' : ''}`} onClick={() => chuyenTrang('payment_request')}>Lập yêu cầu thanh toán cọc</button>
+            <button type="button" className={`payment-subtab ${trangHienTai === 'payment_receive' ? 'active' : ''}`} onClick={() => chuyenTrang('payment_receive')}>Tiếp nhận thanh toán cọc</button>
+          </div>
+
+          <div className="payment-request-grid">
+            <div className="review-card">
+              <div className="review-card-head">
+                <span className="review-card-icon">📄</span>
+                <h3>Thông tin thanh toán</h3>
+              </div>
+
+              <div className="review-form-grid">
+                <div className="form-group">
+                  <label>Hình thức thuê</label>
+                  <div className="toggle-pill-group">
+                    <button
+                      type="button"
+                      className={`toggle-pill ${thongTinThanhToanCoc.hinhThucThue === 'Nguyên phòng' ? 'active' : ''}`}
+                      onClick={() => setThongTinThanhToanCoc(prev => ({ ...prev, hinhThucThue: 'Nguyên phòng' }))}
+                    >
+                      Nguyên phòng
+                    </button>
+                    <button
+                      type="button"
+                      className={`toggle-pill ${thongTinThanhToanCoc.hinhThucThue === 'Ghép' ? 'active' : ''}`}
+                      onClick={() => setThongTinThanhToanCoc(prev => ({ ...prev, hinhThucThue: 'Ghép' }))}
+                    >
+                      Ghép
+                    </button>
+                  </div>
+                </div>
+                <div className="form-group">
+                  <label>Số giường thuê</label>
+                  <input
+                    type="number"
+                    name="soGiuong"
+                    className="form-control"
+                    value={thongTinThanhToanCoc.soGiuong}
+                    onChange={xuLyThayDoiThanhToanCoc}
+                    disabled={thongTinThanhToanCoc.hinhThucThue === 'Nguyên phòng'}
+                  />
+                  {thongTinThanhToanCoc.hinhThucThue === 'Nguyên phòng' && (
+                    <small className="form-hint">Tự động khóa cho hình thức "Nguyên phòng"</small>
+                  )}
+                </div>
+                <div className="form-group">
+                  <label>Mã phòng</label>
+                  <input type="text" name="maPhong" className="form-control" value={thongTinThanhToanCoc.maPhong} onChange={xuLyThayDoiThanhToanCoc} />
+                </div>
+                <div className="form-group">
+                  <label>Ngày bắt đầu thuê</label>
+                  <input type="date" name="ngayBatDau" className="form-control" value={thongTinThanhToanCoc.ngayBatDau} onChange={xuLyThayDoiThanhToanCoc} />
+                </div>
+              </div>
+
+              <div className="formula-box">
+                <div className="formula-box-head">
+                  <span>Công thức tính cọc đề xuất</span>
+                  <span className="formula-tag">Quy định 2023</span>
+                </div>
+                <code>Tiền cọc = (Tiền thuê 2 tháng) x (Số giường thuê)</code>
+                <p className="formula-detail">Chi tiết: (2,500,000đ x 2) x {thongTinThanhToanCoc.soGiuong || 0}</p>
+                <div className="formula-total">
+                  <span>Tổng tiền cọc phải thu:</span>
+                  <strong><AnimatedCounter end={tinhTienCocDeXuat()} suffix="đ" /></strong>
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginTop: '8px' }}>
+                <label>Ghi chú yêu cầu</label>
+                <textarea
+                  className="form-control"
+                  rows="3"
+                  name="ghiChu"
+                  value={thongTinThanhToanCoc.ghiChu}
+                  onChange={xuLyThayDoiThanhToanCoc}
+                  placeholder="Nhập ghi chú gửi cho khách hàng (Ví dụ: Thời hạn giữ phòng là 24h từ lúc nhận thông báo này...)"
+                ></textarea>
+              </div>
+            </div>
+
+            <div className="review-side-col">
+              <div className="pending-payment-card">
+                <div className="pending-payment-head">
+                  <strong>Chờ thanh toán</strong>
+                  <span className="pending-payment-id">ID: #PAY-99281</span>
+                </div>
+                <p className="pending-payment-label">THỜI HẠN THANH TOÁN CÒN LẠI</p>
+                <div className="pending-payment-timer">⏱ {formatDemHoGioPhutGiay(giayConLaiThanhToan)}</div>
+
+                <div className="pending-payment-bank">
+                  <div className="pending-bank-row">
+                    <span>Ngân hàng</span>
+                    <strong>MB BANK (Quân đội)</strong>
+                  </div>
+                  <div className="pending-bank-row">
+                    <span>Số tài khoản</span>
+                    <strong>0988776655 📋</strong>
+                  </div>
+                  <div className="pending-bank-row">
+                    <span>Chủ tài khoản</span>
+                    <strong>CÔNG TY HOMESTAY DORM</strong>
+                  </div>
+                  <div className="pending-bank-row">
+                    <span>Nội dung chuyển khoản</span>
+                  </div>
+                  <div className="pending-bank-content">COC PHONG 402A - [TEN KHACH]</div>
+                </div>
+
+                <div className="pending-qr-box">
+                  <div className="pending-qr-placeholder">▦</div>
+                  <span>Quét mã để thanh toán nhanh qua Napas</span>
+                </div>
+
+                <div className="pending-history-box">
+                  <div className="pending-history-head">🕒 Lịch sử yêu cầu</div>
+                  <div className="pending-history-item">
+                    <strong>Khởi tạo yêu cầu</strong>
+                    <span>15:30 - 24/10/2023 | Sale: Nguyễn Văn A</span>
+                  </div>
+                  <div className="pending-history-item">
+                    <strong>Cập nhật công thức tính</strong>
+                    <span>15:45 - 24/10/2023 | Kế toán: Trần Thị B</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===========================================================
+           2.4 TIẾP NHẬN THANH TOÁN CỌC (NHÂN VIÊN KẾ TOÁN)
+      =========================================================== */}
+      {trangHienTai === 'payment_receive' && (
+        <div className="deposit-flow-page">
+          <div className="deposit-page-header">
+            <div>
+              <p className="payment-breadcrumb">Thanh toán &nbsp;&gt;&nbsp; <span>Tiếp nhận thanh toán cọc</span></p>
+              <h1 className="page-title" style={{ margin: 0 }}>Tiếp nhận thanh toán cọc</h1>
+            </div>
+          </div>
+
+          <div className="payment-subtabs">
+            <button type="button" className={`payment-subtab ${trangHienTai === 'payment_request' ? 'active' : ''}`} onClick={() => chuyenTrang('payment_request')}>Lập yêu cầu thanh toán cọc</button>
+            <button type="button" className={`payment-subtab ${trangHienTai === 'payment_receive' ? 'active' : ''}`} onClick={() => chuyenTrang('payment_receive')}>Tiếp nhận thanh toán cọc</button>
+          </div>
+
+          <div className="payment-receive-grid">
+            <div className="receive-info-card">
+              <div className="receive-info-head">📋 Thông tin đặt phòng</div>
+
+              <div className="receive-customer-row">
+                <img src="https://images.unsplash.com/photo-1633332755192-727a05c4013d?q=80&w=200&auto=format&fit=crop" alt="Nguyễn Thành Trung" className="receive-avatar" />
+                <div>
+                  <strong>Nguyễn Thành Trung</strong>
+                  <p>SĐT: 090 123 4567</p>
+                </div>
+              </div>
+
+              <div className="receive-info-rows">
+                <div className="receive-info-row">
+                  <span>Phòng/Giường:</span>
+                  <strong>P.402 - G02 (Dorm 4)</strong>
+                </div>
+                <div className="receive-info-row">
+                  <span>Loại hợp đồng:</span>
+                  <span className="status-pill-blue">DÀI HẠN</span>
+                </div>
+                <div className="receive-info-row">
+                  <span>Tổng tiền cọc:</span>
+                  <strong className="receive-total-deposit">20.000.000đ</strong>
+                </div>
+                <div className="receive-info-row">
+                  <span>Thời gian còn lại</span>
+                  <strong className="receive-time-left">{formatDemPhutGiay(giayConLaiTiepNhan)}</strong>
+                </div>
+              </div>
+            </div>
+
+            <div className="receive-form-card">
+              <div className="receive-form-head">Chi tiết tiếp nhận thanh toán</div>
+
+              <div className="form-group">
+                <label>• 1. Hình thức thanh toán</label>
+                <div className="payment-method-row">
+                  <button
+                    type="button"
+                    className={`payment-method-btn ${formTiepNhanThanhToan.hinhThuc === 'chuyen-khoan' ? 'active' : ''}`}
+                    onClick={() => setFormTiepNhanThanhToan(prev => ({ ...prev, hinhThuc: 'chuyen-khoan' }))}
+                  >
+                    <span>🏦</span>
+                    Chuyển khoản
+                    {formTiepNhanThanhToan.hinhThuc === 'chuyen-khoan' && <span className="payment-method-check">✓</span>}
+                  </button>
+                  <button
+                    type="button"
+                    className={`payment-method-btn ${formTiepNhanThanhToan.hinhThuc === 'tien-mat' ? 'active' : ''}`}
+                    onClick={() => setFormTiepNhanThanhToan(prev => ({ ...prev, hinhThuc: 'tien-mat' }))}
+                  >
+                    <span>💵</span>
+                    Tiền mặt
+                  </button>
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>• 2. Số tiền thực thu (VNĐ) <small className="form-hint-right">Nhập đúng 20,000,000đ</small></label>
+                <input
+                  type="text"
+                  name="soTienThucThu"
+                  className="form-control"
+                  placeholder="0"
+                  value={formTiepNhanThanhToan.soTienThucThu}
+                  onChange={xuLyThayDoiTiepNhanThanhToan}
+                />
+                {formTiepNhanThanhToan.soTienThucThu && Number(formTiepNhanThanhToan.soTienThucThu.toString().replace(/\D/g, '')) !== 20000000 && (
+                  <span className="form-error-text">⚠ Số tiền không khớp! Yêu cầu: 20,000,000đ</span>
+                )}
+              </div>
+
+              <div className="receive-form-row-2">
+                <div className="form-group">
+                  <label>• 3. Thời điểm thu</label>
+                  <input
+                    type="datetime-local"
+                    name="thoiDiemThu"
+                    className="form-control"
+                    value={formTiepNhanThanhToan.thoiDiemThu}
+                    onChange={xuLyThayDoiTiepNhanThanhToan}
+                  />
+                </div>
+                <div className="form-group">
+                  <label>• 4. Mã giao dịch</label>
+                  <input
+                    type="text"
+                    name="maGiaoDich"
+                    className="form-control"
+                    placeholder="Ví dụ: VCB-123456789"
+                    value={formTiepNhanThanhToan.maGiaoDich}
+                    onChange={xuLyThayDoiTiepNhanThanhToan}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>• Chứng từ thanh toán</label>
+                <input
+                  type="file"
+                  accept=".jpg,.jpeg,.png,.pdf"
+                  ref={inputChungTuRef}
+                  onChange={xuLyChonFileChungTu}
+                  style={{ display: 'none' }}
+                />
+                <div className="upload-box" onClick={() => inputChungTuRef.current && inputChungTuRef.current.click()}>
+                  {chungTuThanhToanFile ? (
+                    <>
+                      {chungTuThanhToanPreview ? (
+                        <img src={chungTuThanhToanPreview} alt="Chứng từ" className="upload-thumb-img" />
+                      ) : (
+                        <div className="upload-thumb">📄</div>
+                      )}
+                      <p>{chungTuThanhToanFile.name}</p>
+                      <small>Bấm để chọn file khác</small>
+                    </>
+                  ) : (
+                    <>
+                      <span className="upload-icon">📎</span>
+                      <p>Upload chứng từ / ảnh giao dịch</p>
+                      <small>Hỗ trợ định dạng: JPG, PNG, PDF (Tối đa 5MB)</small>
+                      <div className="upload-thumb">🧾</div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="receive-action-row">
+                <button type="button" className="btn-book-filled receive-confirm-btn" onClick={xuLyXacNhanTiepNhanGuiQuanLy}>
+                  🔒 Xác nhận tiếp nhận → Gửi Quản lý duyệt
+                </button>
+                <button type="button" className="btn-detail-outline" onClick={() => hienThongBao('info', 'Đã hủy bỏ yêu cầu tiếp nhận thanh toán.')}>Hủy bỏ</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===========================================================
+           2.5 PHÊ DUYỆT YÊU CẦU ĐẶT CỌC (QUẢN LÝ)
+      =========================================================== */}
       {/* MODAL HỎI ĐIỀU HƯỚNG SAU KHI ĐẶT LỊCH HẸN THÀNH CÔNG */}
       {bookingSuccessModal && (
         <div className="modal-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
@@ -2616,7 +3524,6 @@ export default function App() {
           <span>{thongBao.tinNhan}</span>
         </div>
       )}
-
     </div>
   );
 }
