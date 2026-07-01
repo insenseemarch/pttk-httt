@@ -5154,6 +5154,17 @@ textarea.form-control {
   font-weight: 600;
 }
 
+.staff-room-page-header {
+  padding: 16px 24px 0;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.staff-room-subtabs {
+  margin-top: 12px;
+  margin-bottom: 0;
+}
+
 .payment-subtabs {
   display: flex;
   gap: 8px;
