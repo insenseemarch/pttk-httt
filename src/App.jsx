@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import CheckoutContainer from './components/checkout/CheckoutContainer';
 
 function AnimatedCounter({ end, duration = 1500, suffix = "" }) {
   const [count, setCount] = useState(0);
@@ -33,9 +34,12 @@ function AnimatedCounter({ end, duration = 1500, suffix = "" }) {
 }
 
 export default function App() {
-  // Quản lý chuyển màn hình: 'guest_home', 'staff_reception', 'search_vacancy', hoặc 'room_detail'
+  // Quản lý chuyển màn hình: 'guest_home', 'staff_reception', 'search_vacancy', 'room_detail', hoặc 'staff_checkout'
   const [trangHienTai, setTrangHienTai] = useState('guest_home');
 
+  // Phân quyền nhân viên: null, 'sale', 'quanly', 'ketoan'
+  const [vaiTroNhanVien, setVaiTroNhanVien] = useState(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   // Chế độ người dùng: false = Guest, true = Nhân viên
   const [cheDoNhanVien, setCheDoNhanVien] = useState(false);
 
@@ -282,7 +286,7 @@ export default function App() {
   const guiYeuCauDatLichHen = async (e) => {
     if (e) e.preventDefault();
     if (!formHenXem.hoTen.trim() || !formHenXem.sdt.trim() || !formHenXem.ngayGioHen) {
-      hienThongBao('error', 'Vui lòng điền các trường bắt buộc (Họ tên, SĐT, Ngày giờ hẹn)!');
+      hienThongBao('error', 'Vui lòng điền các trường bắt buộc (Họ tên, Số điện thoại, Ngày giờ hẹn)!');
       return;
     }
 
@@ -312,7 +316,7 @@ export default function App() {
     }
   };
 
-  const formatNgayGio = (dateStr) => {
+  const dinhDangNgayGio = (dateStr) => {
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return dateStr;
     const today = new Date();
@@ -531,7 +535,6 @@ export default function App() {
       hienThongBao('error', 'Không thể cập nhật trạng thái lịch hẹn!');
     }
   };
-
   useEffect(() => {
     if (trangHienTai === 'guest_home') {
       taiThongKeTongHop();
@@ -734,32 +737,48 @@ export default function App() {
             )}
           </ul>
         ) : (
-          // Menu dành cho Nhân viên
+          // Menu dành cho Nhân viên (được phân quyền động)
           <ul className="nav-links">
-            <li><a href="#" onClick={() => { setCheDoNhanVien(false); chuyenTrang('guest_home'); }}>Trang chủ Guest</a></li>
-            <li><a href="#" onClick={() => { hienThongBao('info', 'Trang Dashboard đang được phát triển.'); setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>Dashboard</a></li>
-            <li className={trangHienTai === 'search_vacancy' ? 'active' : ''}>
-              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('search_vacancy'); }}>Phòng/Giường</a>
+            {/* Chuyên viên Sale và Quản lý chi nhánh mới được vào Phòng và Giường */}
+            {(vaiTroNhanVien === 'sale' || vaiTroNhanVien === 'quanly') && (
+              <li className={trangHienTai === 'search_vacancy' ? 'active' : ''}>
+                <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('search_vacancy'); }}>Phòng và Giường</a>
+              </li>
+            )}
+            
+            {/* Chuyên viên Sale mới có nút Tiếp nhận khách hàng */}
+            {vaiTroNhanVien === 'sale' && (
+              <li className={trangHienTai === 'staff_reception' ? 'active' : ''}>
+                <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>Tiếp nhận khách hàng</a>
+              </li>
+            )}
+            
+            {/* Chuyên viên Sale và Quản lý chi nhánh mới có nút Lịch hẹn xem phòng */}
+            {(vaiTroNhanVien === 'sale' || vaiTroNhanVien === 'quanly') && (
+              <li className={trangHienTai === 'staff_contracts' ? 'active' : ''}>
+                <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_contracts'); }}>Lịch hẹn xem phòng</a>
+              </li>
+            )}
+            
+            {/* Mọi vai trò đều được sử dụng phân hệ Trả phòng và Hoàn cọc */}
+            <li className={trangHienTai.startsWith('staff_checkout') ? 'active' : ''}>
+              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_checkout'); }}>Trả phòng và Hoàn cọc</a>
             </li>
-            <li className={trangHienTai === 'staff_reception' ? 'active' : ''}>
-              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>Khách hàng</a>
-            </li>
-            <li className={trangHienTai === 'staff_contracts' ? 'active' : ''}>
-              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_contracts'); }}>Hợp đồng</a>
-            </li>
-            <li><a href="#" onClick={() => hienThongBao('info', 'Trang Thanh toán đang được phát triển.')}>Thanh toán</a></li>
           </ul>
         )}
 
         <div className="nav-actions">
           {cheDoNhanVien === false ? (
-            <button className="submit-btn" style={{ height: '40px', width: 'auto', padding: '0 20px', fontSize: '13px' }} onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>
+            <button className="submit-btn" style={{ height: '40px', width: 'auto', padding: '0 20px', fontSize: '13px' }} onClick={() => setShowLoginModal(true)}>
               Dành cho Nhân viên
             </button>
           ) : (
             <div className="user-profile">
+              <span className="mini-tag" style={{ background: vaiTroNhanVien === 'sale' ? 'var(--primary-color)' : vaiTroNhanVien === 'quanly' ? '#3B82F6' : '#10B981', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>
+                {vaiTroNhanVien === 'sale' ? 'Sale' : vaiTroNhanVien === 'quanly' ? 'Quản lý' : 'Kế toán'}
+              </span>
               <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&width=100&auto=format&fit=crop" alt="Staff avatar" className="avatar" />
-              <button className="logout-btn" onClick={() => { setCheDoNhanVien(false); chuyenTrang('guest_home'); }}>Đăng xuất</button>
+              <button className="logout-btn" onClick={() => { setCheDoNhanVien(false); setVaiTroNhanVien(null); chuyenTrang('guest_home'); }}>Đăng xuất</button>
             </div>
           )}
         </div>
@@ -885,7 +904,7 @@ export default function App() {
                 </div>
 
                 <button type="button" className="btn-search-now" onClick={chuyenSangTraCuuNhanhFromHero}>
-                  Tìm kiếm ngay ➔
+                  Tìm kiếm ngay
                 </button>
               </div>
             </div>
@@ -903,7 +922,7 @@ export default function App() {
                 className="btn-explore-all"
                 onClick={() => { setCheDoNhanVien(false); chuyenTrang('search_vacancy'); }}
               >
-                Khám phá tất cả ➔
+                Khám phá tất cả
               </button>
             </div>
 
@@ -1648,7 +1667,7 @@ export default function App() {
               {/* Action Buttons */}
               <div className="detail-action-buttons">
                 <button type="button" className="btn-action-orange btn-choose-room" onClick={() => xuLyDatPhong(phongDaChon)}>
-                  Chọn phòng này ➔
+                  Chọn phòng này
                 </button>
                 <div className="btn-divider-pipe">|</div>
                 <button type="button" className="btn-action-orange btn-book-visit" onClick={() => {
@@ -1941,7 +1960,7 @@ export default function App() {
                     />
                   </div>
                   <div className="input-group">
-                    <label htmlFor="cccd">Số CCCD</label>
+                    <label htmlFor="cccd">Số Căn cước công dân</label>
                     <input
                       type="text"
                       id="cccd"
@@ -2480,7 +2499,7 @@ export default function App() {
                         </td>
                         <td>
                           <span className="datetime-cell-content">
-                            📅 {formatNgayGio(item.NgayGioHen)}
+                            📅 {dinhDangNgayGio(item.NgayGioHen)}
                           </span>
                         </td>
                         <td>
@@ -2542,14 +2561,26 @@ export default function App() {
         </div>
       )}
 
+      {/* ==========================================
+          TRANG QUẢN LÝ TRẢ PHÒNG & HOÀN CỌC (STAFF CHECKOUT)
+          ========================================== */}
+      {trangHienTai === 'staff_checkout' && (
+        <CheckoutContainer 
+          hienThongBao={hienThongBao}
+          setCheDoNhanVien={setCheDoNhanVien}
+          chuyenTrang={chuyenTrang}
+          loggedRole={vaiTroNhanVien}
+        />
+      )}
+
       {/* MODAL HỎI ĐIỀU HƯỚNG SAU KHI ĐẶT LỊCH HẸN THÀNH CÔNG */}
       {bookingSuccessModal && (
-        <div className="modal-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div className="modal-container" style={{ maxWidth: '450px', width: '90%', margin: '0 auto' }}>
-            <div className="modal-header">
-              <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b' }}>🎉 Đặt lịch hẹn thành công!</h3>
+        <div className="modal-backdrop">
+          <div className="modal-content" style={{ maxWidth: '450px', padding: '24px' }}>
+            <div className="modal-header" style={{ padding: '0 0 12px 0', borderBottom: 'none' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: '800', color: '#1e293b', margin: 0 }}>🎉 Đặt lịch hẹn thành công!</h3>
             </div>
-            <div className="modal-body" style={{ padding: '20px 24px', textAlign: 'center' }}>
+            <div className="modal-body" style={{ padding: '12px 0 0 0', textAlign: 'center' }}>
               <p style={{ fontSize: '14.5px', color: '#475569', lineHeight: '1.6', margin: '0 0 20px 0' }}>
                 Hệ thống đã lưu thông tin lịch hẹn và gửi thông báo xác nhận đến khách hàng. Bạn muốn đi đến đâu tiếp theo?
               </p>
@@ -2562,6 +2593,7 @@ export default function App() {
                   onClick={() => {
                     setBookingSuccessModal(false);
                     setCheDoNhanVien(true);
+                    setVaiTroNhanVien('sale');
                     chuyenTrang('staff_contracts');
                   }}
                 >
@@ -2576,6 +2608,7 @@ export default function App() {
                     setBookingSuccessModal(false);
                     hienThongBao('info', 'Trang Dashboard đang được phát triển. Bạn sẽ được chuyển hướng sau.');
                     setCheDoNhanVien(true);
+                    setVaiTroNhanVien('sale');
                     chuyenTrang('staff_reception');
                   }}
                 >
@@ -2589,12 +2622,161 @@ export default function App() {
                   onClick={() => {
                     setBookingSuccessModal(false);
                     setCheDoNhanVien(true);
+                    setVaiTroNhanVien('sale');
                     chuyenTrang('staff_reception');
                   }}
                 >
                   Quay lại Tiếp nhận thông tin
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL MÔ PHỎNG ĐĂNG NHẬP NHÂN VIÊN */}
+      {showLoginModal && (
+        <div className="modal-backdrop" onClick={() => setShowLoginModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px', padding: '24px' }}>
+            <div className="modal-header" style={{ padding: '0 0 12px 0', borderBottom: 'none' }}>
+              <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#1e293b', textAlign: 'center', width: '100%', margin: 0 }}>
+                🔑 CỔNG ĐĂNG NHẬP HỆ THỐNG
+              </h3>
+              <p style={{ fontSize: '13.5px', color: '#64748b', textAlign: 'center', width: '100%', margin: '6px 0 0 0' }}>
+                Vui lòng chọn tài khoản nhân viên để truy cập phân hệ tương ứng
+              </p>
+            </div>
+            
+            <div className="modal-body" style={{ padding: '16px 0 0 0' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                
+                {/* Account 1: Sale */}
+                <div 
+                  className="role-login-card"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                    padding: '16px',
+                    borderRadius: '12px',
+                    border: '1.5px solid #e2e8f0',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    background: 'white'
+                  }}
+                  onClick={() => {
+                    setCheDoNhanVien(true);
+                    setVaiTroNhanVien('sale');
+                    setShowLoginModal(false);
+                    chuyenTrang('staff_reception');
+                    hienThongBao('success', 'Đăng nhập thành công với vai trò Chuyên viên Sale!');
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--primary-color)';
+                    e.currentTarget.style.background = '#fff7ed';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#e2e8f0';
+                    e.currentTarget.style.background = 'white';
+                  }}
+                >
+                  <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'var(--primary-color)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 'bold' }}>
+                    S
+                  </div>
+                  <div style={{ textAlign: 'left' }}>
+                    <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#0f172a' }}>Nguyễn Văn Sale</h4>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '12.5px', color: '#64748b' }}>Phân hệ: Tiếp nhận khách hàng và yêu cầu trả phòng</p>
+                  </div>
+                </div>
+
+                {/* Account 2: Manager */}
+                <div 
+                  className="role-login-card"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                    padding: '16px',
+                    borderRadius: '12px',
+                    border: '1.5px solid #e2e8f0',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    background: 'white'
+                  }}
+                  onClick={() => {
+                    setCheDoNhanVien(true);
+                    setVaiTroNhanVien('quanly');
+                    setShowLoginModal(false);
+                    chuyenTrang('staff_checkout');
+                    hienThongBao('success', 'Đăng nhập thành công với vai trò Quản lý chi nhánh!');
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#3b82f6';
+                    e.currentTarget.style.background = '#eff6ff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#e2e8f0';
+                    e.currentTarget.style.background = 'white';
+                  }}
+                >
+                  <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: '#3b82f6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 'bold' }}>
+                    Q
+                  </div>
+                  <div style={{ textAlign: 'left' }}>
+                    <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#0f172a' }}>Trần Thị Quản Lý</h4>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '12.5px', color: '#64748b' }}>Phân hệ: Kiểm tra phòng, Duyệt đối soát và thanh lý hợp đồng</p>
+                  </div>
+                </div>
+
+                {/* Account 3: Accountant */}
+                <div 
+                  className="role-login-card"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                    padding: '16px',
+                    borderRadius: '12px',
+                    border: '1.5px solid #e2e8f0',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    background: 'white'
+                  }}
+                  onClick={() => {
+                    setCheDoNhanVien(true);
+                    setVaiTroNhanVien('ketoan');
+                    setShowLoginModal(false);
+                    chuyenTrang('staff_checkout');
+                    hienThongBao('success', 'Đăng nhập thành công với vai trò Kế toán trưởng!');
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = '#10b981';
+                    e.currentTarget.style.background = '#ecfdf5';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = '#e2e8f0';
+                    e.currentTarget.style.background = 'white';
+                  }}
+                >
+                  <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: '#10b981', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', fontWeight: 'bold' }}>
+                    K
+                  </div>
+                  <div style={{ textAlign: 'left' }}>
+                    <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '700', color: '#0f172a' }}>Lê Thị Kế Toán</h4>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '12.5px', color: '#64748b' }}>Phân hệ: Lập phiếu đối soát, chi hoặc thu hoàn cọc</p>
+                  </div>
+                </div>
+
+              </div>
+
+              <button 
+                type="button" 
+                className="btn-detail-outline" 
+                style={{ width: '100%', padding: '12px', borderRadius: '10px', marginTop: '20px', fontWeight: '700' }}
+                onClick={() => setShowLoginModal(false)}
+              >
+                Hủy bỏ
+              </button>
             </div>
           </div>
         </div>
