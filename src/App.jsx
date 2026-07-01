@@ -1382,9 +1382,12 @@ export default function App() {
         <div className="vacancy-search-page">
 
           {cheDoNhanVien && (
-            <div className="payment-subtabs" style={{ padding: '16px 24px', background: '#fff', borderBottom: '1px solid #e2e8f0' }}>
-              <button type="button" className="payment-subtab active" onClick={() => setTabPhongGiuongNhanVien('danh-sach')}>Danh sách phòng/giường</button>
-              <button type="button" className="payment-subtab" onClick={() => setTabPhongGiuongNhanVien('xac-nhan')}>Xác nhận tình trạng</button>
+            <div className="staff-room-page-header">
+              <p className="payment-breadcrumb">Phòng/Giường &nbsp;&gt;&nbsp; <span>Danh sách phòng/giường</span></p>
+              <div className="payment-subtabs staff-room-subtabs">
+                <button type="button" className="payment-subtab active" onClick={() => setTabPhongGiuongNhanVien('danh-sach')}>Danh sách phòng/giường</button>
+                <button type="button" className="payment-subtab" onClick={() => setTabPhongGiuongNhanVien('xac-nhan')}>Xác nhận tình trạng</button>
+              </div>
             </div>
           )}
 
@@ -2092,14 +2095,13 @@ export default function App() {
         // GIAO DIỆN TRANG TIẾP NHẬN CỦA NHÂN VIÊN
         // ==========================================
         <div className="app-container">
-          <nav className="breadcrumbs" aria-label="breadcrumb">
-            <span style={{ cursor: 'pointer' }} onClick={() => chuyenTrang('guest_home')}>Trang chủ</span>
-            <span className="separator">&gt;</span>
-            <span className="current">Tiếp nhận thông tin</span>
-          </nav>
-
-          <h1 className="page-title">Tiếp nhận thông tin &amp; yêu cầu thuê</h1>
-          <p className="page-subtitle">Vui lòng nhập chính xác thông tin để tìm kiếm phòng phù hợp nhất cho khách hàng.</p>
+          <div className="deposit-page-header" style={{ marginBottom: 0 }}>
+            <div>
+              <p className="payment-breadcrumb">Khách hàng &nbsp;&gt;&nbsp; <span>Tiếp nhận thông tin</span></p>
+              <h1 className="page-title" style={{ margin: 0 }}>Tiếp nhận thông tin &amp; yêu cầu thuê</h1>
+              <p className="page-subtitle" style={{ margin: '4px 0 0 0' }}>Vui lòng nhập chính xác thông tin để tìm kiếm phòng phù hợp nhất cho khách hàng.</p>
+            </div>
+          </div>
 
           <div className="payment-subtabs" style={{ marginTop: '16px', marginBottom: '24px' }}>
             <button type="button" className={`payment-subtab ${trangHienTai === 'staff_reception' ? 'active' : ''}`} onClick={() => chuyenTrang('staff_reception')}>Tiếp nhận thông tin</button>
@@ -2665,7 +2667,7 @@ export default function App() {
         <div className="deposit-flow-page">
           <div className="deposit-page-header">
             <div>
-              <p className="payment-breadcrumb">Phòng/Giường &nbsp;&gt;&nbsp; <span>Xác nhận yêu cầu</span></p>
+              <p className="payment-breadcrumb">Phòng/Giường &nbsp;&gt;&nbsp; <span>Xác nhận tình trạng</span></p>
               <h1 className="page-title" style={{ margin: 0 }}>Kiểm tra &amp; Xác nhận tình trạng</h1>
             </div>
             <div className="header-actions">
@@ -2835,6 +2837,7 @@ export default function App() {
             <>
               <div className="contracts-header-row">
                 <div>
+                  <p className="payment-breadcrumb">Hợp đồng &nbsp;&gt;&nbsp; <span>Danh sách lịch hẹn</span></p>
                   <h1 className="page-title" style={{ margin: 0 }}>Lịch hẹn xem phòng</h1>
                   <p className="page-subtitle" style={{ margin: '4px 0 0 0' }}>
                     Quản lý và cập nhật trạng thái khách hàng đi xem phòng thực tế.
@@ -3362,6 +3365,7 @@ export default function App() {
                   >
                     <span>💵</span>
                     Tiền mặt
+                    {formTiepNhanThanhToan.hinhThuc === 'tien-mat' && <span className="payment-method-check">✓</span>}
                   </button>
                 </div>
               </div>
