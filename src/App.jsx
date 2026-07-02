@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ROUTES } from './config/routes';
 
 function AnimatedCounter({ end, duration = 1500, suffix = "" }) {
   const [count, setCount] = useState(0);
@@ -33,6 +35,20 @@ function AnimatedCounter({ end, duration = 1500, suffix = "" }) {
 }
 
 export default function App() {
+  const navigate = useNavigate();
+
+  const chuyenDenKhuVucNhanVien = () => {
+    try {
+      if (localStorage.getItem('homestay_nguoiDung')) {
+        navigate(ROUTES.dashboard);
+      } else {
+        navigate(ROUTES.dangNhap);
+      }
+    } catch {
+      navigate(ROUTES.dangNhap);
+    }
+  };
+
   // Quản lý chuyển màn hình: 'guest_home', 'staff_reception', 'search_vacancy', hoặc 'room_detail'
   const [trangHienTai, setTrangHienTai] = useState('guest_home');
 
@@ -737,23 +753,21 @@ export default function App() {
           // Menu dành cho Nhân viên
           <ul className="nav-links">
             <li><a href="#" onClick={() => { setCheDoNhanVien(false); chuyenTrang('guest_home'); }}>Trang chủ Guest</a></li>
-            <li><a href="#" onClick={() => { hienThongBao('info', 'Trang Dashboard đang được phát triển.'); setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>Dashboard</a></li>
-            <li className={trangHienTai === 'search_vacancy' ? 'active' : ''}>
-              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('search_vacancy'); }}>Phòng/Giường</a>
-            </li>
+            <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.dashboard); }}>Dashboard</a></li>
+            <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.phongGiuong); }}>Phòng/Giường</a></li>
             <li className={trangHienTai === 'staff_reception' ? 'active' : ''}>
-              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>Khách hàng</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.khachHang); }}>Khách hàng</a>
             </li>
             <li className={trangHienTai === 'staff_contracts' ? 'active' : ''}>
-              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_contracts'); }}>Hợp đồng</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.hopDong); }}>Hợp đồng</a>
             </li>
-            <li><a href="#" onClick={() => hienThongBao('info', 'Trang Thanh toán đang được phát triển.')}>Thanh toán</a></li>
+            <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.thongBao); }}>Thông báo</a></li>
           </ul>
         )}
 
         <div className="nav-actions">
           {cheDoNhanVien === false ? (
-            <button className="submit-btn" style={{ height: '40px', width: 'auto', padding: '0 20px', fontSize: '13px' }} onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>
+            <button className="submit-btn" style={{ height: '40px', width: 'auto', padding: '0 20px', fontSize: '13px' }} onClick={chuyenDenKhuVucNhanVien}>
               Dành cho Nhân viên
             </button>
           ) : (
@@ -2574,12 +2588,10 @@ export default function App() {
                   style={{ width: '100%', padding: '12px', borderRadius: '10px', color: 'var(--primary-color)', borderColor: 'var(--primary-color)', fontWeight: '700' }}
                   onClick={() => {
                     setBookingSuccessModal(false);
-                    hienThongBao('info', 'Trang Dashboard đang được phát triển. Bạn sẽ được chuyển hướng sau.');
-                    setCheDoNhanVien(true);
-                    chuyenTrang('staff_reception');
+                    navigate(ROUTES.dashboard);
                   }}
                 >
-                  Đi đến Dashboard (Sắp ra mắt) 📊
+                  Đi đến Dashboard 📊
                 </button>
 
                 <button
