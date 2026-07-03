@@ -4,17 +4,20 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev:server": "node server/index.js",
+    "dev:server": "node --watch server/index.js",
     "dev:client": "vite",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "start": "node server/index.js",
-    "build": "vite build"
+    "build": "vite build",
+    "seed": "node server/seed.js"
   },
   "dependencies": {
+    "@supabase/server": "^1.2.0",
     "@supabase/supabase-js": "^2.108.2",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "react-router-dom": "^7.18.1"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.7.0",
