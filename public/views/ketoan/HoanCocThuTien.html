@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ghi Nhận Hoàn Cọc &amp; Thu Tiền - HomeStay Dorm</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .btn-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-sub);
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 15px;
+      margin-bottom: 24px;
+      transition: var(--transition);
+    }
+    .btn-back:hover {
+      color: var(--primary);
+    }
+    .settlement-badge {
+      display: inline-flex;
+      padding: 16px 24px;
+      border-radius: 8px;
+      font-weight: 800;
+      font-size: 20px;
+      margin-top: 12px;
+      width: 100%;
+      justify-content: center;
+    }
+    .settlement-refund {
+      background-color: #ECFDF5;
+      color: #065F46;
+      border: 1px solid #A7F3D0;
+    }
+    .settlement-collect {
+      background-color: #FEF2F2;
+      color: #991B1B;
+      border: 1px solid #FCA5A5;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="logo">
+        HomeStay <span class="logo-dot"></span>
+      </div>
+      <nav class="main-nav">
+        <ul>
+          <li><a href="#">Tổng quan</a></li>
+          <li><a href="#">Phòng</a></li>
+          <li><a href="/index.html">Hợp đồng</a></li>
+          <li><a href="#" class="active">Thu chi</a></li>
+          <li><a href="#">Báo cáo</a></li>
+        </ul>
+      </nav>
+      <div class="user-profile">
+        <div class="user-info">
+          <div class="user-name">Kế toán trưởng</div>
+          <div class="user-role">Phòng tài chính</div>
+        </div>
+        <div class="user-avatar" style="background-color: #059669;">KT</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- App Main Content -->
+  <main class="app-main">
+    
+    <!-- Back Button -->
+    <a href="/index.html?tab=yeucau&role=ketoan" class="btn-back">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      Quay lại danh sách
+    </a>
+
+    <!-- Title Section -->
+    <div class="page-title-section" style="margin-bottom: 28px;">
+      <h1 id="page-title-text" class="page-title">Ghi nhận Hoàn cọc / Thu phí chênh lệch</h1>
+      <p class="page-subtitle" id="khach-thue-info">Thực hiện chi trả tiền cọc hoặc nhận tiền đóng thêm từ khách thuê để đóng hồ sơ trả phòng</p>
+    </div>
+
+    <!-- Main Grid Workspace -->
+    <form id="payment-form">
+      <div class="detail-grid">
+        
+        <!-- Left: Summary Info -->
+        <div style="display: flex; flex-direction: column; gap: 24px;">
+          <div class="info-card">
+            <h2 class="card-title" style="margin-bottom: 16px;">Thông tin quyết toán hợp đồng</h2>
+            
+            <div class="info-list">
+              <div class="info-item">
+                <div>
+                  <div class="info-label">Mã hợp đồng</div>
+                  <div id="card-ma-so" class="info-value" style="font-weight: 700; color: var(--primary);">-</div>
+                </div>
+              </div>
+              <div class="info-item">
+                <div>
+                  <div class="info-label">Khách thuê</div>
+                  <div id="card-khach-hang" class="info-value" style="font-weight: 700;">-</div>
+                </div>
+              </div>
+              <div class="info-item">
+                <div>
+                  <div class="info-label">Phòng / Cơ sở</div>
+                  <div id="card-phong-co-so" class="info-value">-</div>
+                </div>
+              </div>
+              <div class="info-item">
+                <div>
+                  <div class="info-label">Phương thức nhận mong muốn</div>
+                  <div id="card-phuong-thuc" class="info-value">-</div>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 16px;">
+              <span class="info-label">Số tiền quyết toán cuối cùng</span>
+              <div id="settlement-box" class="settlement-badge">-</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Payment Confirmation Form -->
+        <div style="display: flex; flex-direction: column; gap: 24px;">
+          <div class="info-card">
+            <h2 class="card-title" style="margin-bottom: 16px;">Xác nhận giao dịch tài chính</h2>
+            
+            <div class="form-grid" style="row-gap: 20px;">
+              <!-- Payment Mode -->
+              <div class="form-group full-width">
+                <label class="form-label" for="input-mode">Phương thức thực tế</label>
+                <select id="input-mode" class="form-select" required>
+                  <option value="chuyen_khoan">Chuyển khoản qua ngân hàng</option>
+                  <option value="tien_mat">Tiền mặt tại quầy</option>
+                </select>
+              </div>
+
+              <!-- Dynamic Bank Transfer Details Container -->
+              <div id="bank-details-container" class="full-width" style="display: flex; flex-direction: column; gap: 20px;">
+                <div class="form-group full-width">
+                  <label class="form-label" for="input-bank-name">Tên ngân hàng</label>
+                  <select id="input-bank-name" class="form-select">
+                    <option value="Vietcombank">Vietcombank</option>
+                    <option value="Techcombank">Techcombank</option>
+                    <option value="BIDV">BIDV</option>
+                    <option value="Vietinbank">Vietinbank</option>
+                    <option value="ACB">ACB</option>
+                  </select>
+                </div>
+                <div class="form-group full-width">
+                  <label class="form-label" for="input-bank-acc">Số tài khoản nhận</label>
+                  <input type="text" id="input-bank-acc" class="form-input" placeholder="Nhập số tài khoản nhận tiền...">
+                </div>
+                <div class="form-group full-width">
+                  <label class="form-label" for="input-bank-owner">Tên chủ tài khoản</label>
+                  <input type="text" id="input-bank-owner" class="form-input" placeholder="Nhập tên chủ tài khoản nhận (Viết hoa không dấu)...">
+                </div>
+              </div>
+
+
+
+              <!-- Transaction Date -->
+              <div class="form-group full-width">
+                <label class="form-label" for="input-date">Ngày thực hiện giao dịch</label>
+                <input type="date" id="input-date" class="form-input" required>
+              </div>
+
+              <!-- Note -->
+              <div class="form-group full-width">
+                <label class="form-label" for="input-note">Ghi chú giao dịch</label>
+                <input type="text" id="input-note" class="form-input" placeholder="Nhập ghi chú (nếu có)..." autocomplete="off">
+              </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 24px;">
+              <button type="submit" id="btn-submit-payment" class="btn-primary" style="width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px; padding: 18px;">
+                Xác nhận Hoàn tất &amp; Đóng hồ sơ
+              </button>
+              <a href="/index.html?tab=yeucau&role=ketoan" class="btn-secondary" style="text-decoration: none; display: flex; justify-content: center; align-items: center; padding: 18px;">Hủy bỏ</a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </form>
+
+  </main>
+
+  <!-- Success Modal -->
+  <div id="success-modal" class="success-modal">
+    <div class="modal-content">
+      <div class="success-icon-box" style="background-color: #D1FAE5; color: #10B981;">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+      <h3 class="modal-title">Ghi Nhận Giao Dịch Thành Công</h3>
+      <p id="modal-msg" class="modal-text">Hồ sơ trả phòng đã được ghi nhận hoàn tất và lưu trữ vĩnh viễn trên hệ thống quản lý.</p>
+      
+      <button type="button" id="modal-close-btn" class="modal-btn" style="background-color: var(--primary); color: #FFFFFF; font-weight: 700; width: 100%;">Quay lại danh sách yêu cầu</button>
+    </div>
+  </div>
+
+  <!-- App Footer -->
+  <footer class="app-footer">
+    <div class="footer-copy">
+      Homestay Dorm Management System &copy; 2026. All rights reserved.
+    </div>
+    <div class="footer-links">
+      <a href="#">Hướng dẫn sử dụng</a>
+      <a href="#">Chính sách bảo mật</a>
+      <a href="#">Hỗ trợ kỹ thuật</a>
+    </div>
+  </footer>
+
+  <script src="/js/ketoan/hoancoc.js"></script>
+</body>
+</html>
