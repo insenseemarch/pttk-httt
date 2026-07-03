@@ -12,6 +12,7 @@
     "seed": "node server/seed.js"
   },
   "dependencies": {
+    "@supabase/server": "^1.2.0",
     "@supabase/supabase-js": "^2.108.2",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
