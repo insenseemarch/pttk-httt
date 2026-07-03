@@ -1,4 +1,9 @@
 import { useState, useEffect } from 'react';
+import StayConditionsCheck from './components/StayConditionsCheck';
+import ContractDrafting from './components/ContractDrafting';
+import AssetHandover from './components/AssetHandover';
+import InitialPayment from './components/InitialPayment';
+import ContractLiquidation from './components/ContractLiquidation';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from './config/routes';
 import CheckoutContainer from './components/checkout/CheckoutContainer';
@@ -37,6 +42,7 @@ function AnimatedCounter({ end, duration = 1500, suffix = "" }) {
 }
 
 export default function App() {
+  // Quản lý chuyển màn hình: 'guest_home', 'staff_reception', 'search_vacancy', 'room_detail', 'staff_contracts', 'staff_stay_check', 'staff_contract_draft', 'staff_handover', 'staff_payment', 'staff_liquidation'
   const navigate = useNavigate();
 
   const chuyenDenKhuVucNhanVien = () => {
@@ -976,6 +982,21 @@ export default function App() {
             </li>
             <li className={['payment_request', 'payment_receive'].includes(trangHienTai) ? 'active' : ''}>
               <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('payment_request'); }}>Thanh toán</a>
+            </li>
+            <li className={trangHienTai === 'staff_stay_check' ? 'active' : ''}>
+              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_stay_check'); }}>Nhận phòng</a>
+            </li>
+            <li className={trangHienTai === 'staff_contract_draft' ? 'active' : ''}>
+              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_contract_draft'); }}>Lập HĐ</a>
+            </li>
+            <li className={trangHienTai === 'staff_handover' ? 'active' : ''}>
+              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_handover'); }}>Bàn giao</a>
+            </li>
+            <li className={trangHienTai === 'staff_payment' ? 'active' : ''}>
+              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_payment'); }}>Thanh toán</a>
+            </li>
+            <li className={trangHienTai === 'staff_liquidation' ? 'active' : ''}>
+              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_liquidation'); }}>Thanh lý</a>
             </li>
           </ul>
         )}
@@ -3512,6 +3533,58 @@ export default function App() {
       )}
 
       {/* ==========================================
+          TRANG KIỂM TRA ĐIỀU KIỆN LƯU TRÚ (STAY CHECK)
+          ========================================== */}
+      {trangHienTai === 'staff_stay_check' && (
+        <StayConditionsCheck
+          hienThongBao={hienThongBao}
+          onQuayLai={() => { setCheDoNhanVien(true); chuyenTrang('staff_contracts'); }}
+          onXacNhanThanhCong={() => { hienThongBao('success', 'Kiểm tra đạt! Chuyển sang lập hợp đồng...'); setTimeout(() => chuyenTrang('staff_contract_draft'), 1500); }}
+        />
+      )}
+
+      {/* ==========================================
+          TRANG LẬP HỢP ĐỒNG THUÊ (CONTRACT DRAFTING)
+          ========================================== */}
+      {trangHienTai === 'staff_contract_draft' && (
+        <ContractDrafting
+          hienThongBao={hienThongBao}
+          onQuayLai={() => { setCheDoNhanVien(true); chuyenTrang('staff_stay_check'); }}
+          onXacNhanThanhCong={() => { hienThongBao('success', 'Lập hợp đồng xong! Chuyển sang thanh toán đầu kỳ...'); setTimeout(() => chuyenTrang('staff_payment'), 1500); }}
+        />
+      )}
+
+      {/* ==========================================
+          TRANG BÀN GIAO TÀI SẢN (ASSET HANDOVER)
+          ========================================== */}
+      {trangHienTai === 'staff_handover' && (
+        <AssetHandover
+          hienThongBao={hienThongBao}
+          onQuayLai={() => { setCheDoNhanVien(true); chuyenTrang('staff_contract_draft'); }}
+        />
+      )}
+
+      {/* ==========================================
+          TRANG THANH TOÁN ĐẦU KỲ (INITIAL PAYMENT)
+          ========================================== */}
+      {trangHienTai === 'staff_payment' && (
+        <InitialPayment
+          hienThongBao={hienThongBao}
+          onQuayLai={() => { setCheDoNhanVien(true); chuyenTrang('staff_handover'); }}
+          onXacNhanThanhCong={() => { hienThongBao('success', 'Thu tiền xong! Chuyển sang bàn giao phòng...'); setTimeout(() => chuyenTrang('staff_handover'), 1500); }}
+        />
+      )}
+
+      {/* ==========================================
+          TRANG THANH LÝ HỢP ĐỒNG (CONTRACT LIQUIDATION)
+          ========================================== */}
+      {trangHienTai === 'staff_liquidation' && (
+        <ContractLiquidation
+          hienThongBao={hienThongBao}
+          onQuayLai={() => { setCheDoNhanVien(true); chuyenTrang('staff_payment'); }}
+        />
+      )}
+
           TRANG QUẢN LÝ TRẢ PHÒNG & HOÀN CỌC (STAFF CHECKOUT)
           ========================================== */}
       {trangHienTai === 'staff_checkout' && (
