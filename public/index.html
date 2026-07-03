@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tiếp Nhận Yêu Cầu Trả Phòng - HomeStay Dorm</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .tab-selector {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 24px;
+    }
+    .tab-btn {
+      padding: 12px 24px;
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+      background-color: var(--bg-card);
+      color: var(--text-sub);
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+    .tab-btn:hover {
+      border-color: var(--text-muted);
+      color: var(--text-main);
+    }
+    .tab-btn.active {
+      background-color: var(--primary);
+      border-color: var(--primary);
+      color: #FFFFFF;
+      box-shadow: 0 4px 12px rgba(255, 107, 0, 0.2);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="logo">
+        HomeStay <span class="logo-dot"></span>
+      </div>
+      <nav class="main-nav">
+        <ul>
+          <li><a href="#">Tổng quan</a></li>
+          <li><a href="#">Phòng</a></li>
+          <li><a href="#" class="active">Hợp đồng</a></li>
+          <li><a href="#">Thu chi</a></li>
+          <li><a href="#">Báo cáo</a></li>
+        </ul>
+      </nav>
+      <div class="user-profile">
+        <div class="user-info" style="text-align: right;">
+          <select id="role-select" onchange="doiVaiTro(this.value)" style="border: none; background: transparent; font-weight: 800; font-family: inherit; font-size: 14px; color: var(--text-main); cursor: pointer; outline: none; direction: rtl; text-align: right; width: 100%; margin-bottom: 2px;">
+            <option value="sale" selected>Nguyễn Văn A (Sale)</option>
+            <option value="quanly">Trần Văn B (Quản lý)</option>
+            <option value="ketoan">Lê Văn C (Kế toán)</option>
+          </select>
+          <div id="role-title" class="user-role">Chuyên viên Sale</div>
+        </div>
+        <div id="role-avatar" class="user-avatar" style="background-color: var(--primary); transition: var(--transition);">A</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- App Main Content -->
+  <main class="app-main">
+    
+    <!-- Title Section -->
+    <div class="page-title-section">
+      <h1 class="page-title">Quản lý Hợp đồng &amp; Đặt cọc</h1>
+      <p class="page-subtitle">Xem danh sách khách thuê và thực hiện nghiệp vụ tiếp nhận trả phòng</p>
+    </div>
+
+    <!-- Search Section -->
+    <div class="search-card">
+      <div class="search-form">
+        <div class="search-input-wrapper">
+          <!-- Search Icon SVG -->
+          <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="text" id="search-input" class="search-input" placeholder="Nhập mã HĐ, mã đặt cọc hoặc tên khách hàng..." autocomplete="off">
+        </div>
+        <button type="button" id="search-btn" class="btn-primary">Tìm kiếm</button>
+      </div>
+    </div>
+
+    <!-- Tab Selector -->
+    <div class="tab-selector">
+      <button type="button" id="tab-hopdong" class="tab-btn active" onclick="chuyenTab('hopdong')">Hợp đồng &amp; Đặt cọc lưu trú</button>
+      <button type="button" id="tab-yeucau" class="tab-btn" onclick="chuyenTab('yeucau')">Yêu cầu trả phòng chờ xử lý</button>
+    </div>
+
+    <!-- Contract/Deposit List Table Card -->
+    <div id="list-card" class="list-card">
+      <h2 id="card-list-title" class="card-title" style="margin-bottom: 16px;">Danh sách Hợp đồng &amp; Phiếu đặt cọc</h2>
+      <div class="table-responsive">
+        <table class="data-table">
+          <thead id="table-header">
+            <tr>
+              <th>Mã số</th>
+              <th>Loại</th>
+              <th>Khách thuê</th>
+              <th>Phòng / Cơ sở</th>
+              <th>Giá thuê</th>
+              <th>Trạng thái</th>
+              <th style="text-align: center;">Hành động</th>
+            </tr>
+          </thead>
+          <tbody id="table-body">
+            <!-- Nạp động từ Javascript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Error Alert Box -->
+    <div id="error-box" class="error-message-box">
+      <!-- Error Icon SVG -->
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="12"></line>
+        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+      </svg>
+      <span>Không tìm thấy thông tin hợp đồng hoặc phiếu đặt cọc phù hợp!</span>
+    </div>
+
+  </main>
+
+  <!-- App Footer -->
+  <footer class="app-footer">
+    <div class="footer-copy">
+      Homestay Dorm Management System &copy; 2026. All rights reserved.
+    </div>
+    <div class="footer-links">
+      <a href="#">Hướng dẫn sử dụng</a>
+      <a href="#">Chính sách bảo mật</a>
+      <a href="#">Hỗ trợ kỹ thuật</a>
+    </div>
+  </footer>
+
+  <script src="/js/danhsach.js"></script>
+</body>
+</html>
