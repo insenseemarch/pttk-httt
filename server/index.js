@@ -2,6 +2,11 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { supabase } from './config/supabase.js';
+import stayCheckRoutes from './routes/stayCheck.routes.js';
+import contractRoutes from './routes/contract.routes.js';
+import handoverRoutes from './routes/handover.routes.js';
+import paymentRoutes from './routes/payment.routes.js';
+import liquidationRoutes from './routes/liquidation.routes.js';
 import { ganRouteAuthDashboard } from './routes/authDashboard.js';
 import { ganRouteQuanTri } from './routes/quanTri.js';
 import {
@@ -499,6 +504,11 @@ app.post('/api/gui-tu-van', xuLyGuiYeuCauTuVan);
 app.post('/api/dat-lich-hen', xuLyDatLichXemPhong);
 app.get('/api/danh-sach-lich-hen', xuLyLayDanhSachLichHen);
 app.post('/api/cap-nhat-trang-thai-hen', xuLyCapNhatTrangThaiHen);
+app.use('/api/kiem-tra-luu-tru', stayCheckRoutes);
+app.use('/api/hop-dong', contractRoutes);
+app.use('/api/ban-giao', handoverRoutes);
+app.use('/api/ke-toan', paymentRoutes);
+app.use('/api/thanh-ly', liquidationRoutes);
 
 ganRouteAuthDashboard(app);
 ganRouteQuanTri(app);
