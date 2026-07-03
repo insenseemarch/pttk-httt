@@ -2,6 +2,8 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { supabase } from './config/supabase.js';
+import { ganRouteAuthDashboard } from './routes/authDashboard.js';
+import { ganRouteQuanTri } from './routes/quanTri.js';
 import {
   layMaDatCocTuPds,
   mapDatCocRaDTO,
@@ -497,6 +499,9 @@ app.post('/api/gui-tu-van', xuLyGuiYeuCauTuVan);
 app.post('/api/dat-lich-hen', xuLyDatLichXemPhong);
 app.get('/api/danh-sach-lich-hen', xuLyLayDanhSachLichHen);
 app.post('/api/cap-nhat-trang-thai-hen', xuLyCapNhatTrangThaiHen);
+
+ganRouteAuthDashboard(app);
+ganRouteQuanTri(app);
 
 app.get('/api/supabase-test', async (req, res) => {
   try {
