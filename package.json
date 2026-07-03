@@ -4,11 +4,12 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev:server": "node server/index.js",
+    "dev:server": "node --watch server/index.js",
     "dev:client": "vite",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "start": "node server/index.js",
-    "build": "vite build"
+    "build": "vite build",
+    "seed": "node server/seed.js"
   },
   "dependencies": {
     "@supabase/server": "^1.2.0",
