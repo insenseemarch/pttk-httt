@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lập Phiếu Đối Soát - HomeStay Dorm</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    /* Styling to match the accountant mockup exactly */
+    body {
+      background-color: #F8F9FA;
+    }
+    .header-bar-accounting {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    .header-icon-acc {
+      color: var(--primary);
+    }
+    .header-title-acc {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+    .rate-card-container {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .rate-card {
+      flex: 1;
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      cursor: pointer;
+      background-color: #FFFFFF;
+      transition: var(--transition);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .rate-card:hover {
+      border-color: var(--text-muted);
+    }
+    .rate-card.active {
+      border-color: var(--primary);
+      background-color: rgba(255, 107, 0, 0.02);
+      color: var(--primary);
+    }
+    .rate-value {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+    .rate-card.active .rate-value {
+      color: var(--primary);
+    }
+    .rate-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-sub);
+    }
+    .note-box {
+      font-style: italic;
+      font-size: 13px;
+      color: #78350F;
+      background-color: #FFFBEB;
+      padding: 14px 18px;
+      border-radius: 6px;
+      border-left: 4px solid #F59E0B;
+      margin-bottom: 20px;
+      font-weight: 600;
+    }
+    .acc-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .acc-table th {
+      text-align: left;
+      font-weight: 700;
+      color: var(--text-sub);
+      padding: 12px 16px;
+      background-color: var(--bg-app);
+      border-bottom: 2px solid var(--border-color);
+    }
+    .acc-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: middle;
+    }
+    .acc-input-text {
+      width: 100%;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+      background-color: #FFFFFF;
+      outline: none;
+      transition: var(--transition);
+    }
+    .acc-input-text:focus {
+      border-color: var(--primary);
+    }
+    .acc-input-number {
+      width: 120px;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      text-align: right;
+      color: var(--text-main);
+      background-color: #FFFFFF;
+      outline: none;
+      transition: var(--transition);
+    }
+    .acc-input-number:focus {
+      border-color: var(--primary);
+    }
+    .add-row-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #92400E;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 13px;
+      margin-top: 16px;
+      transition: var(--transition);
+      cursor: pointer;
+    }
+    .add-row-link:hover {
+      color: var(--primary);
+    }
+    .summary-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 24px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-sub);
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .summary-row-total {
+      color: var(--danger);
+    }
+    .result-box-green {
+      background-color: #ECFDF5;
+      border: 1.5px solid #A7F3D0;
+      border-radius: 8px;
+      padding: 16px;
+      text-align: center;
+      color: #065F46;
+      margin-bottom: 24px;
+    }
+    .result-title {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+      color: #047857;
+      letter-spacing: 0.5px;
+    }
+    .result-value-green {
+      font-size: 22px;
+      font-weight: 800;
+    }
+    .btn-border {
+      width: 100%;
+      border: 1px solid var(--border-color);
+      background-color: #FFFFFF;
+      color: var(--text-main);
+      padding: 14px;
+      border-radius: 8px;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .btn-border:hover {
+      background-color: var(--bg-app);
+      border-color: var(--text-muted);
+    }
+    .bottom-info-box {
+      background-color: #F8F9FA;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-top: 20px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      font-size: 12px;
+      color: var(--text-sub);
+      font-weight: 600;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- App Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="logo">
+        HomeStay <span class="logo-dot"></span>
+      </div>
+      <nav class="main-nav">
+        <ul>
+          <li><a href="#">Tổng quan</a></li>
+          <li><a href="#">Phòng</a></li>
+          <li><a href="/index.html">Hợp đồng</a></li>
+          <li><a href="#" class="active">Thu chi</a></li>
+          <li><a href="#">Báo cáo</a></li>
+        </ul>
+      </nav>
+      <div class="user-profile">
+        <div class="user-info">
+          <div class="user-name">Kế toán trưởng</div>
+          <div class="user-role">Phòng tài chính</div>
+        </div>
+        <div class="user-avatar" style="background-color: #059669;">KT</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- App Main Content -->
+  <main class="app-main">
+    
+    <!-- Header bar styled like mockup -->
+    <div class="header-bar-accounting">
+      <svg class="header-icon-acc" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect>
+        <line x1="12" y1="8" x2="12" y2="16"></line>
+        <line x1="8" y1="12" x2="16" y2="12"></line>
+      </svg>
+      <div class="header-title-acc">Lập phiếu đối soát (Kế toán)</div>
+    </div>
+
+    <!-- Title Section -->
+    <div class="page-title-section" style="margin-bottom: 24px;">
+      <h1 class="page-title" style="font-size: 24px; margin-bottom: 6px;">Phiếu đối soát thanh lý hợp đồng</h1>
+      <p class="page-subtitle" id="khach-thue-info">Tính toán hoàn cọc và khấu trừ cho khách hàng: ...</p>
+    </div>
+
+    <!-- Main Grid Workspace -->
+    <form id="reconcile-form">
+      <div class="detail-grid">
+        
+        <!-- Left Column: Rate selection and Deductions table -->
+        <div style="display: flex; flex-direction: column; gap: 24px;">
+          
+          <!-- Box 1: Refund Rates -->
+          <div class="info-card">
+            <h2 class="card-title" style="margin-bottom: 16px; font-size: 15px;">% Tỷ lệ hoàn cọc cơ bản</h2>
+            
+            <div class="rate-card-container">
+              <div id="rate-50" class="rate-card" onclick="setTiLeHoanCoc(50)">
+                <span class="rate-value">50%</span>
+                <span class="rate-label">Trả trước, ở &lt; 6 tháng</span>
+              </div>
+              <div id="rate-70" class="rate-card" onclick="setTiLeHoanCoc(70)">
+                <span class="rate-value">70%</span>
+                <span class="rate-label">Trả trước, ở &gt; 6 tháng</span>
+              </div>
+              <div id="rate-80" class="rate-card active" onclick="setTiLeHoanCoc(80)">
+                <span class="rate-value">80%</span>
+                <span class="rate-label">Hủy cọc chưa ký HĐ</span>
+              </div>
+              <div id="rate-100" class="rate-card" onclick="setTiLeHoanCoc(100)">
+                <span class="rate-value">100%</span>
+                <span class="rate-label">Hết hạn hợp đồng</span>
+              </div>
+            </div>
+
+            <div class="note-box" id="label-note-box">
+              Ghi chú: Tiền cọc gốc 5.000.000 VNĐ. Tỷ lệ hoàn cọc áp dụng cho các trường hợp chấm dứt hợp đồng sớm.
+            </div>
+          </div>
+
+          <!-- Box 2: Deductions Table -->
+          <div class="info-card">
+            <h2 class="card-title" style="margin-bottom: 16px; font-size: 15px; display: flex; align-items: center; gap: 8px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary);">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              Các khoản thu và khấu trừ
+            </h2>
+
+            <table class="acc-table">
+              <thead>
+                <tr>
+                  <th style="width: 25%;">Hạng mục</th>
+                  <th style="width: 50%;">Mô tả chi tiết</th>
+                  <th style="width: 25%; text-align: right; padding-right: 28px;">Số tiền (VNĐ)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Row 1: Unpaid rent -->
+                <tr>
+                  <td style="font-weight: 700; color: var(--text-main);">Dư nợ tiền nhà</td>
+                  <td>
+                    <input type="text" id="desc-no-thue" class="acc-input-text" value="Nợ tiền thuê phòng chưa đóng">
+                  </td>
+                  <td style="text-align: right;">
+                    <input type="number" id="val-no-thue" class="acc-input-number" value="0">
+                  </td>
+                </tr>
+
+                <!-- Row 2: Utilities -->
+                <tr>
+                  <td style="font-weight: 700; color: var(--text-main);">Tiền điện, nước, dịch vụ</td>
+                  <td>
+                    <input type="text" id="desc-no-dien-nuoc" class="acc-input-text" value="Điện, nước tháng cuối chưa thanh toán">
+                  </td>
+                  <td style="text-align: right;">
+                    <input type="number" id="val-no-dien-nuoc" class="acc-input-number" value="0">
+                  </td>
+                </tr>
+
+                <!-- Row 3: Damages -->
+                <tr>
+                  <td style="font-weight: 700; color: var(--text-main);">Bồi thường hư hại</td>
+                  <td>
+                    <input type="text" id="desc-hu-hong" class="acc-input-text" value="Bồi thường tài sản hư hỏng theo kiểm tra">
+                  </td>
+                  <td style="text-align: right;">
+                    <input type="number" id="val-hu-hong" class="acc-input-number" value="0">
+                  </td>
+                </tr>
+
+                <!-- Row 4: Clean fee (Fixed) -->
+                <tr>
+                  <td style="font-weight: 700; color: var(--text-main);">Phí vệ sinh cố định</td>
+                  <td style="font-size: 13px; font-weight: 600; color: var(--text-sub); padding-left: 12px;">Phí bắt buộc khi trả phòng</td>
+                  <td style="text-align: right; font-weight: 700; font-size: 14px; padding-right: 28px; color: var(--text-main);">
+                    150.000 VNĐ
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <a class="add-row-link" onclick="alert('Đã thêm hạng mục thành công!')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+              Thêm hạng mục khấu trừ khác
+            </a>
+          </div>
+
+        </div>
+
+        <!-- Right Column: Reconcile summary sheet (mockup-style) -->
+        <div style="display: flex; flex-direction: column; gap: 24px;">
+          
+          <!-- Summary card -->
+          <div class="info-card" style="padding: 28px 24px;">
+            <h2 class="card-title" style="margin-bottom: 24px; font-size: 15px;">Tóm tắt quyết toán</h2>
+
+            <div class="summary-list">
+              <div class="summary-row">
+                <span>Tổng tiền cọc:</span>
+                <span id="sum-tien-coc-goc" style="color: var(--text-main);">0 VNĐ</span>
+              </div>
+              <div class="summary-row" id="sum-row-hoan-coc">
+                <span>Tiền cọc được hoàn (80%):</span>
+                <span id="sum-tien-coc-hoan" style="color: var(--text-main);">0 VNĐ</span>
+              </div>
+              <div class="summary-row summary-row-total">
+                <span>Tổng các khoản khấu trừ:</span>
+                <span id="sum-tong-khau-tru">-0 VNĐ</span>
+              </div>
+            </div>
+
+            <!-- Green Result Box -->
+            <div class="result-box-green" id="result-box">
+              <div class="result-title" id="result-label">Kết quả hoàn cọc</div>
+              <div class="result-value-green" id="result-val">0 VNĐ</div>
+            </div>
+
+            <!-- Submit buttons -->
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+              <button type="submit" class="btn-primary" style="width: 100%; padding: 16px; font-size: 14px; font-weight: 700;">
+                Lưu và gửi phiếu đối soát cho Quản lý
+              </button>
+              <button type="button" class="btn-border" onclick="alert('Đang in bản nháp phiếu đối soát...')">
+                In bản nháp phiếu đối soát
+              </button>
+            </div>
+
+
+
+          </div>
+
+        </div>
+
+      </div>
+    </form>
+
+  </main>
+
+  <!-- Success Modal -->
+  <div id="success-modal" class="success-modal">
+    <div class="modal-content">
+      <div class="success-icon-box" style="background-color: #D1FAE5; color: #10B981;">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      </div>
+      <h3 class="modal-title">Gửi Phiếu Đối Soát Thành Công</h3>
+      <p id="modal-msg" class="modal-text">Phiếu đối soát tài chính đã được gửi thành công đến Quản lý tòa nhà để chờ duyệt.</p>
+      
+      <button type="button" id="modal-close-btn" class="modal-btn" style="background-color: var(--primary); color: #FFFFFF; font-weight: 700; width: 100%;">Quay lại danh sách yêu cầu</button>
+    </div>
+  </div>
+
+  <!-- App Footer -->
+  <footer class="app-footer">
+    <div class="footer-copy">
+      Homestay Dorm Management System &copy; 2026. All rights reserved.
+    </div>
+    <div class="footer-links">
+      <a href="#">Hướng dẫn sử dụng</a>
+      <a href="#">Chính sách bảo mật</a>
+      <a href="#">Hỗ trợ kỹ thuật</a>
+    </div>
+  </footer>
+
+  <script src="/js/ketoan/doisoat.js"></script>
+</body>
+</html>
