@@ -452,17 +452,22 @@ export default function App() {
   };
 
   const xuLyThemPhongLichHen = () => {
-    const demoRoom = {
-      maId: 405,
-      ten: 'Phòng Premium G-405',
-      kieu: 'Phong',
-      giaThue: 3500000,
-      chiNhanh: 'Vinhomes Central Park',
-      diaChi: 'Bình Thạnh, TP.HCM'
+    if (!phongDaChon) {
+      hienThongBao('error', 'Vui lòng chọn một phòng/giường thật từ Supabase trước khi thêm.');
+      return;
+    }
+
+    const phongDaChonDatHen = {
+      maId: phongDaChon.maId,
+      ten: phongDaChon.ten,
+      kieu: phongDaChon.kieu,
+      giaThue: phongDaChon.giaThue,
+      chiNhanh: phongDaChon.chiNhanh,
+      diaChi: phongDaChon.diaChi
     };
     setDanhSachPhongDatHen(prev => {
-      if (prev.some(r => r.maId === demoRoom.maId)) return prev;
-      return [...prev, demoRoom];
+      if (prev.some(r => r.maId === phongDaChonDatHen.maId)) return prev;
+      return [...prev, phongDaChonDatHen];
     });
   };
 
@@ -475,9 +480,13 @@ export default function App() {
 
     setDangXuLy(true);
     try {
-      const customerName = formKhachHang.hoTen.trim() || 'Lê Thị Minh Anh';
-      const customerPhone = formKhachHang.sdt.trim() || '0901234567';
-      const customerEmail = formKhachHang.email.trim() || 'minhanh.le@example.com';
+      const customerName = formKhachHang.hoTen.trim();
+      const customerPhone = formKhachHang.sdt.trim();
+      const customerEmail = formKhachHang.email.trim();
+
+      if (!customerName || !customerPhone) {
+        throw new Error('Vui lòng nhập họ tên và số điện thoại thật của khách hàng.');
+      }
 
       for (const room of danhSachPhongDatHen) {
         const ngayGioHenCombined = `${ngayHen}T${gioHen}:00`;
@@ -501,58 +510,11 @@ export default function App() {
       setBookingSuccessModal(true);
     } catch (err) {
       console.error('Lỗi khi nhân viên đặt lịch hẹn:', err);
-      hienThongBao('error', 'Có lỗi xảy ra khi tạo lịch hẹn!');
+      hienThongBao('error', err.message || 'Có lỗi xảy ra khi tạo lịch hẹn!');
     } finally {
       setDangXuLy(false);
     }
   };
-
-  const lichHenMockup = [
-    {
-      MaLich: 'M-01',
-      NgayGioHen: new Date().toISOString(),
-      KetQua: 'Chờ xem',
-      GhiChu: '',
-      MaPhong: 402,
-      TenKhach: 'Nguyễn Lam Anh',
-      SDT: '0987-xxx-123',
-      AvatarName: 'NL',
-      TenPhongGiuong: 'P.402 (Dorm A)'
-    },
-    {
-      MaLich: 'M-02',
-      NgayGioHen: new Date(Date.now() - 86400000).toISOString(),
-      KetQua: 'Đặt cọc',
-      GhiChu: '',
-      MaPhong: 201,
-      TenKhach: 'Trần Huy Hoàng',
-      SDT: '0905-xxx-789',
-      AvatarName: 'TH',
-      TenPhongGiuong: 'P.201 (Dorm B)'
-    },
-    {
-      MaLich: 'M-03',
-      NgayGioHen: '2023-10-15T10:00:00.000Z',
-      KetQua: 'Hẹn thêm',
-      GhiChu: '',
-      MaPhong: 105,
-      TenKhach: 'Lê Thanh Thảo',
-      SDT: '0912-xxx-456',
-      AvatarName: 'LT',
-      TenPhongGiuong: 'P.105 (Dorm A)'
-    },
-    {
-      MaLich: 'M-04',
-      NgayGioHen: '2023-10-14T16:45:00.000Z',
-      KetQua: 'Không thuê',
-      GhiChu: 'Tài chính không đủ',
-      MaPhong: 503,
-      TenKhach: 'Phạm Minh Đức',
-      SDT: '0345-xxx-888',
-      AvatarName: 'PM',
-      TenPhongGiuong: 'P.503 (Dorm C)'
-    }
-  ];
 
   const layDanhSachLichHenGop = () => {
     const listDBMapped = danhSachLichHenDB.map((lich) => {
@@ -572,7 +534,7 @@ export default function App() {
       };
     });
 
-    return [...listDBMapped, ...lichHenMockup];
+    return listDBMapped;
   };
 
   const taiDanhSachLichHen = async () => {
@@ -602,8 +564,7 @@ export default function App() {
           taiDanhSachLichHen();
         }
       } else {
-        // Cập nhật giả lập nếu là dữ liệu mockup
-        hienThongBao('success', `Đã cập nhật giả lập trạng thái lịch hẹn ${maLich} sang: ${trangThaiMoi}`);
+        hienThongBao('error', 'Dữ liệu lịch hẹn này không còn là mock local. Vui lòng tải lại từ Supabase.');
       }
     } catch (err) {
       console.error('Lỗi khi cập nhật trạng thái lịch hẹn:', err);
@@ -2013,15 +1974,15 @@ export default function App() {
               <div className="guest-info-grid">
                 <div className="guest-info-cell">
                   <span className="cell-label">Họ và tên</span>
-                  <strong className="cell-value">{formKhachHang.hoTen || 'Lê Thị Minh Anh'}</strong>
+                  <strong className="cell-value">{formKhachHang.hoTen || 'Chưa nhập'}</strong>
                 </div>
                 <div className="guest-info-cell">
                   <span className="cell-label">Số điện thoại</span>
-                  <strong className="cell-value">{formKhachHang.sdt || '090 1234 567'}</strong>
+                  <strong className="cell-value">{formKhachHang.sdt || 'Chưa nhập'}</strong>
                 </div>
                 <div className="guest-info-cell" style={{ gridColumn: 'span 2' }}>
                   <span className="cell-label">Email</span>
-                  <strong className="cell-value">{formKhachHang.email || 'minhanh.le@example.com'}</strong>
+                  <strong className="cell-value">{formKhachHang.email || 'Chưa nhập'}</strong>
                 </div>
               </div>
             </div>
@@ -2037,7 +1998,7 @@ export default function App() {
                   {danhSachPhongDatHen.length > 0 ? (
                     danhSachPhongDatHen.map((room, idx) => (
                       <span key={idx} className="room-tag-badge">
-                        Phòng {room.maId || room.maPhong} - {room.kieu === 'Phong' ? 'Toàn phòng' : `Giường ${room.maId % 2 === 0 ? 'A' : 'B'}`}
+                        Phòng {room.maId || room.maPhong} - {room.kieu === 'Phong' ? 'Toàn phòng' : 'Giường dorm'}
                         <button type="button" className="btn-remove-tag" onClick={() => xuLyXoaPhongLichHen(room)} aria-label="Xóa">×</button>
                       </span>
                     ))
