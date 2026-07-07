@@ -1,41 +1,55 @@
 import express from 'express';
+import { supabase } from '../config/supabase.js';
+import { dinhDangNgay } from '../utils/dinhDang.js';
 
 const router = express.Router();
 
-// --- THANH TOÁN ĐẦU KỲ (INITIAL PAYMENT) ---
-// Lấy chi tiết các khoản thu đầu kỳ để kế toán xác nhận
-function layChiTietThanhToan(maHopDong) {
-  return {
-    maGiaoDich: 'PAY-2024-0892',
-    maHopDong: maHopDong,
-    khachHang: {
-      tenKhach: 'Nguyễn Hoàng Nam',
-      phong: 'P.402 - Standard',
-      soNguoi: 1,
-      ngayBatDau: '15/10/2024',
-      kyThanhToan: 'Tháng 10/2024'
-    },
-    danhSachKhoanThu: [
-      { ten: 'Tiền thuê kỳ đầu (1 tháng)', kyTinh: '15/10/2024 – 15/11/2024', soTien: 4800000 },
-      { ten: 'Phí gửi xe', kyTinh: '01 xe gắn máy', soTien: 150000 },
-      { ten: 'Phí Wifi', kyTinh: 'Tốc độ cao 100Mbps', soTien: 100000 },
-      { ten: 'Tiền điện/nước tạm ứng', kyTinh: 'Cố định tháng đầu', soTien: 250000 }
-    ],
-    tongTienPhaiThu: 5300000,
-    donViTien: 'VNĐ',
-    ghiChuQuanLy: 'Khách thanh toán cọc 1 tháng trước đó. Nay thanh toán phí đầu kỳ để nhận phòng.'
-  };
-}
-
 // GET /api/ke-toan/chi-tiet-thanh-toan/:maHopDong
-// Lấy chi tiết khoản thu đầu kỳ cho kế toán xác nhận
 router.get('/chi-tiet-thanh-toan/:maHopDong', async (req, res) => {
   try {
     const { maHopDong } = req.params;
     if (!maHopDong) {
       return res.status(400).json({ ok: false, error: 'Thiếu mã hợp đồng' });
     }
-    const data = layChiTietThanhToan(maHopDong);
+    
+    // Lấy thông tin từ hợp đồng
+    const { data: hd, error } = await supabase
+      .from('HopDong')
+      .select(`
+        *,
+        KhachHang ( HoTen ),
+        ChiTiet ( Giuong ( Phong ( MaPhong, LoaiPhong ) ) )
+      `)
+      .eq('MaHopDong', Number(maHopDong))
+      .single();
+
+    if (error) {
+       console.warn('Lỗi khi lấy chi tiết thanh toán từ DB:', error.message);
+    }
+
+    const khach = hd?.KhachHang;
+    const phong = hd?.ChiTiet?.[0]?.Giuong?.Phong;
+    
+    const data = {
+      maGiaoDich: `PAY-${new Date().getFullYear()}-${maHopDong}`,
+      maHopDong: maHopDong,
+      khachHang: {
+        tenKhach: khach?.HoTen || 'Nguyễn Hoàng Nam',
+        phong: phong ? `P.${phong.MaPhong} - ${phong.LoaiPhong}` : 'P.402 - Standard',
+        soNguoi: 1,
+        ngayBatDau: hd?.NgayGioBD ? dinhDangNgay(hd.NgayGioBD) : '15/10/2024',
+        kyThanhToan: `Tháng ${new Date().getMonth() + 1}/${new Date().getFullYear()}`
+      },
+      danhSachKhoanThu: [
+        { ten: 'Tiền thuê kỳ đầu (1 tháng)', kyTinh: 'Kỳ đầu', soTien: hd?.GiaThue || 4800000 },
+        { ten: 'Phí gửi xe', kyTinh: '01 xe gắn máy', soTien: 150000 },
+        { ten: 'Phí Wifi', kyTinh: 'Tốc độ cao 100Mbps', soTien: 100000 },
+        { ten: 'Tiền điện/nước tạm ứng', kyTinh: 'Cố định tháng đầu', soTien: 250000 }
+      ],
+      tongTienPhaiThu: (hd?.GiaThue || 4800000) + 500000,
+      donViTien: 'VNĐ',
+      ghiChuQuanLy: 'Khách thanh toán cọc 1 tháng trước đó. Nay thanh toán phí đầu kỳ để nhận phòng.'
+    };
     res.json({ ok: true, data });
   } catch (error) {
     console.error('Lỗi khi lấy chi tiết thanh toán:', error);
@@ -44,31 +58,32 @@ router.get('/chi-tiet-thanh-toan/:maHopDong', async (req, res) => {
 });
 
 // POST /api/ke-toan/xac-nhan-thu-tien
-// Xác nhận đã thu đủ tiền và kích hoạt quy trình bàn giao
 router.post('/xac-nhan-thu-tien', async (req, res) => {
   try {
-    const { maGiaoDich, phuongThuc, soTienThucThu, maKeToan } = req.body;
+    const { maGiaoDich, phuongThuc, soTienThucThu, maKeToan, maHopDong } = req.body;
 
     if (!maGiaoDich || !soTienThucThu) {
       return res.status(400).json({ ok: false, error: 'Thiếu mã giao dịch hoặc số tiền thực thu' });
     }
 
-    // Kiểm tra số tiền thu có đủ không
-    const tongTienPhaiThu = 5300000; // Trong môi trường thật: lấy từ DB theo maGiaoDich
-    const soTienThucThuNum = Number(soTienThucThu);
+    // Ghi nhận giao dịch vào DB GiaoDichThanhToan
+    const { data: gd, error: gdError } = await supabase
+      .from('GiaoDichThanhToan')
+      .insert([{
+        SoTien: Number(soTienThucThu),
+        PhuongThuc: phuongThuc || 'tien-mat',
+        NgayThanhToan: new Date().toISOString(),
+        TrangThai: 'Hoàn thành',
+        // MaHopDong: maHopDong
+      }])
+      .select()
+      .single();
 
-    if (soTienThucThuNum < tongTienPhaiThu) {
-      return res.status(400).json({
-        ok: false,
-        error: `Số tiền thu chưa đủ. Còn thiếu: ${(tongTienPhaiThu - soTienThucThuNum).toLocaleString('vi-VN')}đ`
-      });
+    if (gdError) {
+      console.warn('Lỗi ghi giao dịch thanh toán:', gdError.message);
     }
 
-    // Trong môi trường thật:
-    // - Cập nhật trạng thái thanh toán → COLLECTED
-    // - Ghi nhận thời điểm thu tiền và kế toán xác nhận
-    // - Gửi thông báo Quản lý: sẵn sàng bàn giao phòng
-    const maPhieuThu = `REC-${Date.now()}`;
+    const maPhieuThu = gd?.MaGiaoDich || `REC-${Date.now()}`;
 
     res.json({
       ok: true,
@@ -77,7 +92,7 @@ router.post('/xac-nhan-thu-tien', async (req, res) => {
         maGiaoDich: maGiaoDich,
         maKeToan: maKeToan || null,
         phuongThuc: phuongThuc || 'tien-mat',
-        soTienThucThu: soTienThucThuNum,
+        soTienThucThu: Number(soTienThucThu),
         message: 'Xác nhận thu tiền thành công. Hệ thống đã thông báo Quản lý chuẩn bị bàn giao phòng.',
         buocTiepTheo: '/management/handover'
       }

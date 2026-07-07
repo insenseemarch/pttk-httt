@@ -206,8 +206,12 @@ export async function dangNhap(tenDangNhap, matKhau) {
 
   const nhanVien = await timNhanVienTheoTenDangNhapTrongBang(tenDangNhap);
 
-  if (!nhanVien || !nhanVien.MatKhau) {
+  if (!nhanVien) {
     return { thanhCong: false, loi: 'Tên đăng nhập hoặc mật khẩu không đúng' };
+  }
+
+  if (!nhanVien.MatKhau) {
+    return { thanhCong: false, loi: 'Tài khoản này chưa có mật khẩu trong Supabase' };
   }
 
   if (!khopMatKhau(matKhau, nhanVien.MatKhau)) {

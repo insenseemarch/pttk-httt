@@ -60,6 +60,42 @@ export default function App() {
   // Quản lý chuyển màn hình: 'guest_home', 'staff_reception', 'search_vacancy', 'room_detail', hoặc 'staff_checkout'
   const [trangHienTai, setTrangHienTai] = useState('guest_home');
 
+  const [activeSection, setActiveSection] = useState('home');
+
+  useEffect(() => {
+    if (trangHienTai !== 'guest_home') {
+      setActiveSection('');
+      return;
+    }
+
+    const handleScroll = () => {
+      const popular = document.getElementById('popular');
+      const utilities = document.getElementById('utilities');
+      const reviews = document.getElementById('reviews');
+      const consult = document.getElementById('consult');
+
+      // Thêm offset 1/3 màn hình để active đúng lúc
+      const scrollPos = window.scrollY + window.innerHeight / 3;
+
+      let current = 'home';
+      if (consult && consult.offsetTop <= scrollPos) {
+        current = 'consult';
+      } else if (reviews && reviews.offsetTop <= scrollPos) {
+        current = 'reviews';
+      } else if (utilities && utilities.offsetTop <= scrollPos) {
+        current = 'utilities';
+      } else if (popular && popular.offsetTop <= scrollPos) {
+        current = 'popular';
+      }
+
+      setActiveSection(current);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    handleScroll(); // chạy 1 lần khi render
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [trangHienTai]);
+
   // Phân quyền nhân viên: null, 'sale', 'quanly', 'ketoan'
   const [vaiTroNhanVien, setVaiTroNhanVien] = useState(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
@@ -198,6 +234,8 @@ export default function App() {
 
   // --- TRANG TRA CỨU PHÒNG TRỐNG (VACANCY SEARCH) ---
   const [danhSachTatCaPhongTrong, setDanhSachTatCaPhongTrong] = useState([]);
+  const [trangTraCuuHienTai, setTrangTraCuuHienTai] = useState(1);
+  const SO_LUONG_MOI_TRANG = 6;
   const [dangTaiPhongTrong, setDangTaiPhongTrong] = useState(false);
   const [boLocTraCuu, setBoLocTraCuu] = useState({
     khuVuc: 'Tất cả',
@@ -329,6 +367,7 @@ export default function App() {
       }
 
       setDanhSachTatCaPhongTrong(ketQuaGop);
+      setTrangTraCuuHienTai(1);
     } catch (err) {
       console.error('Lỗi tải phòng trống:', err);
       hienThongBao('error', 'Không thể kết nối đến cơ sở dữ liệu tra cứu!');
@@ -453,7 +492,7 @@ export default function App() {
 
   const xuLyThemPhongLichHen = () => {
     if (!phongDaChon) {
-      hienThongBao('error', 'Vui lòng chọn một phòng/giường thật từ Supabase trước khi thêm.');
+      hienThongBao('error', 'Vui lòng chọn một phòng/giường trước khi thêm.');
       return;
     }
 
@@ -564,7 +603,7 @@ export default function App() {
           taiDanhSachLichHen();
         }
       } else {
-        hienThongBao('error', 'Dữ liệu lịch hẹn này không còn là mock local. Vui lòng tải lại từ Supabase.');
+        hienThongBao('error', 'Vui lòng tải lại.');
       }
     } catch (err) {
       console.error('Lỗi khi cập nhật trạng thái lịch hẹn:', err);
@@ -879,79 +918,106 @@ export default function App() {
         {cheDoNhanVien === false ? (
           // Menu dành cho Guest
           <ul className="nav-links">
-            <li className={trangHienTai === 'guest_home' ? 'active' : ''}>
-              <a href="#" onClick={() => { setCheDoNhanVien(false); chuyenTrang('guest_home'); }}>Trang chủ</a>
+            <li className={trangHienTai === 'guest_home' && activeSection === 'home' ? 'active' : ''}>
+              <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(false); chuyenTrang('guest_home'); window.scrollTo({ top: 0, behavior: 'smooth' }); }}>Trang chủ</a>
             </li>
-            <li className={trangHienTai === 'search_vacancy' ? 'active' : ''}>
-              <a href="#" onClick={() => { setCheDoNhanVien(false); chuyenTrang('search_vacancy'); }}>Phòng/Giường</a>
+            <li className={trangHienTai === 'search_vacancy' || (trangHienTai === 'guest_home' && activeSection === 'popular') ? 'active' : ''}>
+              <a href="#popular" onClick={(e) => {
+                if (trangHienTai === 'guest_home') {
+                  cuonMuonDenSection(e, 'popular');
+                } else {
+                  setCheDoNhanVien(false);
+                  chuyenTrang('search_vacancy');
+                }
+              }}>Phòng/Giường</a>
             </li>
-            {trangHienTai === 'guest_home' && (
-              <>
-                <li><a href="#utilities" onClick={(e) => cuonMuonDenSection(e, 'utilities')}>Tiện ích</a></li>
-                <li><a href="#reviews" onClick={(e) => cuonMuonDenSection(e, 'reviews')}>Đánh giá</a></li>
-                <li><a href="#consult" onClick={(e) => cuonMuonDenSection(e, 'consult')}>Đăng ký tư vấn</a></li>
-              </>
-            )}
+            <>
+              <li className={activeSection === 'utilities' ? 'active' : ''}><a href="#utilities" onClick={(e) => cuonMuonDenSection(e, 'utilities')}>Tiện ích</a></li>
+              <li className={activeSection === 'reviews' ? 'active' : ''}><a href="#reviews" onClick={(e) => cuonMuonDenSection(e, 'reviews')}>Đánh giá</a></li>
+              <li className={activeSection === 'consult' ? 'active' : ''}><a href="#consult" onClick={(e) => cuonMuonDenSection(e, 'consult')}>Đăng ký tư vấn</a></li>
+            </>
           </ul>
         ) : (
           // Menu dành cho Nhân viên (được phân quyền động)
           <ul className="nav-links">
-            {/* Chuyên viên Sale và Quản lý chi nhánh mới được vào Phòng và Giường */}
-            {(vaiTroNhanVien === 'sale' || vaiTroNhanVien === 'quanly') && (
-              <li className={trangHienTai === 'search_vacancy' ? 'active' : ''}>
-                <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('search_vacancy'); }}>Phòng và Giường</a>
-              </li>
-            )}
-            
-            {/* Chuyên viên Sale mới có nút Tiếp nhận khách hàng */}
+            {/* 1. Menu cho SALE */}
             {vaiTroNhanVien === 'sale' && (
-              <li className={trangHienTai === 'staff_reception' ? 'active' : ''}>
-                <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>Tiếp nhận khách hàng</a>
-              </li>
+              <>
+                <li className={['staff_reception', 'review_info'].includes(trangHienTai) ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>Tiếp nhận khách</a>
+                </li>
+                <li className={trangHienTai === 'search_vacancy' ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('search_vacancy'); }}>Phòng/Giường</a>
+                </li>
+                <li className={trangHienTai === 'staff_contracts' ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_contracts'); }}>Lịch hẹn</a>
+                </li>
+                <li className={trangHienTai === 'payment_request' ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('payment_request'); }}>Y/c Thu cọc</a>
+                </li>
+                <li className={trangHienTai.startsWith('staff_checkout') ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_checkout'); }}>Báo trả phòng</a>
+                </li>
+              </>
             )}
-            
-            {/* Chuyên viên Sale và Quản lý chi nhánh mới có nút Lịch hẹn xem phòng */}
-            {(vaiTroNhanVien === 'sale' || vaiTroNhanVien === 'quanly') && (
-              <li className={trangHienTai === 'staff_contracts' ? 'active' : ''}>
-                <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_contracts'); }}>Lịch hẹn xem phòng</a>
-              </li>
+
+            {/* 2. Menu cho QUẢN LÝ */}
+            {vaiTroNhanVien === 'quanly' && (
+              <>
+                <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.dashboard); }}>Dashboard</a></li>
+                <li className={trangHienTai === 'confirm_status' || trangHienTai === 'search_vacancy' ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); setTabPhongGiuongNhanVien('danh-sach'); chuyenTrang('confirm_status'); }}>Xác nhận phòng</a>
+                </li>
+                <li className={trangHienTai === 'deposit_approve' ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); setTabHopDongNhanVien('phe-duyet'); chuyenTrang('deposit_approve'); }}>Duyệt cọc</a>
+                </li>
+                <li className={trangHienTai === 'staff_stay_check' ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_stay_check'); }}>ĐK Lưu trú</a>
+                </li>
+                <li className={trangHienTai === 'staff_handover' ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_handover'); }}>Bàn giao</a>
+                </li>
+                <li className={trangHienTai.startsWith('staff_checkout') ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_checkout'); }}>KT Trả phòng</a>
+                </li>
+                <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.phongGiuong); }}>Danh mục</a></li>
+              </>
             )}
-            
-            {/* Mọi vai trò đều được sử dụng phân hệ Trả phòng và Hoàn cọc */}
-            <li className={trangHienTai.startsWith('staff_checkout') ? 'active' : ''}>
-              <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_checkout'); }}>Trả phòng và Hoàn cọc</a>
-            </li>
-            <li><a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(false); chuyenTrang('guest_home'); }}>Trang chủ Guest</a></li>
-            <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.dashboard); }}>Dashboard</a></li>
-            <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.phongGiuong); }}>Phòng/Giường</a></li>
-            <li className={['staff_reception', 'review_info'].includes(trangHienTai) ? 'active' : ''}>
-              <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>Khách hàng</a>
-            </li>
-            <li className={['staff_contracts', 'deposit_approve'].includes(trangHienTai) ? 'active' : ''}>
-              <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); setTabHopDongNhanVien('danh-sach-hen'); chuyenTrang('staff_contracts'); }}>Hợp đồng</a>
-            </li>
-            <li className={['payment_request', 'payment_receive'].includes(trangHienTai) ? 'active' : ''}>
-              <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('payment_request'); }}>Thanh toán</a>
-            </li>
+
+            {/* 3. Menu cho KẾ TOÁN */}
+            {vaiTroNhanVien === 'ketoan' && (
+              <>
+                <li className={trangHienTai === 'payment_receive' ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('payment_receive'); }}>Tiếp nhận cọc</a>
+                </li>
+                <li className={trangHienTai === 'staff_payment' ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_payment'); }}>Thu tiền đầu kỳ</a>
+                </li>
+                <li className={trangHienTai.startsWith('staff_checkout') ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_checkout'); }}>Đối soát & Hoàn cọc</a>
+                </li>
+              </>
+            )}
+
+            {/* 4. Menu cho TIẾP NHẬN / PHỤ TRÁCH */}
+            {vaiTroNhanVien === 'tiepnhan' && (
+              <>
+                <li className={trangHienTai === 'staff_contract_draft' ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_contract_draft'); }}>Lập Hợp đồng</a>
+                </li>
+              </>
+            )}
+
+            {/* 5. Menu cho ADMIN */}
+            {vaiTroNhanVien === 'admin' && (
+              <>
+                <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.dashboard); }}>Quản trị hệ thống</a></li>
+              </>
+            )}
+
+            {/* Chung */}
             <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.thongBao); }}>Thông báo</a></li>
-            <li className={trangHienTai === 'confirm_status' ? 'active' : ''}>
-              <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); setTabPhongGiuongNhanVien('danh-sach'); chuyenTrang('confirm_status'); }}>Phòng/Giường</a>
-            </li>
-            <li className={trangHienTai === 'staff_stay_check' ? 'active' : ''}>
-              <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_stay_check'); }}>Nhận phòng</a>
-            </li>
-            <li className={trangHienTai === 'staff_contract_draft' ? 'active' : ''}>
-              <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_contract_draft'); }}>Lập HĐ</a>
-            </li>
-            <li className={trangHienTai === 'staff_handover' ? 'active' : ''}>
-              <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_handover'); }}>Bàn giao</a>
-            </li>
-            <li className={trangHienTai === 'staff_payment' ? 'active' : ''}>
-              <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_payment'); }}>Thanh toán</a>
-            </li>
-            <li className={trangHienTai === 'staff_liquidation' ? 'active' : ''}>
-              <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_liquidation'); }}>Thanh lý</a>
-            </li>
+            <li><a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(false); chuyenTrang('guest_home'); }}>Về Guest</a></li>
           </ul>
         )}
 
@@ -962,8 +1028,8 @@ export default function App() {
             </button>
           ) : (
             <div className="user-profile">
-              <span className="mini-tag" style={{ background: vaiTroNhanVien === 'sale' ? 'var(--primary-color)' : vaiTroNhanVien === 'quanly' ? '#3B82F6' : '#10B981', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>
-                {vaiTroNhanVien === 'sale' ? 'Sale' : vaiTroNhanVien === 'quanly' ? 'Quản lý' : 'Kế toán'}
+              <span className="mini-tag" style={{ background: vaiTroNhanVien === 'sale' ? 'var(--primary-color)' : vaiTroNhanVien === 'quanly' ? '#3B82F6' : vaiTroNhanVien === 'ketoan' ? '#10B981' : vaiTroNhanVien === 'admin' ? '#8B5CF6' : '#F59E0B', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', textTransform: 'capitalize' }}>
+                {vaiTroNhanVien}
               </span>
               <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&width=100&auto=format&fit=crop" alt="Staff avatar" className="avatar" />
               <button className="logout-btn" onClick={() => { setCheDoNhanVien(false); setVaiTroNhanVien(null); chuyenTrang('guest_home'); }}>Đăng xuất</button>
@@ -1413,7 +1479,7 @@ export default function App() {
           TRANG TRA CỨU PHÒNG TRỐNG (VACANCY SEARCH)
           ========================================== */}
       {((trangHienTai === 'search_vacancy' && !cheDoNhanVien) || (trangHienTai === 'confirm_status' && tabPhongGiuongNhanVien === 'danh-sach')) && (
-        <div className="vacancy-search-page">
+        <div className="vacancy-search-page fade-in-up">
 
           {cheDoNhanVien && (
             <div className="staff-room-page-header">
@@ -1527,7 +1593,7 @@ export default function App() {
 
             {danhSachTatCaPhongTrong.length > 0 ? (
               <div className="vacancy-grid-layout">
-                {danhSachTatCaPhongTrong.map((item) => (
+                {danhSachTatCaPhongTrong.slice((trangTraCuuHienTai - 1) * SO_LUONG_MOI_TRANG, trangTraCuuHienTai * SO_LUONG_MOI_TRANG).map((item) => (
                   <article key={`${item.kieu}-${item.maId}`} className="vacancy-room-card">
                     <div className="vacancy-card-img-wrapper" onClick={() => { setPhongDaChon(item); setTrangHienTai('room_detail'); }} style={{ cursor: 'pointer' }}>
                       <img src={layAnhMinhHoaPhong(item)} alt={item.ten} className="vacancy-card-img" />
@@ -1583,16 +1649,30 @@ export default function App() {
               </div>
             )}
 
-            {/* Pagination Mockup */}
+            {/* Pagination Component */}
             {danhSachTatCaPhongTrong.length > 0 && (
               <nav className="pagination-nav" aria-label="Pagination">
-                <button className="pag-btn">&lt;</button>
-                <button className="pag-btn active">1</button>
-                <button className="pag-btn">2</button>
-                <button className="pag-btn">3</button>
-                <span className="pag-dots">...</span>
-                <button className="pag-btn">8</button>
-                <button className="pag-btn">&gt;</button>
+                <button 
+                  className="pag-btn" 
+                  onClick={() => { setTrangTraCuuHienTai(Math.max(1, trangTraCuuHienTai - 1)); window.scrollTo({ top: 500, behavior: 'smooth' }); }}
+                  disabled={trangTraCuuHienTai === 1}
+                >&lt;</button>
+                
+                {Array.from({ length: Math.ceil(danhSachTatCaPhongTrong.length / SO_LUONG_MOI_TRANG) }).map((_, i) => (
+                  <button 
+                    key={i + 1} 
+                    className={`pag-btn ${trangTraCuuHienTai === i + 1 ? 'active' : ''}`}
+                    onClick={() => { setTrangTraCuuHienTai(i + 1); window.scrollTo({ top: 500, behavior: 'smooth' }); }}
+                  >
+                    {i + 1}
+                  </button>
+                ))}
+                
+                <button 
+                  className="pag-btn" 
+                  onClick={() => { setTrangTraCuuHienTai(Math.min(Math.ceil(danhSachTatCaPhongTrong.length / SO_LUONG_MOI_TRANG), trangTraCuuHienTai + 1)); window.scrollTo({ top: 500, behavior: 'smooth' }); }}
+                  disabled={trangTraCuuHienTai === Math.ceil(danhSachTatCaPhongTrong.length / SO_LUONG_MOI_TRANG)}
+                >&gt;</button>
               </nav>
             )}
 

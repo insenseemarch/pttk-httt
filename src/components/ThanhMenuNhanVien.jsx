@@ -4,16 +4,30 @@ import { MENU_NHAN_VIEN, ROUTES } from '../config/routes';
 export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
   const location = useLocation();
 
-  const menu = [...MENU_NHAN_VIEN];
+  const rawRole = (nguoiDung?.vaiTro || '').toLowerCase();
+  
+  let menu = [];
+  if (rawRole.includes('kế toán') || rawRole.includes('ke toan') || rawRole === 'ketoan') {
+    menu = [
+      { key: 'dashboard', label: 'Tổng quan', path: ROUTES.dashboard },
+      { key: 'phongGiuong', label: 'Phòng', path: ROUTES.phongGiuong },
+      { key: 'hopDong', label: 'Hợp đồng', path: ROUTES.hopDong },
+      { key: 'thuChi', label: 'Thu chi', path: ROUTES.thuChi },
+      { key: 'thongBao', label: 'Báo cáo', path: ROUTES.thongBao } // Giả lập Báo cáo = Thông báo tạm thời theo hình
+    ];
+  } else {
+    menu = [...MENU_NHAN_VIEN];
+  }
+
   if (themMenu) menu.push(...themMenu);
 
-  const laActive = (path) => location.pathname === path;
+  const laActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
 
   return (
     <nav className="navbar">
       <div className="logo-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <Link to={ROUTES.dashboard} className="logo">
-          HomeStay Dorm
+          HomeStay
         </Link>
       </div>
 
@@ -23,7 +37,7 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
             <Link to={item.path}>{item.label}</Link>
           </li>
         ))}
-        {(nguoiDung?.vaiTro || '').toLowerCase().includes('admin') && (
+        {rawRole.includes('admin') && (
           <li className={laActive(ROUTES.quanLyTaiKhoan) ? 'active' : ''}>
             <Link to={ROUTES.quanLyTaiKhoan}>Tài khoản</Link>
           </li>
