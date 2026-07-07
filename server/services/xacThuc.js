@@ -10,6 +10,33 @@ function chuanHoaTenDangNhap(tenDangNhap) {
   return input.includes('@') ? input.toLowerCase() : input;
 }
 
+function chuanHoaSoDienThoai(sdt) {
+  return String(sdt || '').replace(/\D/g, '');
+}
+
+function chuanHoaTrangThai(trangThai) {
+  return String(trangThai || '').trim().toLowerCase();
+}
+
+function laNhanVienDangLamViec(trangThai) {
+  const giaTri = chuanHoaTrangThai(trangThai);
+  return (
+    giaTri === 'đang làm việc' ||
+    giaTri === 'hoạt động' ||
+    giaTri === 'dang lam viec' ||
+    giaTri === 'hoat dong' ||
+    giaTri === 'active' ||
+    giaTri === 'enabled' ||
+    giaTri === '1' ||
+    giaTri === 'true'
+  );
+}
+
+function khopMatKhau(matKhau, matKhauDaLuu) {
+  if (!matKhauDaLuu) return false;
+  return kiemTraMatKhau(matKhau, matKhauDaLuu) || matKhau === matKhauDaLuu;
+}
+
 function chuanHoaNguoiDungTuRpc(duLieu) {
   if (!duLieu) return null;
   const nhanVien = Array.isArray(duLieu) ? duLieu[0] : duLieu;
@@ -77,7 +104,7 @@ async function timNhanVienTheoEmail(email) {
   const { data, error } = await supabase
     .from('NhanVien')
     .select('MaNV, HoTen, Email, TrangThai, MatKhau')
-    .eq('Email', emailChuan)
+    .ilike('Email', emailChuan)
     .maybeSingle();
 
   if (error) throw error;
@@ -86,13 +113,29 @@ async function timNhanVienTheoEmail(email) {
 
 async function timNhanVienTheoTenDangNhapTrongBang(tenDangNhap) {
   const input = chuanHoaTenDangNhap(tenDangNhap);
-  const cot = input.includes('@') ? 'Email' : 'SDT';
+  if (input.includes('@')) {
+    const { data, error } = await supabase
+      .from('NhanVien')
+      .select('MaNV, HoTen, SDT, Email, VaiTro, TrangThai, MaCN, MatKhau')
+      .ilike('Email', input)
+      .maybeSingle();
 
-  const { data, error } = await supabase
+    if (error) throw error;
+    return data;
+  }
+
+  const sdtChuan = chuanHoaSoDienThoai(input);
+  const dieuKien = [input];
+  if (sdtChuan && sdtChuan !== input) {
+    dieuKien.push(sdtChuan);
+  }
+
+  const truyVan = supabase
     .from('NhanVien')
     .select('MaNV, HoTen, SDT, Email, VaiTro, TrangThai, MaCN, MatKhau')
-    .eq(cot, input)
-    .maybeSingle();
+    .in('SDT', dieuKien);
+
+  const { data, error } = await truyVan.maybeSingle();
 
   if (error) throw error;
   return data;
@@ -141,7 +184,7 @@ export async function dangNhap(tenDangNhap, matKhau) {
   try {
     const nhanVienRpc = await goiRpcDangNhap(tenDangNhap, matKhau);
 
-    if (nhanVienRpc && (!nhanVienRpc.trangThai || nhanVienRpc.trangThai === 'Đang làm việc')) {
+    if (nhanVienRpc && (!nhanVienRpc.trangThai || laNhanVienDangLamViec(nhanVienRpc.trangThai))) {
       return {
         thanhCong: true,
         nguoiDung: taoThongTinNguoiDung(nhanVienRpc),
@@ -163,12 +206,16 @@ export async function dangNhap(tenDangNhap, matKhau) {
 
   const nhanVien = await timNhanVienTheoTenDangNhapTrongBang(tenDangNhap);
 
-  if (!nhanVien || nhanVien.TrangThai !== 'Đang làm việc' || !nhanVien.MatKhau) {
+  if (!nhanVien || !nhanVien.MatKhau) {
     return { thanhCong: false, loi: 'Tên đăng nhập hoặc mật khẩu không đúng' };
   }
 
-  if (!kiemTraMatKhau(matKhau, nhanVien.MatKhau)) {
+  if (!khopMatKhau(matKhau, nhanVien.MatKhau)) {
     return { thanhCong: false, loi: 'Tên đăng nhập hoặc mật khẩu không đúng' };
+  }
+
+  if (!laNhanVienDangLamViec(nhanVien.TrangThai)) {
+    return { thanhCong: false, loi: 'Tài khoản hiện không ở trạng thái hoạt động' };
   }
 
   return {
@@ -180,7 +227,7 @@ export async function dangNhap(tenDangNhap, matKhau) {
 export async function guiLienKetKhoiPhucMatKhau(email) {
   const nhanVien = await timNhanVienTheoEmail(email);
 
-  if (!nhanVien || nhanVien.TrangThai !== 'Đang làm việc') {
+  if (!nhanVien || !laNhanVienDangLamViec(nhanVien.TrangThai)) {
     return {
       thanhCong: true,
       thongBao: 'Nếu email tồn tại trong hệ thống, hướng dẫn khôi phục sẽ được gửi.',
