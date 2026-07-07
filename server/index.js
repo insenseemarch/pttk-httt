@@ -652,95 +652,12 @@ function ensureCheckoutSupabase(res) {
 // Database fallback check
 let isUsingSupabaseForCheckout = false;
 
-async function seedCheckoutTables() {
-  try {
-    console.log('🌱 Checking and seeding checkout tables in Supabase...');
-
-    // 1. Check NhanVien MaNV: 101
-    const { data: nv } = await supabase.from('NhanVien').select('MaNV').eq('MaNV', 101).single();
-    if (!nv) {
-      console.log('🌱 Seeding employee MaNV 101...');
-      await supabase.from('NhanVien').insert({
-        HoTen: 'Nguyễn Văn Nhân Viên',
-        SDT: '0911222333',
-        Email: 'nhanvien1@homestay.com',
-        VaiTro: 'Nhân viên tiếp nhận',
-        TrangThai: 'Đang làm việc'
-      });
-    }
-
-    // 2. Check KhachHang
-    const { count: countKH } = await supabase.from('KhachHang').select('*', { count: 'exact', head: true });
-    if (countKH === 0) {
-      console.log('🌱 Seeding KhachHang to Supabase...');
-      const customers = [
-        { CCCD: 123456789, HoTen: 'Trần Quang Hải', SDT: '0901888999', Email: 'hai.tran@gmail.com', NgaySinh: '1995-01-01', GioiTinh: 'Nam', QuocTich: 'Việt Nam', DiaChi: 'TP. HCM' },
-        { CCCD: 234567890, HoTen: 'Lê Thị Mai', SDT: '0902777666', Email: 'mai.le@gmail.com', NgaySinh: '1998-05-12', GioiTinh: 'Nữ', QuocTich: 'Việt Nam', DiaChi: 'TP. HCM' },
-        { CCCD: 345678901, HoTen: 'Ngô Văn Sơn', SDT: '0903666555', Email: 'son.ngo@gmail.com', NgaySinh: '1996-09-20', GioiTinh: 'Nam', QuocTich: 'Việt Nam', DiaChi: 'TP. HCM' },
-        { CCCD: 456789012, HoTen: 'Phan Tuấn Kiệt', SDT: '0919888777', Email: 'kiet.phan@gmail.com', NgaySinh: '2000-11-02', GioiTinh: 'Nam', QuocTich: 'Việt Nam', DiaChi: 'TP. HCM' },
-        { CCCD: 567890123, HoTen: 'Hoàng Thị Dung', SDT: '0944555222', Email: 'dung.hoang@gmail.com', NgaySinh: '1997-03-15', GioiTinh: 'Nữ', QuocTich: 'Việt Nam', DiaChi: 'TP. HCM' }
-      ];
-      await supabase.from('KhachHang').insert(customers);
-    }
-
-    // 3. Check DatCoc
-    const { count: countDC } = await supabase.from('DatCoc').select('*', { count: 'exact', head: true });
-    if (countDC === 0) {
-      console.log('🌱 Seeding DatCoc to Supabase...');
-      const deposits = [
-        { SoTienCoc: 9600000, CCCD: 123456789, TrangThai: 'Đã đóng', HinhThucThanhToan: 'Chuyển khoản' },
-        { SoTienCoc: 7000000, CCCD: 234567890, TrangThai: 'Đã đóng', HinhThucThanhToan: 'Chuyển khoản' },
-        { SoTienCoc: 8000000, CCCD: 345678901, TrangThai: 'Đã đóng', HinhThucThanhToan: 'Chuyển khoản' },
-        { SoTienCoc: 5500000, CCCD: 456789012, TrangThai: 'Đã đóng', HinhThucThanhToan: 'Chuyển khoản' },
-        { SoTienCoc: 9600000, CCCD: 567890123, TrangThai: 'Đã đóng', HinhThucThanhToan: 'Chuyển khoản' }
-      ];
-      const { data: insertedDC } = await supabase.from('DatCoc').insert(deposits).select();
-
-      // Phiếu cọc chưa ký HĐ — phục vụ luồng hủy cọc 80%
-      await supabase.from('DatCoc').insert([
-        { SoTienCoc: 6000000, CCCD: 456789012, TrangThai: 'Hiệu lực', HinhThucThanhToan: 'Chuyển khoản' },
-        { SoTienCoc: 7200000, CCCD: 567890123, TrangThai: 'Hiệu lực', HinhThucThanhToan: 'Tiền mặt' }
-      ]);
-
-      // 4. Check HopDong
-      const { count: countHD } = await supabase.from('HopDong').select('*', { count: 'exact', head: true });
-      if (countHD === 0 && insertedDC && insertedDC.length >= 5) {
-        console.log('🌱 Seeding HopDong to Supabase...');
-        const getDC = (cc) => insertedDC.find(d => Number(d.CCCD) === cc)?.MaDatCoc || null;
-
-        const contracts = [
-          { NgayKy: '2024-05-01', NgayGioBD: '2024-05-01T00:00:00', NgayGioKT: '2025-05-01T00:00:00', GiaThue: 4800000, TrangThai: 'Hiệu lực', CCCD: 123456789, MaDatCoc: getDC(123456789), NVQL: 101 },
-          { NgayKy: '2024-06-10', NgayGioBD: '2024-06-10T00:00:00', NgayGioKT: '2025-06-10T00:00:00', GiaThue: 3500000, TrangThai: 'Hiệu lực', CCCD: 234567890, MaDatCoc: getDC(234567890), NVQL: 101 },
-          { NgayKy: '2024-07-15', NgayGioBD: '2024-07-15T00:00:00', NgayGioKT: '2025-07-15T00:00:00', GiaThue: 4000000, TrangThai: 'Hiệu lực', CCCD: 345678901, MaDatCoc: getDC(345678901), NVQL: 101 },
-          { NgayKy: '2024-03-01', NgayGioBD: '2024-03-01T00:00:00', NgayGioKT: '2025-03-01T00:00:00', GiaThue: 5500000, TrangThai: 'Hiệu lực', CCCD: 456789012, MaDatCoc: getDC(456789012), NVQL: 101 },
-          { NgayKy: '2023-01-05', NgayGioBD: '2023-01-05T00:00:00', NgayGioKT: '2024-01-05T00:00:00', GiaThue: 4800000, TrangThai: 'Hiệu lực', CCCD: 567890123, MaDatCoc: getDC(567890123), NVQL: 101 }
-        ];
-        const { data: insertedHD } = await supabase.from('HopDong').insert(contracts).select();
-
-        if (insertedHD?.length) {
-          const chiTiet = insertedHD.map((hd, idx) => ({
-            MaHopDong: hd.MaHopDong,
-            MaGiuong: [1011, 1021, 2021, 3011, 4011][idx] || 1011,
-            SoLuong: 1,
-            GiaThucTe: hd.GiaThue
-          }));
-          await supabase.from('ChiTiet').insert(chiTiet);
-        }
-      }
-    }
-    console.log('🌱 Finished checking/seeding Supabase data successfully.');
-  } catch (err) {
-    console.error('Error during Supabase seeding:', err.message);
-  }
-}
-
 async function checkSupabaseTable() {
   try {
     const { data, error } = await supabase.from('HopDong').select('MaHopDong').limit(1);
     if (!error) {
       isUsingSupabaseForCheckout = true;
       console.log('✅ [Supabase] Connection established successfully! Database schema is ready.');
-      await seedCheckoutTables();
     } else {
       console.error('❌ [Supabase] Table verification failed. Please check table existence.', error.message);
     }
@@ -762,7 +679,6 @@ app.post('/api/checkout/reset', async (req, res) => {
     await supabase.from('BienBanBanGiao').delete().neq('MaBB', 0);
     await supabase.from('HopDong').delete().neq('MaHopDong', 0);
     await supabase.from('DatCoc').delete().neq('MaDatCoc', 0);
-    await seedCheckoutTables();
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
