@@ -52,7 +52,7 @@ export default function DangNhap({ onDangNhapThanhCong, chuyenQuenMatKhau }) {
 
         <div className="auth-heading">
           <h2>Đăng nhập hệ thống</h2>
-          <p>Vui lòng dùng email hoặc số điện thoại đã lưu trong Supabase cùng mật khẩu tương ứng</p>
+          <p>Vui lòng dùng email hoặc số điện thoại cùng mật khẩu tương ứng</p>
         </div>
 
         <form className="auth-form" onSubmit={xuLyDangNhap}>
@@ -64,7 +64,7 @@ export default function DangNhap({ onDangNhapThanhCong, chuyenQuenMatKhau }) {
                 id="username"
                 className={`auth-input ${loi ? 'auth-input--error' : ''}`}
                 type="text"
-                placeholder="Email hoặc SĐT đã có trong Supabase"
+                placeholder="Nhập email hoặc số điện thoại"
                 value={tenDangNhap}
                 onChange={(e) => setTenDangNhap(e.target.value)}
                 autoComplete="username"
