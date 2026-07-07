@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { supabase } from '../config/supabase.js';
-import { bamMatKhau } from '../utils/matKhau.js';
+import { bamMatKhau, kiemTraMatKhau } from '../utils/matKhau.js';
 
 const RESET_SECRET = process.env.RESET_TOKEN_SECRET || 'homestay_dorm_reset_2026';
 const THOI_HAN_TOKEN_MS = 60 * 60 * 1000;
@@ -84,6 +84,20 @@ async function timNhanVienTheoEmail(email) {
   return data;
 }
 
+async function timNhanVienTheoTenDangNhapTrongBang(tenDangNhap) {
+  const input = chuanHoaTenDangNhap(tenDangNhap);
+  const cot = input.includes('@') ? 'Email' : 'SDT';
+
+  const { data, error } = await supabase
+    .from('NhanVien')
+    .select('MaNV, HoTen, SDT, Email, VaiTro, TrangThai, MaCN, MatKhau')
+    .eq(cot, input)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
 function taoThongTinNguoiDung(nhanVien) {
   return {
     maNV: nhanVien.MaNV ?? nhanVien.maNV ?? nhanVien.ma_nv ?? null,
@@ -124,9 +138,36 @@ function xacMinhTokenKhoiPhuc(token) {
 }
 
 export async function dangNhap(tenDangNhap, matKhau) {
-  const nhanVien = await goiRpcDangNhap(tenDangNhap, matKhau);
+  try {
+    const nhanVienRpc = await goiRpcDangNhap(tenDangNhap, matKhau);
 
-  if (!nhanVien || (nhanVien.trangThai && nhanVien.trangThai !== 'Đang làm việc')) {
+    if (nhanVienRpc && (!nhanVienRpc.trangThai || nhanVienRpc.trangThai === 'Đang làm việc')) {
+      return {
+        thanhCong: true,
+        nguoiDung: taoThongTinNguoiDung(nhanVienRpc),
+      };
+    }
+  } catch (error) {
+    const thongBao = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
+    const canFallback =
+      thongBao.includes('schema cache') ||
+      thongBao.includes('could not find the function') ||
+      thongBao.includes('permission denied') ||
+      thongBao.includes('not found') ||
+      thongBao.includes('no matches were found');
+
+    if (!canFallback) {
+      throw error;
+    }
+  }
+
+  const nhanVien = await timNhanVienTheoTenDangNhapTrongBang(tenDangNhap);
+
+  if (!nhanVien || nhanVien.TrangThai !== 'Đang làm việc' || !nhanVien.MatKhau) {
+    return { thanhCong: false, loi: 'Tên đăng nhập hoặc mật khẩu không đúng' };
+  }
+
+  if (!kiemTraMatKhau(matKhau, nhanVien.MatKhau)) {
     return { thanhCong: false, loi: 'Tên đăng nhập hoặc mật khẩu không đúng' };
   }
 
