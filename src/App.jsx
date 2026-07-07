@@ -7,7 +7,7 @@ import ContractLiquidation from './components/ContractLiquidation';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from './config/routes';
 import CheckoutContainer from './components/checkout/CheckoutContainer';
-import { useState, useEffect, useRef } from 'react';
+import { useRef } from 'react';
 
 function AnimatedCounter({ end, duration = 1500, suffix = "" }) {
   const [count, setCount] = useState(0);
@@ -68,7 +68,6 @@ export default function App() {
   // 'review_info' (2.1 Sale rà soát), 'confirm_status' (2.2 Quản lý xác nhận),
   // 'payment_request' (2.3 Sale lập yêu cầu thanh toán), 'payment_receive' (2.4 Kế toán tiếp nhận),
   // 'deposit_approve' (2.5 Quản lý phê duyệt cọc)
-  const [trangHienTai, setTrangHienTai] = useState('guest_home');
 
   // --- STATE CHO 2.1 RÀ SOÁT THÔNG TIN THUÊ (SALE) ---
   const [checklistRaSoat, setChecklistRaSoat] = useState({
@@ -959,44 +958,38 @@ export default function App() {
             
             {/* Mọi vai trò đều được sử dụng phân hệ Trả phòng và Hoàn cọc */}
             <li className={trangHienTai.startsWith('staff_checkout') ? 'active' : ''}>
-              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_checkout'); }}>Trả phòng và Hoàn cọc</a>
-            <li><a href="#" onClick={() => { setCheDoNhanVien(false); chuyenTrang('guest_home'); }}>Trang chủ Guest</a></li>
+              <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_checkout'); }}>Trả phòng và Hoàn cọc</a>
+            </li>
+            <li><a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(false); chuyenTrang('guest_home'); }}>Trang chủ Guest</a></li>
             <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.dashboard); }}>Dashboard</a></li>
             <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.phongGiuong); }}>Phòng/Giường</a></li>
-            <li className={trangHienTai === 'staff_reception' ? 'active' : ''}>
-              <a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.khachHang); }}>Khách hàng</a>
-            </li>
-            <li className={trangHienTai === 'staff_contracts' ? 'active' : ''}>
-              <a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.hopDong); }}>Hợp đồng</a>
-            </li>
-            <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.thongBao); }}>Thông báo</a></li>
-            <li><a href="#" onClick={() => { hienThongBao('info', 'Trang Dashboard đang được phát triển.'); setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>Dashboard</a></li>
-            <li className={trangHienTai === 'confirm_status' ? 'active' : ''}>
-              <a href="#" onClick={() => { setCheDoNhanVien(true); setTabPhongGiuongNhanVien('danh-sach'); chuyenTrang('confirm_status'); }}>Phòng/Giường</a>
-            </li>
             <li className={['staff_reception', 'review_info'].includes(trangHienTai) ? 'active' : ''}>
-              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>Khách hàng</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>Khách hàng</a>
             </li>
             <li className={['staff_contracts', 'deposit_approve'].includes(trangHienTai) ? 'active' : ''}>
-              <a href="#" onClick={() => { setCheDoNhanVien(true); setTabHopDongNhanVien('danh-sach-hen'); chuyenTrang('staff_contracts'); }}>Hợp đồng</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); setTabHopDongNhanVien('danh-sach-hen'); chuyenTrang('staff_contracts'); }}>Hợp đồng</a>
             </li>
             <li className={['payment_request', 'payment_receive'].includes(trangHienTai) ? 'active' : ''}>
-              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('payment_request'); }}>Thanh toán</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('payment_request'); }}>Thanh toán</a>
+            </li>
+            <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.thongBao); }}>Thông báo</a></li>
+            <li className={trangHienTai === 'confirm_status' ? 'active' : ''}>
+              <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); setTabPhongGiuongNhanVien('danh-sach'); chuyenTrang('confirm_status'); }}>Phòng/Giường</a>
             </li>
             <li className={trangHienTai === 'staff_stay_check' ? 'active' : ''}>
-              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_stay_check'); }}>Nhận phòng</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_stay_check'); }}>Nhận phòng</a>
             </li>
             <li className={trangHienTai === 'staff_contract_draft' ? 'active' : ''}>
-              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_contract_draft'); }}>Lập HĐ</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_contract_draft'); }}>Lập HĐ</a>
             </li>
             <li className={trangHienTai === 'staff_handover' ? 'active' : ''}>
-              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_handover'); }}>Bàn giao</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_handover'); }}>Bàn giao</a>
             </li>
             <li className={trangHienTai === 'staff_payment' ? 'active' : ''}>
-              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_payment'); }}>Thanh toán</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_payment'); }}>Thanh toán</a>
             </li>
             <li className={trangHienTai === 'staff_liquidation' ? 'active' : ''}>
-              <a href="#" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_liquidation'); }}>Thanh lý</a>
+              <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_liquidation'); }}>Thanh lý</a>
             </li>
           </ul>
         )}
@@ -1004,7 +997,6 @@ export default function App() {
         <div className="nav-actions">
           {cheDoNhanVien === false ? (
             <button className="submit-btn" style={{ height: '40px', width: 'auto', padding: '0 20px', fontSize: '13px' }} onClick={chuyenDenKhuVucNhanVien}>
-            <button className="submit-btn" style={{ height: '40px', width: 'auto', padding: '0 20px', fontSize: '13px' }} onClick={() => setShowLoginModal(true)}>
               Dành cho Nhân viên
             </button>
           ) : (
@@ -3585,6 +3577,7 @@ export default function App() {
         />
       )}
 
+      {/* ==========================================
           TRANG QUẢN LÝ TRẢ PHÒNG & HOÀN CỌC (STAFF CHECKOUT)
           ========================================== */}
       {trangHienTai === 'staff_checkout' && (
