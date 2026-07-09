@@ -1,12 +1,38 @@
 import { useState, useEffect } from 'react';
 
+const QUY_DINH_HOAN_COC = [
+  { moTa: 'Đã đặt cọc, chưa ký HĐ', mucHoan: '80%' },
+  { moTa: 'Đã ký HĐ, lưu trú < 6 tháng', mucHoan: '50%' },
+  { moTa: 'Đã ký HĐ, lưu trú > 6 tháng', mucHoan: '70%' },
+  { moTa: 'Hết hạn hợp đồng', mucHoan: '100%' }
+];
+
+const NOI_QUY_MAC_DINH = [
+  'Tuân thủ giờ giấc sinh hoạt chung (không gây ồn ào sau 22:00)',
+  'Giữ gìn vệ sinh khu vực chung và phòng ở',
+  'Không hút thuốc trong khuôn viên ký túc xá',
+  'Không nuôi thú cưng trong phòng',
+  'Bảo quản tài sản, chìa khóa và thẻ từ được cấp',
+  'Không tự ý sửa chữa, thay đổi cấu trúc phòng'
+];
+
+const tinhNgayKetThuc = (ngayBatDau, thoiHanThue) => {
+  if (!ngayBatDau || !thoiHanThue) return '—';
+  const [nam, thang, ngay] = ngayBatDau.split('-').map(Number);
+  if (!nam || !thang || !ngay) return '—';
+  const ketThuc = new Date(nam, thang - 1 + Number(thoiHanThue), ngay);
+  const y = ketThuc.getFullYear();
+  const m = String(ketThuc.getMonth() + 1).padStart(2, '0');
+  const d = String(ketThuc.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
 // Trang LẬP HỢP ĐỒNG THUÊ (CONTRACT DRAFTING)
 // Nhân viên đối chiếu thông tin thuê, biểu phí dịch vụ và lập hợp đồng điện tử.
 export default function ContractDrafting({ maHoSo = 'DEP-2023-8942', hienThongBao, onQuayLai, onXacNhanThanhCong }) {
   const [khachHang, setKhachHang] = useState(null);
   const [thongTinThue, setThongTinThue] = useState(null);
   const [bieuPhiDichVu, setBieuPhiDichVu] = useState([]);
-  const [quyDinhCoc, setQuyDinhCoc] = useState([]);
   const [kyThanhToan, setKyThanhToan] = useState('MONTHLY');
   const [dieuKhoanBoSung, setDieuKhoanBoSung] = useState('');
   const [dangTai, setDangTai] = useState(false);
@@ -28,7 +54,6 @@ export default function ContractDrafting({ maHoSo = 'DEP-2023-8942', hienThongBa
         setKhachHang(json.data.khachHang);
         setThongTinThue(json.data.thongTinThue);
         setBieuPhiDichVu(json.data.bieuPhiDichVu || []);
-        setQuyDinhCoc(json.data.quyDinhCoc || []);
         setKyThanhToan(json.data.thongTinThue?.kyThanhToan || 'MONTHLY');
       } else {
         hienThongBao('error', json.error || 'Không tải được dữ liệu lập hợp đồng');
@@ -108,7 +133,7 @@ export default function ContractDrafting({ maHoSo = 'DEP-2023-8942', hienThongBa
       {/* Thanh tiến trình các bước */}
       <div className="contract-steps">
         {buocLap.map((buoc) => (
-          <div key={buoc.id} className={`contract-step ${buocHienTai >= buoc.id ? 'active' : ''}`}>
+          <div key={buoc.id} className={`contract-step ${buocHienTai >= buoc.id ? 'active' : ''} ${buocHienTai > buoc.id ? 'completed' : ''}`}>
             <span className="contract-step-num">{buocHienTai > buoc.id ? 'V' : buoc.id}</span>
             <span className="contract-step-name">{buoc.ten}</span>
           </div>
@@ -144,6 +169,26 @@ export default function ContractDrafting({ maHoSo = 'DEP-2023-8942', hienThongBa
                 <div className="stay-check-info-block">
                   <span className="stay-check-label">Thời hạn thuê</span>
                   <span className="stay-check-value-sm">{thongTinThue?.thoiHanThue || 0} Tháng</span>
+                </div>
+                <div className="stay-check-info-block">
+                  <span className="stay-check-label">Ngày kết thúc</span>
+                  <span className="stay-check-value-sm">
+                    {tinhNgayKetThuc(thongTinThue?.ngayBatDau, thongTinThue?.thoiHanThue)}
+                  </span>
+                </div>
+                <div className="stay-check-info-block">
+                  <span className="stay-check-label">Chi nhánh</span>
+                  <span className="stay-check-value-sm">{thongTinThue?.chiNhanh || '—'}</span>
+                </div>
+                <div className="stay-check-info-block">
+                  <span className="stay-check-label">Số tiền cọc</span>
+                  <span className="stay-check-amount">
+                    {Number(thongTinThue?.soTienCoc ?? thongTinThue?.soTienDaCoc ?? 0).toLocaleString('vi-VN')} VND
+                  </span>
+                </div>
+                <div className="stay-check-info-block">
+                  <span className="stay-check-label">Ngày đặt cọc</span>
+                  <span className="stay-check-value-sm">{thongTinThue?.ngayDatCoc || '—'}</span>
                 </div>
                 <div className="stay-check-info-block">
                   <span className="stay-check-label">Số giường</span>
@@ -202,7 +247,7 @@ export default function ContractDrafting({ maHoSo = 'DEP-2023-8942', hienThongBa
                 Quy định hoàn/khấu trừ tiền cọc áp dụng bắt buộc hiển thị trên văn bản hợp đồng:
               </div>
               <div className="contract-rule-list">
-                {quyDinhCoc.map((item, idx) => (
+                {QUY_DINH_HOAN_COC.map((item, idx) => (
                   <div key={idx} className="contract-rule-row">
                     <span className="contract-rule-label">{item.moTa}</span>
                     <span className="contract-rule-value">{item.mucHoan}</span>
@@ -217,6 +262,28 @@ export default function ContractDrafting({ maHoSo = 'DEP-2023-8942', hienThongBa
             <div className="stay-check-card">
               <div className="stay-check-card-head">
                 <h2 className="stay-check-card-title" style={{ fontSize: '15px' }}>Điều khoản & quy định bổ sung</h2>
+              </div>
+              <div className="contract-rule-list" style={{ marginBottom: '14px' }}>
+                <span className="stay-check-label" style={{ display: 'block', marginBottom: '10px' }}>
+                  Nội quy ký túc xá (mặc định, luôn áp dụng)
+                </span>
+                {NOI_QUY_MAC_DINH.map((noiQuy, idx) => (
+                  <label
+                    key={idx}
+                    className="contract-rule-row"
+                    style={{ cursor: 'default', gap: '10px', justifyContent: 'flex-start' }}
+                  >
+                    <input
+                      type="checkbox"
+                      className="stay-check-checkbox"
+                      checked
+                      readOnly
+                      disabled
+                      style={{ cursor: 'default', flexShrink: 0 }}
+                    />
+                    <span className="contract-rule-label">{noiQuy}</span>
+                  </label>
+                ))}
               </div>
               <textarea
                 className="contract-terms-textarea"
