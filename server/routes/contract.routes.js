@@ -15,10 +15,13 @@ function layDuLieuLapHopDong(maHoSo) {
     thongTinThue: {
       phongGiuong: 'Phòng 402 - Giường A',
       maPhong: 'P.402-A',
+      chiNhanh: 'Bình Thạnh',
       ngayBatDau: '2023-10-15',
       thoiHanThue: 12,
       soGiuong: 1,
       giaThueCoBan: 2500000,
+      soTienCoc: 2500000,
+      ngayDatCoc: '2023-10-01',
       kyThanhToan: 'MONTHLY'
     },
     bieuPhiDichVu: [
