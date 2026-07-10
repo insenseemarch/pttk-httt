@@ -5,18 +5,98 @@ import { bamMatKhau, kiemTraMatKhau } from '../utils/matKhau.js';
 const RESET_SECRET = process.env.RESET_TOKEN_SECRET || 'homestay_dorm_reset_2026';
 const THOI_HAN_TOKEN_MS = 60 * 60 * 1000;
 
-async function timNhanVienTheoTenDangNhap(tenDangNhap) {
+function chuanHoaTenDangNhap(tenDangNhap) {
   const input = tenDangNhap.trim();
-  const cot = input.includes('@') ? 'Email' : 'SDT';
+  return input.includes('@') ? input.toLowerCase() : input;
+}
 
-  const { data, error } = await supabase
-    .from('NhanVien')
-    .select('MaNV, HoTen, SDT, Email, VaiTro, TrangThai, MaCN, MatKhau')
-    .eq(cot, input)
-    .maybeSingle();
+function chuanHoaSoDienThoai(sdt) {
+  return String(sdt || '').replace(/\D/g, '');
+}
 
-  if (error) throw error;
-  return data;
+function chuanHoaTrangThai(trangThai) {
+  return String(trangThai || '').trim().toLowerCase();
+}
+
+function laNhanVienDangLamViec(trangThai) {
+  const giaTri = chuanHoaTrangThai(trangThai);
+  return (
+    giaTri === 'đang làm việc' ||
+    giaTri === 'hoạt động' ||
+    giaTri === 'dang lam viec' ||
+    giaTri === 'hoat dong' ||
+    giaTri === 'active' ||
+    giaTri === 'enabled' ||
+    giaTri === '1' ||
+    giaTri === 'true'
+  );
+}
+
+function khopMatKhau(matKhau, matKhauDaLuu) {
+  if (!matKhauDaLuu) return false;
+  return kiemTraMatKhau(matKhau, matKhauDaLuu) || matKhau === matKhauDaLuu;
+}
+
+function chuanHoaNguoiDungTuRpc(duLieu) {
+  if (!duLieu) return null;
+  const nhanVien = Array.isArray(duLieu) ? duLieu[0] : duLieu;
+
+  return {
+    maNV: nhanVien.MaNV ?? nhanVien.ma_nv ?? nhanVien.manv ?? null,
+    hoTen: nhanVien.HoTen ?? nhanVien.ho_ten ?? nhanVien.hoTen ?? '',
+    email: nhanVien.Email ?? nhanVien.email ?? '',
+    sdt: nhanVien.SDT ?? nhanVien.sdt ?? '',
+    vaiTro: nhanVien.VaiTro ?? nhanVien.vai_tro ?? nhanVien.vaiTro ?? '',
+    maCN: nhanVien.MaCN ?? nhanVien.ma_cn ?? nhanVien.maCN ?? null,
+    trangThai: nhanVien.TrangThai ?? nhanVien.trang_thai ?? nhanVien.trangThai ?? '',
+    tenDangNhap: nhanVien.Email ?? nhanVien.email ?? nhanVien.SDT ?? nhanVien.sdt ?? '',
+  };
+}
+
+async function goiRpcDangNhap(tenDangNhap, matKhau) {
+  const input = chuanHoaTenDangNhap(tenDangNhap);
+  const rpcParamSets = [
+    { tenDangNhap: input, matKhau },
+    { ten_dang_nhap: input, mat_khau: matKhau },
+    { emailOrSdt: input, matKhau },
+    { email_or_sdt: input, mat_khau: matKhau },
+    { email_sdt: input, mat_khau: matKhau },
+    { p_tenDangNhap: input, p_matKhau: matKhau },
+    { p_ten_dang_nhap: input, p_mat_khau: matKhau },
+    { p_email_or_sdt: input, p_mat_khau: matKhau },
+    { p_email_sdt: input, p_mat_khau: matKhau },
+    { username: input, password: matKhau },
+    { email: input, password: matKhau },
+    { phone: input, password: matKhau },
+  ];
+
+  let lastError = null;
+
+  for (const params of rpcParamSets) {
+    const { data, error } = await supabase.rpc('dang_nhap_nhan_vien', params);
+
+    if (!error) {
+      const nhanVien = chuanHoaNguoiDungTuRpc(data);
+      if (nhanVien) {
+        return nhanVien;
+      }
+    }
+
+    lastError = error;
+    const thongBao = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
+    const canThuLai =
+      thongBao.includes('could not find the function') ||
+      thongBao.includes('unknown') ||
+      thongBao.includes('missing') ||
+      thongBao.includes('argument') ||
+      thongBao.includes('parameter');
+
+    if (!canThuLai) {
+      throw error;
+    }
+  }
+
+  throw lastError || new Error('Không gọi được RPC dang_nhap_nhan_vien.');
 }
 
 async function timNhanVienTheoEmail(email) {
@@ -24,8 +104,38 @@ async function timNhanVienTheoEmail(email) {
   const { data, error } = await supabase
     .from('NhanVien')
     .select('MaNV, HoTen, Email, TrangThai, MatKhau')
-    .eq('Email', emailChuan)
+    .ilike('Email', emailChuan)
     .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+async function timNhanVienTheoTenDangNhapTrongBang(tenDangNhap) {
+  const input = chuanHoaTenDangNhap(tenDangNhap);
+  if (input.includes('@')) {
+    const { data, error } = await supabase
+      .from('NhanVien')
+      .select('MaNV, HoTen, SDT, Email, VaiTro, TrangThai, MaCN, MatKhau')
+      .ilike('Email', input)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  }
+
+  const sdtChuan = chuanHoaSoDienThoai(input);
+  const dieuKien = [input];
+  if (sdtChuan && sdtChuan !== input) {
+    dieuKien.push(sdtChuan);
+  }
+
+  const truyVan = supabase
+    .from('NhanVien')
+    .select('MaNV, HoTen, SDT, Email, VaiTro, TrangThai, MaCN, MatKhau')
+    .in('SDT', dieuKien);
+
+  const { data, error } = await truyVan.maybeSingle();
 
   if (error) throw error;
   return data;
@@ -33,13 +143,13 @@ async function timNhanVienTheoEmail(email) {
 
 function taoThongTinNguoiDung(nhanVien) {
   return {
-    maNV: nhanVien.MaNV,
-    hoTen: nhanVien.HoTen,
-    email: nhanVien.Email,
-    sdt: nhanVien.SDT,
-    vaiTro: nhanVien.VaiTro,
-    maCN: nhanVien.MaCN,
-    tenDangNhap: nhanVien.Email || nhanVien.SDT,
+    maNV: nhanVien.MaNV ?? nhanVien.maNV ?? nhanVien.ma_nv ?? null,
+    hoTen: nhanVien.HoTen ?? nhanVien.hoTen ?? nhanVien.ho_ten ?? '',
+    email: nhanVien.Email ?? nhanVien.email ?? '',
+    sdt: nhanVien.SDT ?? nhanVien.sdt ?? '',
+    vaiTro: nhanVien.VaiTro ?? nhanVien.vaiTro ?? nhanVien.vai_tro ?? '',
+    maCN: nhanVien.MaCN ?? nhanVien.maCN ?? nhanVien.ma_cn ?? null,
+    tenDangNhap: nhanVien.Email ?? nhanVien.email ?? nhanVien.SDT ?? nhanVien.sdt ?? '',
   };
 }
 
@@ -71,21 +181,45 @@ function xacMinhTokenKhoiPhuc(token) {
 }
 
 export async function dangNhap(tenDangNhap, matKhau) {
-  const nhanVien = await timNhanVienTheoTenDangNhap(tenDangNhap);
+  try {
+    const nhanVienRpc = await goiRpcDangNhap(tenDangNhap, matKhau);
 
-  if (!nhanVien || nhanVien.TrangThai !== 'Đang làm việc') {
+    if (nhanVienRpc && (!nhanVienRpc.trangThai || laNhanVienDangLamViec(nhanVienRpc.trangThai))) {
+      return {
+        thanhCong: true,
+        nguoiDung: taoThongTinNguoiDung(nhanVienRpc),
+      };
+    }
+  } catch (error) {
+    const thongBao = `${error?.message || ''} ${error?.details || ''} ${error?.hint || ''}`.toLowerCase();
+    const canFallback =
+      thongBao.includes('schema cache') ||
+      thongBao.includes('could not find the function') ||
+      thongBao.includes('permission denied') ||
+      thongBao.includes('not found') ||
+      thongBao.includes('no matches were found');
+
+    if (!canFallback) {
+      throw error;
+    }
+  }
+
+  const nhanVien = await timNhanVienTheoTenDangNhapTrongBang(tenDangNhap);
+
+  if (!nhanVien) {
     return { thanhCong: false, loi: 'Tên đăng nhập hoặc mật khẩu không đúng' };
   }
 
   if (!nhanVien.MatKhau) {
-    return {
-      thanhCong: false,
-      loi: 'Tài khoản chưa có mật khẩu. Vui lòng dùng chức năng quên mật khẩu hoặc liên hệ quản trị.',
-    };
+    return { thanhCong: false, loi: 'Tài khoản này chưa có mật khẩu trong Supabase' };
   }
 
-  if (!kiemTraMatKhau(matKhau, nhanVien.MatKhau)) {
+  if (!khopMatKhau(matKhau, nhanVien.MatKhau)) {
     return { thanhCong: false, loi: 'Tên đăng nhập hoặc mật khẩu không đúng' };
+  }
+
+  if (!laNhanVienDangLamViec(nhanVien.TrangThai)) {
+    return { thanhCong: false, loi: 'Tài khoản hiện không ở trạng thái hoạt động' };
   }
 
   return {
@@ -97,7 +231,7 @@ export async function dangNhap(tenDangNhap, matKhau) {
 export async function guiLienKetKhoiPhucMatKhau(email) {
   const nhanVien = await timNhanVienTheoEmail(email);
 
-  if (!nhanVien || nhanVien.TrangThai !== 'Đang làm việc') {
+  if (!nhanVien || !laNhanVienDangLamViec(nhanVien.TrangThai)) {
     return {
       thanhCong: true,
       thongBao: 'Nếu email tồn tại trong hệ thống, hướng dẫn khôi phục sẽ được gửi.',
