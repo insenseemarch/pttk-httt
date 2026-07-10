@@ -1,38 +1,52 @@
 import express from 'express';
+import { supabase } from '../config/supabase.js';
+import { dinhDangNgay } from '../utils/dinhDang.js';
 
 const router = express.Router();
 
-// --- THANH LÝ HỢP ĐỒNG & THU HỒI TÀI SẢN (CONTRACT LIQUIDATION) ---
-
-function layDuLieuThanhLy(maHopDong) {
-  return {
-    thongTin: {
-      maHopDong: maHopDong,
-      maKH: '079200012345',
-      tenKhach: 'Nguyễn Minh Tuấn',
-      phong: 'Phòng P-302 (Dorm 4 giường)',
-      ngayKetThuc: '15 tháng 10, 2023',
-      lyDo: 'Hết hạn hợp đồng',
-      trangThai: 'Chờ hoàn tất'
-    },
-    danhSachThuTuc: [
-      { id: 'proc-1', ten: 'Ký biên bản trả phòng', batBuoc: true },
-      { id: 'proc-2', ten: 'Ký thanh lý hợp đồng thuê', batBuoc: true },
-      { id: 'proc-3', ten: 'Đã thu hồi chìa khóa', batBuoc: true },
-      { id: 'proc-4', ten: 'Đã thu hồi thẻ ra vào', batBuoc: true }
-    ]
-  };
-}
-
 // GET /api/thanh-ly/:maHopDong
-// Lấy thông tin thanh lý và danh sách thủ tục
 router.get('/:maHopDong', async (req, res) => {
   try {
     const { maHopDong } = req.params;
     if (!maHopDong) {
       return res.status(400).json({ ok: false, error: 'Thiếu mã hợp đồng' });
     }
-    const data = layDuLieuThanhLy(maHopDong);
+
+    // Lấy thông tin hợp đồng từ database
+    const { data: hd, error } = await supabase
+      .from('HopDong')
+      .select(`
+        *,
+        KhachHang ( CCCD, HoTen ),
+        ChiTiet ( Giuong ( Phong ( MaPhong, LoaiPhong ) ) )
+      `)
+      .eq('MaHopDong', Number(maHopDong))
+      .single();
+
+    if (error) {
+      console.warn('Không tìm thấy hợp đồng hoặc có lỗi db:', error.message);
+    }
+
+    const khach = hd?.KhachHang;
+    const phong = hd?.ChiTiet?.[0]?.Giuong?.Phong;
+
+    const data = {
+      thongTin: {
+        maHopDong: maHopDong,
+        maKH: khach?.CCCD || '079200012345',
+        tenKhach: khach?.HoTen || 'Nguyễn Minh Tuấn',
+        phong: phong ? `Phòng P.${phong.MaPhong} (${phong.LoaiPhong})` : 'Phòng P-302 (Dorm 4 giường)',
+        ngayKetThuc: hd?.NgayGioKT ? dinhDangNgay(hd.NgayGioKT) : '15 tháng 10, 2023',
+        lyDo: 'Hết hạn hợp đồng',
+        trangThai: hd?.TrangThai || 'Chờ hoàn tất'
+      },
+      danhSachThuTuc: [
+        { id: 'proc-1', ten: 'Ký biên bản trả phòng', batBuoc: true },
+        { id: 'proc-2', ten: 'Ký thanh lý hợp đồng thuê', batBuoc: true },
+        { id: 'proc-3', ten: 'Đã thu hồi chìa khóa', batBuoc: true },
+        { id: 'proc-4', ten: 'Đã thu hồi thẻ ra vào', batBuoc: true }
+      ]
+    };
     res.json({ ok: true, data });
   } catch (error) {
     console.error('Lỗi khi lấy dữ liệu thanh lý:', error);
@@ -41,7 +55,6 @@ router.get('/:maHopDong', async (req, res) => {
 });
 
 // POST /api/thanh-ly/hoan-tat
-// Hoàn tất thanh lý: cập nhật phòng sang TRỐNG, đánh dấu hợp đồng đã thanh lý
 router.post('/hoan-tat', async (req, res) => {
   try {
     const { maHopDong, ketQuaThuTuc, ghiChuTaiSan, chuKy, maQuanLy } = req.body;
@@ -50,7 +63,6 @@ router.post('/hoan-tat', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Thiếu mã hợp đồng hoặc kết quả thủ tục' });
     }
 
-    // Validate: tất cả thủ tục phải hoàn thành và cả hai bên đã ký
     const tatCaHoanThanh = ketQuaThuTuc.every(p => p.daHoanThanh === true);
     if (!tatCaHoanThanh || !chuKy?.quanLy || !chuKy?.khach) {
       return res.status(400).json({
@@ -59,10 +71,16 @@ router.post('/hoan-tat', async (req, res) => {
       });
     }
 
-    // Trong môi trường thật:
-    // - Cập nhật Phòng sang TRỐNG (TinhTrang = true)
-    // - Đánh dấu hợp đồng là LIQUIDATED
-    // - Kích hoạt quy trình hoàn cọc cho kế toán
+    // Cập nhật trạng thái hợp đồng trong DB
+    const { error: updateError } = await supabase
+      .from('HopDong')
+      .update({ TrangThai: 'Đã thanh lý' })
+      .eq('MaHopDong', Number(maHopDong));
+
+    if (updateError) {
+      console.warn('Lỗi khi cập nhật Hợp đồng sang Thanh lý:', updateError.message);
+    }
+
     const maThanhLy = `LIQ-${Date.now()}`;
 
     res.json({

@@ -19,6 +19,7 @@ import DanhSachHopDong from './pages/DanhSachHopDong';
 import QuanLyTaiKhoan from './pages/QuanLyTaiKhoan';
 
 import ThongBaoViecCanXuLy from './pages/ThongBaoViecCanXuLy';
+import ThuChi from './pages/ThuChi';
 
 import { KHOA_NGUOI_DUNG, ROUTES } from './config/routes';
 
@@ -167,7 +168,7 @@ export default function AppRouter() {
       <Route path={ROUTES.khachHang} element={taoTrangStaff(DanhSachKhachHang)} />
 
       <Route path={ROUTES.hopDong} element={taoTrangStaff(DanhSachHopDong)} />
-
+      <Route path={ROUTES.thuChi} element={taoTrangStaff(ThuChi)} />
       <Route path={ROUTES.thongBao} element={taoTrangStaff(ThongBaoViecCanXuLy)} />
 
       <Route path={ROUTES.quanLyTaiKhoan} element={taoTrangStaff(QuanLyTaiKhoan)} />

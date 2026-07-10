@@ -6,6 +6,7 @@ export const ROUTES = {
   phongGiuong: '/phong-giuong',
   khachHang: '/khach-hang',
   hopDong: '/hop-dong',
+  thuChi: '/thu-chi',
   thongBao: '/thong-bao',
   quanLyTaiKhoan: '/quan-ly-tai-khoan',
 };

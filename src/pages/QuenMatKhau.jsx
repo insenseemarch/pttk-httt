@@ -119,7 +119,7 @@ export default function QuenMatKhau({ quayLaiDangNhap }) {
                       id="email"
                       className="auth-input auth-input--tall"
                       type="email"
-                      placeholder="nhanvien1@homestay.com"
+                      placeholder="email@congty.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
