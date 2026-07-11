@@ -84,8 +84,8 @@ export default function CheckoutList({
         );
       } else if (item.trangThai === 'Chờ đối soát') {
         return <StatusLabel color="#059669" bg="#D1FAE5" text="Chờ Kế toán đối soát" />;
-      } else if (item.trangThai === 'Chờ hoàn cọc' || item.trangThai === 'Chờ thanh toán') {
-        return <StatusLabel color="#059669" bg="#D1FAE5" text="Chờ Kế toán hoàn cọc" />;
+      } else if (item.trangThai === 'Chờ hoàn cọc' || item.trangThai === 'Chờ thanh toán' || item.trangThai === 'Chờ thanh toán thêm') {
+        return <StatusLabel color="#059669" bg="#D1FAE5" text={item.trangThai === 'Chờ hoàn cọc' ? 'Chờ Kế toán hoàn cọc' : 'Chờ Kế toán thu thêm'} />;
       } else if (item.trangThai === 'Đã thanh lý') {
         return <StatusLabel color="#64748b" bg="#f1f5f9" text="Đã hoàn tất" />;
       }
@@ -114,7 +114,7 @@ export default function CheckoutList({
             {biTranhChap ? 'Kiểm tra lại đối soát' : 'Lập phiếu đối soát'}
           </button>
         );
-      } else if (item.trangThai === 'Chờ hoàn cọc' || item.trangThai === 'Chờ thanh toán') {
+      } else if (item.trangThai === 'Chờ hoàn cọc' || item.trangThai === 'Chờ thanh toán' || item.trangThai === 'Chờ thanh toán thêm') {
         const tienCocGoc = Number(item.tienCoc || 0);
         const tiLeHoan = Number(item.tiLeHoanCoc ?? 100);
         const tienCocDuocHoan = tienCocGoc * (tiLeHoan / 100);
@@ -165,7 +165,7 @@ export default function CheckoutList({
   const myActionStates = {
     sale: ['Hiệu lực'],
     quanly: ['Chờ kiểm tra', 'Chờ xác nhận đối soát', 'Chờ thanh lý'],
-    ketoan: ['Chờ đối soát', 'Chờ hoàn cọc', 'Chờ thanh toán'],
+    ketoan: ['Chờ đối soát', 'Chờ hoàn cọc', 'Chờ thanh toán', 'Chờ thanh toán thêm'],
   };
   const myStates = myActionStates[checkoutRole] || [];
   const pendingCount = allFiltered.filter(h => myStates.includes(h.trangThai)).length;

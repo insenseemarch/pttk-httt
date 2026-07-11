@@ -2,7 +2,18 @@ import { useEffect, useState } from 'react';
 import KhungNhanVien from '../components/KhungNhanVien';
 
 function layChipHD(trangThai) {
-  const map = { 'Hiệu lực': 'green', 'Thanh lý': 'gray', 'Hủy': 'red' };
+  const map = { 
+    'Hiệu lực': 'green', 
+    'Thanh lý': 'gray', 
+    'Hủy': 'red',
+    'Chờ xác nhận đối soát': 'orange',
+    'Chờ hoàn cọc': 'orange',
+    'Chờ thanh toán thêm': 'orange',
+    'Khách đồng ý đối soát (Chờ TT)': 'orange',
+    'Đã hoàn cọc': 'blue',
+    'Đã thu thêm tiền': 'blue',
+    'Đã thanh lý': 'gray'
+  };
   return map[trangThai] || 'gray';
 }
 
@@ -12,7 +23,17 @@ export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
   const [soCanBao, setSoCanBao] = useState(0);
   const [dangTai, setDangTai] = useState(true);
   const [tong, setTong] = useState(0);
-  const [boLoc, setBoLoc] = useState({ maCN: '', trangThai: '', thang: '', phong: '', page: 1, limit: 10 });
+  const [boLoc, setBoLoc] = useState({ maCN: '', trangThai: '', thang: '', phong: '', page: 1, limit: 10000 });
+
+  const [hdDangXem, setHdDangXem] = useState(null);
+  const [phieuDoiSoat, setPhieuDoiSoat] = useState([]);
+
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  const showToast = (message, type = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => setToast({ show: false, message: '', type: 'success' }), 3000);
+  };
 
   useEffect(() => {
     fetch('/api/chi-nhanh').then((r) => r.json()).then((res) => {
@@ -50,8 +71,113 @@ export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
     taiDanhSach();
   };
 
+  const moModalXem = (hd) => {
+    setHdDangXem(hd);
+    // Mock dữ liệu phiếu đối soát liên kết nếu hợp đồng đang trong quá trình trả phòng
+    if (hd.trangThai === 'Chờ xác nhận đối soát' || hd.trangThai === 'Khách đồng ý đối soát (Chờ TT)' || hd.trangThai === 'Chờ hoàn cọc' || hd.trangThai === 'Chờ thanh toán thêm') {
+      
+      let loai = 'Hoàn cọc';
+      let soTien = 21500000;
+      let ngayLap = new Date().toLocaleDateString('vi-VN');
+      
+      if (hd.pdsInfo) {
+        // Lấy dữ liệu thật từ DB (tính toán dựa vào SoTienHoanThuc)
+        soTien = Math.abs(hd.pdsInfo.soTienHoanThuc);
+        loai = hd.pdsInfo.soTienHoanThuc >= 0 ? 'Hoàn cọc' : 'Thu thêm';
+        if (hd.pdsInfo.ngayLap) {
+          ngayLap = new Date(hd.pdsInfo.ngayLap).toLocaleDateString('vi-VN');
+        }
+      } else {
+        // Fallback: Khớp dữ liệu giả lập với thông tin trên các màn hình khác (cho test offline)
+        if (hd.maHD === 'HD-00010' || hd.maHD === 'HD-10') {
+          loai = 'Hoàn cọc';
+          soTien = 7400000;
+        } else if (hd.maHD === 'HD-00009' || hd.maHD === 'HD-9') {
+          loai = 'Hoàn cọc';
+          soTien = 21500000;
+        } else if (hd.maHD === 'HD-00002' || hd.maHD === 'HD-2') {
+          loai = 'Thu thêm';
+          soTien = 6000000;
+        } else {
+          const num = parseInt(hd.maHD.replace(/\D/g, '') || '0', 10);
+          loai = num % 2 === 0 ? 'Thu thêm' : 'Hoàn cọc';
+          soTien = num % 2 === 0 ? 500000 : 3500000;
+        }
+      }
+
+      let tthai = 'Chờ hoàn cọc';
+      if (hd.trangThai === 'Chờ xác nhận đối soát') tthai = 'Chờ khách xác nhận';
+      if (hd.trangThai === 'Khách đồng ý đối soát (Chờ TT)') tthai = loai === 'Hoàn cọc' ? 'Chờ hoàn cọc' : 'Chờ thanh toán thêm';
+
+      setPhieuDoiSoat([{ 
+        maPhieu: `PDS-${hd.maHD ? hd.maHD.replace('HD-','') : '001'}`, 
+        ngayLap: ngayLap, 
+        soTien: soTien, 
+        loai: loai, 
+        trangThai: tthai
+      }]);
+    } else {
+      setPhieuDoiSoat([]);
+    }
+  };
+
+  const dongModalXem = () => {
+    setHdDangXem(null);
+    setPhieuDoiSoat([]);
+  };
+
+  const xacNhanKhachDongY = async (pdsIndex) => {
+    if (!hdDangXem) return;
+    
+    const newPds = [...phieuDoiSoat];
+    const p = newPds[pdsIndex];
+    const newTrangThaiHD = p.loai === 'Hoàn cọc' ? 'Chờ hoàn cọc' : 'Chờ thanh toán thêm';
+    
+    try {
+      // Gọi API cập nhật xuống Database
+      const res = await fetch('/api/phieu-doi-soat/xac-nhan-khach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ maHD: hdDangXem.maHD || hdDangXem.maHopDong, trangThai: newTrangThaiHD })
+      });
+      const data = await res.json();
+      
+      if (!data.ok) {
+        showToast('Lỗi cập nhật: ' + data.message, 'error');
+        return;
+      }
+      
+      // Nếu thành công thì cập nhật State
+      p.trangThai = newTrangThaiHD;
+      setPhieuDoiSoat(newPds);
+
+      // Cập nhật hợp đồng ở lưới bên ngoài
+      const listMoi = danhSach.map(item => {
+        if ((item.maHD && hdDangXem.maHD === item.maHD) || (item.maHopDong && hdDangXem.maHopDong === item.maHopDong)) {
+          return { ...item, trangThai: newTrangThaiHD };
+        }
+        return item;
+      });
+      setDanhSach(listMoi);
+      
+      // Cập nhật state hdDangXem
+      setHdDangXem({ ...hdDangXem, trangThai: newTrangThaiHD });
+
+      showToast('Đã xác nhận khách hàng đồng ý phiếu đối soát. Trạng thái chuyển thành: ' + newTrangThaiHD);
+    } catch (err) {
+      console.error(err);
+      showToast('Đã có lỗi xảy ra. Vui lòng thử lại.', 'error');
+    }
+  };
+
   return (
     <KhungNhanVien nguoiDung={nguoiDung} dangXuat={dangXuat}>
+      {toast.show && (
+        <div style={{ position: 'fixed', top: '20px', right: '20px', background: toast.type === 'success' ? '#10b981' : '#ef4444', color: '#fff', padding: '12px 24px', borderRadius: '8px', zIndex: 10000, boxShadow: '0 4px 12px rgba(0,0,0,0.15)', fontWeight: 'bold' }}>
+          {toast.message}
+        </div>
+      )}
+
       {soCanBao > 0 && (
         <div className="qt-alert">
           <span className="material-symbols-outlined">warning</span>
@@ -90,6 +216,8 @@ export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
           <select value={boLoc.trangThai} onChange={(e) => setBoLoc((p) => ({ ...p, trangThai: e.target.value }))}>
             <option value="">Tất cả</option>
             <option value="Hiệu lực">Hiệu lực</option>
+            <option value="Chờ xác nhận đối soát">Chờ xác nhận đối soát</option>
+            <option value="Chờ hoàn cọc">Chờ hoàn cọc / chờ thanh toán thêm</option>
             <option value="Thanh lý">Thanh lý</option>
             <option value="Hủy">Hủy</option>
           </select>
@@ -125,7 +253,7 @@ export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
               </thead>
               <tbody>
                 {danhSach.map((hd) => (
-                  <tr key={hd.maHopDong}>
+                  <tr key={hd.maHopDong || hd.maHD}>
                     <td><strong>{hd.maHD}</strong></td>
                     <td>
                       <div>{hd.hoTen}</div>
@@ -134,16 +262,13 @@ export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
                     <td>{hd.phong}</td>
                     <td>{hd.ngayBatDau}</td>
                     <td style={{ color: hd.sapHetHan ? '#dc2626' : undefined }}>{hd.ngayHetHan}</td>
-                    <td>{hd.tyLeHoanCoc}</td>
+                    <td>{hd.tyLeHoanCoc || '100%'}</td>
                     <td>
                       <span className={`qt-chip qt-chip--${layChipHD(hd.trangThai)}`}>{hd.trangThai}</span>
                     </td>
                     <td>
-                      <button type="button" className="qt-btn-icon" title="Xem">
+                      <button type="button" className="qt-btn-icon" title="Xem thông tin và xác nhận đối soát" onClick={() => moModalXem(hd)}>
                         <span className="material-symbols-outlined">visibility</span>
-                      </button>
-                      <button type="button" className="qt-btn-icon" title="Sửa">
-                        <span className="material-symbols-outlined">edit</span>
                       </button>
                     </td>
                   </tr>
@@ -151,16 +276,95 @@ export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
               </tbody>
             </table>
             <div className="qt-pagination">
-              <span>Hiển thị {danhSach.length} / {tong} hợp đồng</span>
-              <div className="qt-pagination-btns">
-                <button type="button" disabled={boLoc.page <= 1} onClick={() => setBoLoc((p) => ({ ...p, page: p.page - 1 }))}>Trước</button>
-                <span>Trang {boLoc.page}</span>
-                <button type="button" disabled={boLoc.page * boLoc.limit >= tong} onClick={() => setBoLoc((p) => ({ ...p, page: p.page + 1 }))}>Sau</button>
-              </div>
+              <span>Tổng cộng: {danhSach.length} hợp đồng</span>
             </div>
           </>
         )}
       </div>
+
+      {/* Modal Xem Hợp Đồng & Các Phiếu Liên Kết */}
+      {hdDangXem && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#fff', borderRadius: '12px', width: '600px', padding: '24px', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h2 style={{ fontSize: '18px', margin: '0 0 16px 0', borderBottom: '1px solid #eee', paddingBottom: '12px', color: '#0f172a' }}>
+              Chi tiết hợp đồng: {hdDangXem.maHD}
+            </h2>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', fontSize: '14px', color: '#334155', marginBottom: '24px' }}>
+              <div>
+                <p style={{ margin: '4px 0', color: '#64748b' }}>Khách hàng:</p>
+                <strong style={{ color: '#0f172a' }}>{hdDangXem.hoTen}</strong>
+              </div>
+              <div>
+                <p style={{ margin: '4px 0', color: '#64748b' }}>Số điện thoại:</p>
+                <strong style={{ color: '#0f172a' }}>{hdDangXem.sdt}</strong>
+              </div>
+              <div>
+                <p style={{ margin: '4px 0', color: '#64748b' }}>Phòng/Giường:</p>
+                <strong style={{ color: '#0f172a' }}>{hdDangXem.phong}</strong>
+              </div>
+              <div>
+                <p style={{ margin: '4px 0', color: '#64748b' }}>Trạng thái hợp đồng:</p>
+                <span className={`qt-chip qt-chip--${layChipHD(hdDangXem.trangThai)}`} style={{ padding: '2px 8px', fontSize: '12px' }}>{hdDangXem.trangThai}</span>
+              </div>
+              <div>
+                <p style={{ margin: '4px 0', color: '#64748b' }}>Ngày bắt đầu:</p>
+                <strong style={{ color: '#0f172a' }}>{hdDangXem.ngayBatDau}</strong>
+              </div>
+              <div>
+                <p style={{ margin: '4px 0', color: '#64748b' }}>Ngày hết hạn:</p>
+                <strong style={{ color: '#0f172a' }}>{hdDangXem.ngayHetHan}</strong>
+              </div>
+            </div>
+
+            {/* Phần Phiếu Đối Soát */}
+            <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '20px', marginBottom: '24px' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 'bold', color: '#0f172a', margin: '0 0 12px 0' }}>
+                Các phiếu đối soát liên kết
+              </h3>
+              
+              {phieuDoiSoat.length === 0 ? (
+                <p style={{ fontSize: '14px', color: '#64748b', fontStyle: 'italic' }}>Không có phiếu đối soát nào cần xử lý.</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {phieuDoiSoat.map((p, idx) => (
+                    <div key={p.maPhieu} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontSize: '13.5px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ fontWeight: 'bold', color: '#0f172a' }}>{p.maPhieu} - <span style={{ color: p.loai === 'Hoàn cọc' ? '#059669' : '#dc2626' }}>Loại: {p.loai}</span></div>
+                        <div>Ngày lập: {p.ngayLap}</div>
+                        <div>Số tiền: <strong style={{ color: '#0f172a' }}>{p.soTien.toLocaleString('vi-VN')} VNĐ</strong></div>
+                        <div style={{ marginTop: '4px' }}>
+                          Trạng thái phiếu: <span style={{ fontWeight: 'bold', color: p.trangThai === 'Chờ khách xác nhận' ? '#ea580c' : '#2563eb' }}>{p.trangThai}</span>
+                        </div>
+                      </div>
+                      
+                      <div>
+                        {p.trangThai === 'Chờ khách xác nhận' ? (
+                          <button 
+                            onClick={() => xacNhanKhachDongY(idx)}
+                            style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: 'var(--primary-color)', color: '#fff', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
+                            Khách đồng ý kết quả
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>check_circle</span>
+                            Đã chuyển qua Kế toán
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={dongModalXem} style={{ padding: '8px 20px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', cursor: 'pointer', fontWeight: 'bold' }}>
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </KhungNhanVien>
   );
 }

@@ -72,13 +72,31 @@ router.post('/hoan-tat', async (req, res) => {
     }
 
     // Cập nhật trạng thái hợp đồng trong DB
+    const id = Number(maHopDong);
     const { error: updateError } = await supabase
       .from('HopDong')
       .update({ TrangThai: 'Đã thanh lý' })
-      .eq('MaHopDong', Number(maHopDong));
+      .eq('MaHopDong', id);
 
     if (updateError) {
       console.warn('Lỗi khi cập nhật Hợp đồng sang Thanh lý:', updateError.message);
+    }
+
+    // 1. Hủy hóa đơn chưa thanh toán
+    await supabase.from('HoaDon').update({ TrangThai: 'Hủy' }).eq('MaHopDong', id).eq('TrangThai', 'Chưa thanh toán');
+
+    // 2. Trả lại giường, phòng (set TinhTrang = true)
+    const { data: chiTiets } = await supabase.from('ChiTiet').select('MaGiuong').eq('MaHopDong', id);
+    if (chiTiets && chiTiets.length > 0) {
+      const bedIds = chiTiets.map(c => c.MaGiuong).filter(Boolean);
+      if (bedIds.length > 0) {
+        await supabase.from('Giuong').update({ TinhTrang: true }).in('MaGiuong', bedIds);
+        const { data: beds } = await supabase.from('Giuong').select('MaPhong').in('MaGiuong', bedIds);
+        if (beds && beds.length > 0) {
+          const roomIds = [...new Set(beds.map(b => b.MaPhong).filter(Boolean))];
+          await supabase.from('Phong').update({ TinhTrang: true }).in('MaPhong', roomIds);
+        }
+      }
     }
 
     const maThanhLy = `LIQ-${Date.now()}`;
