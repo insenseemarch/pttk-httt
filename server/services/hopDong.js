@@ -57,7 +57,7 @@ export async function layDanhSachHopDong(boLoc = {}) {
           Phong ( MaPhong, MaCN, ChiNhanh ( TenCN ) )
         )
       ),
-      PhieuDoiSoat ( TyLeHoanTien, TrangThai )
+      PhieuDoiSoat ( TyLeHoanTien, TrangThai, SoTienHoanThuc, NgayDKTraPhong )
     `,
       { count: 'exact' },
     )
@@ -83,6 +83,11 @@ export async function layDanhSachHopDong(boLoc = {}) {
     const maCNHop = hd.ChiTiet?.[0]?.Giuong?.Phong?.MaCN;
     const sapHetHan = laSapHetHan(hd.NgayGioKT);
 
+    const pdsInfo = phieu ? {
+      soTienHoanThuc: Number(phieu.SoTienHoanThuc) || 0,
+      ngayLap: phieu.NgayDKTraPhong,
+    } : null;
+
     return {
       maHopDong: hd.MaHopDong,
       maHD: `HD-${String(hd.MaHopDong).padStart(5, '0')}`,
@@ -96,6 +101,7 @@ export async function layDanhSachHopDong(boLoc = {}) {
       tyLeHoanCoc: tyLeHoan,
       trangThai: chuanHoaTrangThai(hd.TrangThai),
       giaThue: dinhDangTien(hd.GiaThue),
+      pdsInfo
     };
   });
 

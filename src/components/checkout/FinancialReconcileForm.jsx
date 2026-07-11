@@ -11,12 +11,15 @@ export default function FinancialReconcileForm({
 }) {
   const isDatCoc = selectedItem?.loai === 'dat_coc';
 
+  // Lấy Ngày trả phòng = ngày kế toán xử lý phiếu lần đầu
+  const ngayKeToanXuLyLanDau = selectedItem?.ngayKeToanXuLy || selectedItem?.ngayLapPhieu || new Date();
+
   const tiLeKhuyenNghi = tinhTyLeHoanCoc({
     loai: selectedItem?.loai,
     loaiHinhTraPhong: selectedItem?.loaiHinhTraPhong || formValues.loaiHinhTraPhong,
     ngayBatDau: selectedItem?.ngayBatDau,
     ngayKetThuc: selectedItem?.ngayKetThuc,
-    ngayTraDuKien: selectedItem?.ngayTraDuKien || formValues.ngayTraDuKien
+    ngayTraDuKien: ngayKeToanXuLyLanDau
   });
 
   const [extraDeductions, setExtraDeductions] = useState(
@@ -101,11 +104,44 @@ export default function FinancialReconcileForm({
           <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: '0 0 20px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '18px' }}>%</span> Tỷ lệ hoàn cọc cơ bản
           </h3>
+          
+          {/* Thông tin thời gian thuê (Hiển thị ngày kết thúc hợp đồng & thời gian lưu trú) */}
+          {!isDatCoc && selectedItem?.ngayBatDau && selectedItem?.ngayKetThuc && (
+            <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13.5px' }}>
+                <span style={{ color: '#475569' }}>Ngày bắt đầu: <strong>{new Date(selectedItem.ngayBatDau).toLocaleDateString('vi-VN')}</strong></span>
+                <span style={{ color: '#475569' }}>Ngày hết hạn HĐ: <strong>{new Date(selectedItem.ngayKetThuc).toLocaleDateString('vi-VN')}</strong></span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13.5px' }}>
+                <span style={{ color: '#475569' }}>Ngày trả phòng: <strong>{new Date(ngayKeToanXuLyLanDau).toLocaleDateString('vi-VN')}</strong></span>
+                <span style={{ color: '#0f172a', fontWeight: '700' }}>
+                  {(() => {
+                    const batDau = new Date(selectedItem.ngayBatDau);
+                    const tra = new Date(ngayKeToanXuLyLanDau);
+                    const ketThuc = new Date(selectedItem.ngayKetThuc);
+                    
+                    const months = (tra.getFullYear() - batDau.getFullYear()) * 12 + (tra.getMonth() - batDau.getMonth());
+                    const daysEarly = Math.ceil((ketThuc - tra) / (1000 * 60 * 60 * 24));
+                    
+                    if (tra >= ketThuc) return 'Đúng hạn HĐ';
+                    return `Lưu trú: ${months} tháng (Trả trước hạn ${daysEarly} ngày)`;
+                  })()}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {isDatCoc && (
+            <div style={{ marginBottom: '20px', padding: '16px', backgroundColor: '#f0fdfa', border: '1px solid #99f6e4', borderRadius: '8px', fontSize: '13.5px', color: '#0f766e' }}>
+              <strong>Thông tin:</strong> Khách hàng này chỉ có thông tin Đặt Cọc, không tìm thấy Hợp đồng liên quan (chưa ký HĐ). Gợi ý áp dụng mức hoàn cọc 80%.
+            </div>
+          )}
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '16px' }}>
             {rates.map(r => {
               const isActive = tiLeHoan === r.rate;
               const isDisable = isDatCoc && r.rate !== 80;
+              const isRecommended = tiLeKhuyenNghi === r.rate;
 
               return (
                 <div
@@ -116,23 +152,38 @@ export default function FinancialReconcileForm({
                     }
                   }}
                   style={{
+                    position: 'relative',
                     cursor: isDisable ? 'not-allowed' : 'pointer',
-                    padding: '16px 12px',
+                    padding: '24px 12px 16px 12px',
                     borderRadius: '12px',
                     textAlign: 'center',
-                    border: `2px solid ${isActive ? 'var(--primary-color)' : '#e2e8f0'}`,
+                    border: `2px solid ${isActive ? 'var(--primary-color)' : (isRecommended ? '#10b981' : '#e2e8f0')}`,
                     background: isActive ? '#fff7ed' : '#ffffff',
                     opacity: isDisable ? 0.45 : 1,
                     transition: 'all 0.2s ease',
                     boxShadow: isActive ? '0 4px 12px rgba(242, 106, 33, 0.06)' : 'none'
                   }}
                 >
-                  <div style={{ fontSize: '24px', fontWeight: '900', color: isActive ? 'var(--primary-color)' : '#0f172a' }}>{r.label}</div>
+                  {isRecommended && (
+                    <div style={{
+                      position: 'absolute', top: '-10px', left: '50%', transform: 'translateX(-50%)',
+                      background: '#10b981', color: 'white', fontSize: '11px', fontWeight: '800', padding: '4px 8px', borderRadius: '12px', whiteSpace: 'nowrap'
+                    }}>
+                      ⭐ GỢI Ý CHỌN
+                    </div>
+                  )}
+                  <div style={{ fontSize: '24px', fontWeight: '900', color: isActive ? 'var(--primary-color)' : (isRecommended ? '#10b981' : '#0f172a') }}>{r.label}</div>
                   <div style={{ fontSize: '12px', fontWeight: '700', color: '#64748b', marginTop: '6px' }}>{r.desc}</div>
                 </div>
               );
             })}
           </div>
+          
+          {tiLeHoan !== tiLeKhuyenNghi && (
+            <div style={{ marginBottom: '16px', padding: '12px 16px', backgroundColor: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', fontSize: '13.5px', color: '#b45309', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' }}>
+              ⚠️ Khách hàng chưa đủ điều kiện để nhận hoàn cọc {tiLeHoan}%. Bạn có chắc chắn chọn?
+            </div>
+          )}
 
           <div style={{ background: '#f8fafc', borderLeft: '4px solid #cbd5e1', padding: '12px 16px', borderRadius: '6px', fontSize: '13px', color: '#475569', fontWeight: '500' }}>
             Ghi chú: Tiền cọc gốc <strong>{tienCocGoc.toLocaleString('vi-VN')} đồng</strong>. Tỷ lệ hoàn cọc áp dụng cho các trường hợp quyết toán theo quy định lưu trú.

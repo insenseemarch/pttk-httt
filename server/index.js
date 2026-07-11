@@ -9,6 +9,7 @@ import paymentRoutes from './routes/payment.routes.js';
 import liquidationRoutes from './routes/liquidation.routes.js';
 import { ganRouteAuthDashboard } from './routes/authDashboard.js';
 import { ganRouteQuanTri } from './routes/quanTri.js';
+import { syncPhongGiuong } from './syncPhongGiuong.js';
 import {
   layMaDatCocTuPds,
   mapDatCocRaDTO,
@@ -893,6 +894,18 @@ app.post('/api/checkout/reconcile', async (req, res) => {
     if (maChungTu.startsWith('HĐ-')) {
       const id = Number(maChungTu.replace('HĐ-', ''));
 
+      const h = await layHopDongDayDu(id);
+      let soTienHoan = 0;
+      if (h) {
+        const item = mapHopDongRaDTO(h, await layDatCocMap());
+        item.tiLeHoanCoc = Number(tiLeHoanCoc) || 100;
+        item.noThue = Number(noThue) || 0;
+        item.noDienNuoc = Number(noDienNuoc) || 0;
+        item.chiPhiHuHong = Number(chiPhiHuHong) || 0;
+        item.danhSachKhauTruKhac = danhSachKhauTruKhac || [];
+        soTienHoan = tinhSoTienQuyetToan(item);
+      }
+
       await supabase.from('HopDong').update({ TrangThai: nextTrangThai }).eq('MaHopDong', id);
       await supabase.from('PhieuDoiSoat').update({
         TyLeHoanTien: Number(tiLeHoanCoc) || 100,
@@ -900,7 +913,9 @@ app.post('/api/checkout/reconcile', async (req, res) => {
         KhauTruTienDichVu: Number(noDienNuoc) || 0,
         KhauTruSuaChua: Number(chiPhiHuHong) || 0,
         DanhSachKhauTru: danhSachKhauTruKhac || [],
-        TrangThai: nextTrangThai
+        TrangThai: nextTrangThai,
+        SoTienHoanTamTinh: soTienHoan,
+        SoTienHoanThuc: soTienHoan
       }).eq('MaHopDong', id);
 
       const { data: existingBB } = await supabase.from('BienBanBanGiao').select('MaBB').eq('MaHopDong', id).maybeSingle();
@@ -951,7 +966,7 @@ app.post('/api/checkout/confirm', async (req, res) => {
         const item = await layItemQuyetToanTuMaSo(`HĐ-${id}`);
         if (item) {
           const soTien = tinhSoTienQuyetToan(item);
-          nextTrangThai = soTien < 0 ? 'Chờ thanh toán' : 'Chờ thanh lý';
+          nextTrangThai = soTien < 0 ? 'Chờ thanh toán thêm' : 'Chờ thanh lý';
         } else {
           nextTrangThai = 'Chờ thanh lý';
         }
@@ -969,7 +984,7 @@ app.post('/api/checkout/confirm', async (req, res) => {
         const item = await layItemQuyetToanTuMaSo(`PC-${id}`);
         if (item) {
           const soTien = tinhSoTienQuyetToan(item);
-          nextTrangThai = soTien < 0 ? 'Chờ thanh toán' : 'Chờ thanh lý';
+          nextTrangThai = soTien < 0 ? 'Chờ thanh toán thêm' : 'Chờ thanh lý';
         } else {
           nextTrangThai = 'Chờ thanh lý';
         }
@@ -984,6 +999,29 @@ app.post('/api/checkout/confirm', async (req, res) => {
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// Thêm API mới để cập nhật trạng thái hợp đồng và phiếu đối soát
+app.post('/api/phieu-doi-soat/xac-nhan-khach', async (req, res) => {
+  const { maHD, trangThai } = req.body;
+  if (!ensureCheckoutSupabase(res)) return;
+
+  try {
+    const id = parseInt(maHD.replace(/\D/g, ''), 10);
+    
+    // Cập nhật Phiếu Đối Soát
+    const { error: errPDS } = await supabase.from('PhieuDoiSoat').update({ TrangThai: trangThai }).eq('MaHopDong', id);
+    if (errPDS) throw errPDS;
+
+    // Đồng thời cập nhật trạng thái Hợp đồng tương ứng nếu muốn đồng bộ
+    const { error: errHD } = await supabase.from('HopDong').update({ TrangThai: trangThai }).eq('MaHopDong', id);
+    if (errHD) throw errHD;
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error updating PDS status:', error);
+    res.status(500).json({ ok: false, message: 'Lỗi server: ' + error.message });
   }
 });
 
@@ -1039,6 +1077,7 @@ app.post('/api/checkout/liquidate', async (req, res) => {
         await supabase.from('Giuong').update({ TinhTrang: true }).in('MaGiuong', bedIds);
       }
     }
+    await syncPhongGiuong();
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -1057,24 +1096,49 @@ app.post('/api/checkout/payment', async (req, res) => {
       const id = Number(maChungTu.replace('HĐ-', ''));
 
       const { data: pds } = await supabase.from('PhieuDoiSoat').select('TrangThai').eq('MaHopDong', id).maybeSingle();
-      const nextTrangThai = pds?.TrangThai === 'Chờ thanh toán' ? 'Chờ thanh lý' : 'Đã thanh lý';
+      const isThuThem = pds?.TrangThai === 'Chờ thanh toán' || pds?.TrangThai === 'Chờ thanh toán thêm';
+      const nextTrangThai = 'Đã thanh lý';
 
       await supabase.from('HopDong').update({ TrangThai: nextTrangThai }).eq('MaHopDong', id);
       await supabase.from('PhieuDoiSoat').update({
         TrangThai: nextTrangThai,
         MaGiaoDich: maGiaoDich
       }).eq('MaHopDong', id);
+      await supabase.from('BienBanBanGiao').update({ TrangThai: 'Hoàn tất thanh lý' }).eq('MaHopDong', id);
+
+      if (isThuThem) {
+        const { data: details } = await supabase.from('ChiTiet').select('MaGiuong').eq('MaHopDong', id);
+        if (details?.length) {
+          const bedIds = details.map(d => d.MaGiuong);
+          await supabase.from('Giuong').update({ TinhTrang: true }).in('MaGiuong', bedIds);
+
+          const { data: beds } = await supabase.from('Giuong').select('MaPhong').in('MaGiuong', bedIds);
+          if (beds?.length) {
+            const roomIds = [...new Set(beds.map(b => b.MaPhong).filter(Boolean))];
+            await supabase.from('Phong').update({ TinhTrang: true }).in('MaPhong', roomIds);
+          }
+        }
+      }
     } else {
       const id = Number(maChungTu.replace('PC-', ''));
       const pds = await taiPhieuDoiSoatDatCoc(id);
       const trangThaiHienTai = pds?.TrangThai || (await supabase.from('DatCoc').select('TrangThai').eq('MaDatCoc', id).single()).data?.TrangThai;
-      const nextTrangThai = trangThaiHienTai === 'Chờ thanh toán' ? 'Chờ thanh lý' : 'Đã thanh lý';
+      const isThuThem = trangThaiHienTai === 'Chờ thanh toán' || trangThaiHienTai === 'Chờ thanh toán thêm';
+      const nextTrangThai = 'Đã thanh lý';
 
       await supabase.from('DatCoc').update({ TrangThai: nextTrangThai }).eq('MaDatCoc', id);
       await luuPhieuDoiSoatDatCoc(id, {
         TrangThai: nextTrangThai,
         MaGiaoDich: maGiaoDich
       });
+
+      if (isThuThem) {
+        const { data: giuongCoc } = await supabase.from('GiuongDatCoc').select('MaGiuong').eq('MaDatCoc', id);
+        if (giuongCoc?.length) {
+          const bedIds = giuongCoc.map(g => g.MaGiuong);
+          await supabase.from('Giuong').update({ TinhTrang: true }).in('MaGiuong', bedIds);
+        }
+      }
     }
     res.json({ ok: true });
   } catch (err) {
