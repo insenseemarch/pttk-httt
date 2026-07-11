@@ -1064,19 +1064,19 @@ export default function App() {
               <div className="hero-stats-row">
                 <div className="animated-stat-item">
                   <strong className="stat-number">
-                    <AnimatedCounter end={thongKeTongHop.soKhachHang || 2450} suffix="+" />
+                    <AnimatedCounter end={2450} suffix="+" />
                   </strong>
                   <span className="stat-label">Khách hàng tin tưởng</span>
                 </div>
                 <div className="animated-stat-item">
                   <strong className="stat-number">
-                    <AnimatedCounter end={thongKeTongHop.soPhongDangThue || 128} suffix="+" />
+                    <AnimatedCounter end={128} suffix="+" />
                   </strong>
                   <span className="stat-label">Phòng đang cho thuê</span>
                 </div>
                 <div className="animated-stat-item">
                   <strong className="stat-number">
-                    <AnimatedCounter end={thongKeTongHop.soPhongConTrong || 15} suffix="+" />
+                    <AnimatedCounter end={52} suffix="+" />
                   </strong>
                   <span className="stat-label">Phòng còn trống</span>
                 </div>
@@ -1652,24 +1652,24 @@ export default function App() {
             {/* Pagination Component */}
             {danhSachTatCaPhongTrong.length > 0 && (
               <nav className="pagination-nav" aria-label="Pagination">
-                <button 
-                  className="pag-btn" 
+                <button
+                  className="pag-btn"
                   onClick={() => { setTrangTraCuuHienTai(Math.max(1, trangTraCuuHienTai - 1)); window.scrollTo({ top: 500, behavior: 'smooth' }); }}
                   disabled={trangTraCuuHienTai === 1}
                 >&lt;</button>
-                
+
                 {Array.from({ length: Math.ceil(danhSachTatCaPhongTrong.length / SO_LUONG_MOI_TRANG) }).map((_, i) => (
-                  <button 
-                    key={i + 1} 
+                  <button
+                    key={i + 1}
                     className={`pag-btn ${trangTraCuuHienTai === i + 1 ? 'active' : ''}`}
                     onClick={() => { setTrangTraCuuHienTai(i + 1); window.scrollTo({ top: 500, behavior: 'smooth' }); }}
                   >
                     {i + 1}
                   </button>
                 ))}
-                
-                <button 
-                  className="pag-btn" 
+
+                <button
+                  className="pag-btn"
                   onClick={() => { setTrangTraCuuHienTai(Math.min(Math.ceil(danhSachTatCaPhongTrong.length / SO_LUONG_MOI_TRANG), trangTraCuuHienTai + 1)); window.scrollTo({ top: 500, behavior: 'smooth' }); }}
                   disabled={trangTraCuuHienTai === Math.ceil(danhSachTatCaPhongTrong.length / SO_LUONG_MOI_TRANG)}
                 >&gt;</button>
@@ -2992,158 +2992,158 @@ export default function App() {
                 <button type="button" className="subtab-filter-btn" onClick={() => setBoLocLichHen('da-xem')}>Đã xem</button>
               </div>
 
-          {/* Overview Counts Grid */}
-          <div className="overview-counts-grid">
-            <div className="count-card">
-              <span className="count-title">TỔNG LỊCH HẸN</span>
-              <strong className="count-num">128</strong>
-            </div>
-            <div className="count-card count-blue">
-              <span className="count-title">CHỜ XEM HÔM NAY</span>
-              <strong className="count-num">12</strong>
-            </div>
-            <div className="count-card count-orange">
-              <span className="count-title">HẸN THÊM</span>
-              <strong className="count-num">05</strong>
-            </div>
-            <div className="count-card count-green">
-              <span className="count-title">ĐÃ CHỐT (CỌC)</span>
-              <strong className="count-num">42</strong>
-            </div>
-          </div>
-
-          {/* Main Appointments Table */}
-          <div className="table-card">
-            <div className="table-responsive">
-              <table className="appointments-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: '60px' }}>STT</th>
-                    <th>Tên khách</th>
-                    <th>Phòng hẹn</th>
-                    <th>Ngày giờ</th>
-                    <th>Trạng thái</th>
-                    <th style={{ textAlign: 'right' }}>Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(() => {
-                    const merged = layDanhSachLichHenGop();
-                    const filtered = merged.filter(item => {
-                      const matchSearch = item.TenKhach.toLowerCase().includes(tuKhoaLichHen.toLowerCase()) ||
-                        String(item.MaPhong).includes(tuKhoaLichHen);
-                      if (!matchSearch) return false;
-
-                      if (boLocLichHen === 'hom-nay') {
-                        const d = new Date(item.NgayGioHen);
-                        const today = new Date();
-                        return d.getDate() === today.getDate() &&
-                          d.getMonth() === today.getMonth() &&
-                          d.getFullYear() === today.getFullYear();
-                      }
-                      if (boLocLichHen === 'tuan-nay') {
-                        const diffTime = Math.abs(new Date() - new Date(item.NgayGioHen));
-                        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                        return diffDays <= 7;
-                      }
-                      if (boLocLichHen === 'cho-xem') {
-                        return item.KetQua === 'Chờ xem';
-                      }
-                      if (boLocLichHen === 'da-xem') {
-                        return item.KetQua !== 'Chờ xem';
-                      }
-                      return true;
-                    });
-
-                    if (filtered.length === 0) {
-                      return (
-                        <tr>
-                          <td colSpan="6" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
-                            Không tìm thấy lịch hẹn nào khớp với bộ lọc hiện tại.
-                          </td>
-                        </tr>
-                      );
-                    }
-
-                    return filtered.map((item, idx) => (
-                      <tr key={item.MaLich}>
-                        <td>{String(idx + 1).padStart(2, '0')}</td>
-                        <td>
-                          <div className="table-client-cell">
-                            <span className={`client-initials-badge initials-color-${(idx % 4) + 1}`}>
-                              {item.AvatarName}
-                            </span>
-                            <div>
-                              <strong className="client-name">{item.TenKhach}</strong>
-                              <span className="client-phone">{item.SDT}</span>
-                            </div>
-                          </div>
-                        </td>
-                        <td>
-                          <span className="room-badge-table">
-                            {item.TenPhongGiuong}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="datetime-cell-content">
-                            📅 {dinhDangNgayGio(item.NgayGioHen)}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={`status-badge-pill status-${item.KetQua === 'Chờ xem' ? 'cho-xem' :
-                              item.KetQua === 'Đặt cọc' ? 'dat-coc' :
-                                item.KetQua === 'Hẹn thêm' ? 'hen-them' : 'khong-thue'
-                            }`}>
-                            {item.KetQua === 'Chờ xem' && '• Chờ xem'}
-                            {item.KetQua === 'Đặt cọc' && '• Đặt cọc'}
-                            {item.KetQua === 'Hẹn thêm' && '• Hẹn thêm'}
-                            {item.KetQua === 'Không thuê' && '• Không thuê'}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'right' }}>
-                          {item.KetQua === 'Chờ xem' || item.KetQua === 'Hẹn thêm' ? (
-                            <div className="table-select-wrapper">
-                              <select
-                                value=""
-                                onChange={(e) => capNhatTrangThaiLichHen(item.MaLich, e.target.value)}
-                                className="select-action-table"
-                              >
-                                <option value="" disabled>Cập nhật kết quả</option>
-                                <option value="Đặt cọc">Đặt cọc</option>
-                                <option value="Hẹn thêm">Hẹn thêm</option>
-                                <option value="Không thuê">Không thuê</option>
-                              </select>
-                            </div>
-                          ) : item.KetQua === 'Đặt cọc' ? (
-                            <a href="#" className="table-action-link" onClick={(e) => { e.preventDefault(); hienThongBao('info', 'Đang tải hợp đồng đặt cọc...'); }}>
-                              Xem hợp đồng cọc
-                            </a>
-                          ) : (
-                            <span className="table-reason-text">Lý do: {item.GhiChu || 'Tài chính không đủ'}</span>
-                          )}
-                        </td>
-                      </tr>
-                    ));
-                  })()}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Table Footer / Pagination */}
-            <div className="table-footer-row">
-              <span className="footer-entries-info">
-                Hiển thị 4 trên 128 lịch hẹn
-              </span>
-              <div className="table-pagination">
-                <button type="button" className="pag-btn" onClick={() => hienThongBao('info', 'Trang trước')}>&lt;</button>
-                <button type="button" className="pag-btn active">1</button>
-                <button type="button" className="pag-btn" onClick={() => hienThongBao('info', 'Đến trang 2')}>2</button>
-                <button type="button" className="pag-btn" onClick={() => hienThongBao('info', 'Đến trang 3')}>3</button>
-                <button type="button" className="pag-btn" onClick={() => hienThongBao('info', 'Trang sau')}>&gt;</button>
+              {/* Overview Counts Grid */}
+              <div className="overview-counts-grid">
+                <div className="count-card">
+                  <span className="count-title">TỔNG LỊCH HẸN</span>
+                  <strong className="count-num">128</strong>
+                </div>
+                <div className="count-card count-blue">
+                  <span className="count-title">CHỜ XEM HÔM NAY</span>
+                  <strong className="count-num">12</strong>
+                </div>
+                <div className="count-card count-orange">
+                  <span className="count-title">HẸN THÊM</span>
+                  <strong className="count-num">05</strong>
+                </div>
+                <div className="count-card count-green">
+                  <span className="count-title">ĐÃ CHỐT (CỌC)</span>
+                  <strong className="count-num">42</strong>
+                </div>
               </div>
-            </div>
 
-          </div>
+              {/* Main Appointments Table */}
+              <div className="table-card">
+                <div className="table-responsive">
+                  <table className="appointments-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '60px' }}>STT</th>
+                        <th>Tên khách</th>
+                        <th>Phòng hẹn</th>
+                        <th>Ngày giờ</th>
+                        <th>Trạng thái</th>
+                        <th style={{ textAlign: 'right' }}>Thao tác</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const merged = layDanhSachLichHenGop();
+                        const filtered = merged.filter(item => {
+                          const matchSearch = item.TenKhach.toLowerCase().includes(tuKhoaLichHen.toLowerCase()) ||
+                            String(item.MaPhong).includes(tuKhoaLichHen);
+                          if (!matchSearch) return false;
+
+                          if (boLocLichHen === 'hom-nay') {
+                            const d = new Date(item.NgayGioHen);
+                            const today = new Date();
+                            return d.getDate() === today.getDate() &&
+                              d.getMonth() === today.getMonth() &&
+                              d.getFullYear() === today.getFullYear();
+                          }
+                          if (boLocLichHen === 'tuan-nay') {
+                            const diffTime = Math.abs(new Date() - new Date(item.NgayGioHen));
+                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                            return diffDays <= 7;
+                          }
+                          if (boLocLichHen === 'cho-xem') {
+                            return item.KetQua === 'Chờ xem';
+                          }
+                          if (boLocLichHen === 'da-xem') {
+                            return item.KetQua !== 'Chờ xem';
+                          }
+                          return true;
+                        });
+
+                        if (filtered.length === 0) {
+                          return (
+                            <tr>
+                              <td colSpan="6" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
+                                Không tìm thấy lịch hẹn nào khớp với bộ lọc hiện tại.
+                              </td>
+                            </tr>
+                          );
+                        }
+
+                        return filtered.map((item, idx) => (
+                          <tr key={item.MaLich}>
+                            <td>{String(idx + 1).padStart(2, '0')}</td>
+                            <td>
+                              <div className="table-client-cell">
+                                <span className={`client-initials-badge initials-color-${(idx % 4) + 1}`}>
+                                  {item.AvatarName}
+                                </span>
+                                <div>
+                                  <strong className="client-name">{item.TenKhach}</strong>
+                                  <span className="client-phone">{item.SDT}</span>
+                                </div>
+                              </div>
+                            </td>
+                            <td>
+                              <span className="room-badge-table">
+                                {item.TenPhongGiuong}
+                              </span>
+                            </td>
+                            <td>
+                              <span className="datetime-cell-content">
+                                📅 {dinhDangNgayGio(item.NgayGioHen)}
+                              </span>
+                            </td>
+                            <td>
+                              <span className={`status-badge-pill status-${item.KetQua === 'Chờ xem' ? 'cho-xem' :
+                                item.KetQua === 'Đặt cọc' ? 'dat-coc' :
+                                  item.KetQua === 'Hẹn thêm' ? 'hen-them' : 'khong-thue'
+                                }`}>
+                                {item.KetQua === 'Chờ xem' && '• Chờ xem'}
+                                {item.KetQua === 'Đặt cọc' && '• Đặt cọc'}
+                                {item.KetQua === 'Hẹn thêm' && '• Hẹn thêm'}
+                                {item.KetQua === 'Không thuê' && '• Không thuê'}
+                              </span>
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              {item.KetQua === 'Chờ xem' || item.KetQua === 'Hẹn thêm' ? (
+                                <div className="table-select-wrapper">
+                                  <select
+                                    value=""
+                                    onChange={(e) => capNhatTrangThaiLichHen(item.MaLich, e.target.value)}
+                                    className="select-action-table"
+                                  >
+                                    <option value="" disabled>Cập nhật kết quả</option>
+                                    <option value="Đặt cọc">Đặt cọc</option>
+                                    <option value="Hẹn thêm">Hẹn thêm</option>
+                                    <option value="Không thuê">Không thuê</option>
+                                  </select>
+                                </div>
+                              ) : item.KetQua === 'Đặt cọc' ? (
+                                <a href="#" className="table-action-link" onClick={(e) => { e.preventDefault(); hienThongBao('info', 'Đang tải hợp đồng đặt cọc...'); }}>
+                                  Xem hợp đồng cọc
+                                </a>
+                              ) : (
+                                <span className="table-reason-text">Lý do: {item.GhiChu || 'Tài chính không đủ'}</span>
+                              )}
+                            </td>
+                          </tr>
+                        ));
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Table Footer / Pagination */}
+                <div className="table-footer-row">
+                  <span className="footer-entries-info">
+                    Hiển thị 4 trên 128 lịch hẹn
+                  </span>
+                  <div className="table-pagination">
+                    <button type="button" className="pag-btn" onClick={() => hienThongBao('info', 'Trang trước')}>&lt;</button>
+                    <button type="button" className="pag-btn active">1</button>
+                    <button type="button" className="pag-btn" onClick={() => hienThongBao('info', 'Đến trang 2')}>2</button>
+                    <button type="button" className="pag-btn" onClick={() => hienThongBao('info', 'Đến trang 3')}>3</button>
+                    <button type="button" className="pag-btn" onClick={() => hienThongBao('info', 'Trang sau')}>&gt;</button>
+                  </div>
+                </div>
+
+              </div>
             </>
           ) : (
             <>
@@ -3622,7 +3622,7 @@ export default function App() {
           TRANG QUẢN LÝ TRẢ PHÒNG & HOÀN CỌC (STAFF CHECKOUT)
           ========================================== */}
       {trangHienTai === 'staff_checkout' && (
-        <CheckoutContainer 
+        <CheckoutContainer
           hienThongBao={hienThongBao}
           setCheDoNhanVien={setCheDoNhanVien}
           chuyenTrang={chuyenTrang}
@@ -3707,12 +3707,12 @@ export default function App() {
                 Vui lòng chọn tài khoản nhân viên để truy cập phân hệ tương ứng
               </p>
             </div>
-            
+
             <div className="modal-body" style={{ padding: '16px 0 0 0' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                
+
                 {/* Account 1: Sale */}
-                <div 
+                <div
                   className="role-login-card"
                   style={{
                     display: 'flex',
@@ -3751,7 +3751,7 @@ export default function App() {
                 </div>
 
                 {/* Account 2: Manager */}
-                <div 
+                <div
                   className="role-login-card"
                   style={{
                     display: 'flex',
@@ -3790,7 +3790,7 @@ export default function App() {
                 </div>
 
                 {/* Account 3: Accountant */}
-                <div 
+                <div
                   className="role-login-card"
                   style={{
                     display: 'flex',
@@ -3830,9 +3830,9 @@ export default function App() {
 
               </div>
 
-              <button 
-                type="button" 
-                className="btn-detail-outline" 
+              <button
+                type="button"
+                className="btn-detail-outline"
                 style={{ width: '100%', padding: '12px', borderRadius: '10px', marginTop: '20px', fontWeight: '700' }}
                 onClick={() => setShowLoginModal(false)}
               >
