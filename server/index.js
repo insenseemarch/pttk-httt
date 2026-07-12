@@ -534,15 +534,12 @@ app.get('/api/supabase-test', async (req, res) => {
 
 
 async function taiPhieuDoiSoatDatCoc(maDatCoc) {
-  const { data: byCol } = await supabase
+  const { data } = await supabase
     .from('PhieuDoiSoat')
     .select('*')
     .eq('MaDatCoc', maDatCoc)
     .maybeSingle();
-  if (byCol) return byCol;
-
-  const { data: all } = await supabase.from('PhieuDoiSoat').select('*');
-  return all?.find(p => layMaDatCocTuPds(p) === maDatCoc) || null;
+  return data || null;
 }
 
 async function luuPhieuDoiSoatDatCoc(maDatCoc, fields) {
@@ -559,11 +556,7 @@ async function luuPhieuDoiSoatDatCoc(maDatCoc, fields) {
   }
 
   const insertPayload = { ...payload, MaDatCoc: maDatCoc };
-  const { error } = await supabase.from('PhieuDoiSoat').insert(insertPayload);
-  if (error) {
-    delete insertPayload.MaDatCoc;
-    await supabase.from('PhieuDoiSoat').insert(insertPayload);
-  }
+  await supabase.from('PhieuDoiSoat').insert(insertPayload);
 }
 
 async function layDatCocMap() {
@@ -696,46 +689,47 @@ app.get('/api/checkout/list', async (req, res) => {
     const datCocMap = await layDatCocMap();
     const giuongDatCocMap = await layGiuongDatCocMap();
 
-    const { data: contracts, error: errC } = await supabase
-      .from('HopDong')
+    const { data: pdsList, error: errPDS } = await supabase
+      .from('PhieuDoiSoat')
       .select(`
         *,
-        KhachHang (*),
-        ChiTiet (
-          MaGiuong,
-          Giuong (
-            Phong (
-              MaPhong,
-              ChiNhanh (TenCN)
+        HopDong (
+          *,
+          KhachHang (*),
+          ChiTiet (
+            MaGiuong,
+            Giuong (
+              Phong (
+                MaPhong,
+                ChiNhanh (TenCN)
+              )
             )
-          )
+          ),
+          BienBanBanGiao (*)
         ),
-        PhieuDoiSoat (*),
-        BienBanBanGiao (*)
+        DatCoc (
+          *,
+          KhachHang (*)
+        )
       `);
-    if (errC) throw errC;
+    if (errPDS) throw errPDS;
 
-    const { data: deposits, error: errD } = await supabase
-      .from('DatCoc')
-      .select('*, KhachHang (*)');
-    if (errD) throw errD;
+    const mappedList = [];
+    
+    for (const pds of (pdsList || [])) {
+      if (pds.MaHopDong && pds.HopDong) {
+        // We need to pass the HopDong with its embedded PhieuDoiSoat array 
+        // because mapHopDongRaDTO expects `h.PhieuDoiSoat` to be an array
+        const h = { ...pds.HopDong, PhieuDoiSoat: [pds] };
+        mappedList.push(mapHopDongRaDTO(h, datCocMap));
+      } else if (pds.MaDatCoc && pds.DatCoc) {
+        const d = pds.DatCoc;
+        const giuongCoc = giuongDatCocMap[d.MaDatCoc] || [];
+        mappedList.push(mapDatCocRaDTO(d, pds, giuongCoc));
+      }
+    }
 
-    const { data: pdsDatCocList } = await supabase.from('PhieuDoiSoat').select('*');
-    const pdsDatCocByMa = {};
-    (pdsDatCocList || []).forEach(p => {
-      const ma = layMaDatCocTuPds(p);
-      if (ma) pdsDatCocByMa[ma] = p;
-    });
-
-    const linkedDCIds = new Set(contracts.map(c => c.MaDatCoc).filter(Boolean));
-    const activeDeposits = deposits.filter(d => !linkedDCIds.has(d.MaDatCoc));
-
-    const mappedContracts = contracts.map(h => mapHopDongRaDTO(h, datCocMap));
-    const mappedDeposits = activeDeposits.map(d =>
-      mapDatCocRaDTO(d, pdsDatCocByMa[d.MaDatCoc], giuongDatCocMap[d.MaDatCoc] || [])
-    );
-
-    res.json({ ok: true, data: [...mappedContracts, ...mappedDeposits] });
+    res.json({ ok: true, data: mappedList });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
