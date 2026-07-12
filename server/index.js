@@ -7,6 +7,7 @@ import contractRoutes from './routes/contract.routes.js';
 import handoverRoutes from './routes/handover.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
 import liquidationRoutes from './routes/liquidation.routes.js';
+import depositRoutes, { huyDatCocQuaHan } from './routes/deposit.routes.js';
 import { ganRouteAuthDashboard } from './routes/authDashboard.js';
 import { ganRouteQuanTri } from './routes/quanTri.js';
 import { syncPhongGiuong } from './syncPhongGiuong.js';
@@ -26,7 +27,7 @@ const app = express();
 const port = process.env.PORT || 3001;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 
 // Helper function to calculate end date from lease duration
 function tinhNgayKetThuc(ngayVaoStr, soThangStr) {
@@ -510,6 +511,7 @@ app.use('/api/hop-dong', contractRoutes);
 app.use('/api/ban-giao', handoverRoutes);
 app.use('/api/ke-toan', paymentRoutes);
 app.use('/api/thanh-ly', liquidationRoutes);
+app.use('/api/dat-coc', depositRoutes);
 
 ganRouteAuthDashboard(app);
 ganRouteQuanTri(app);
@@ -1149,3 +1151,11 @@ app.post('/api/checkout/payment', async (req, res) => {
 app.listen(port, () => {
   console.log(`Express server running at http://localhost:${port}`);
 });
+
+if (process.env.ENABLE_DEPOSIT_EXPIRY_JOB === 'true') {
+  const depositExpiryJob = setInterval(() => {
+    huyDatCocQuaHan().catch((error) => console.error('Lỗi job hủy cọc quá hạn:', error.message));
+  }, 5 * 60 * 1000);
+  depositExpiryJob.unref();
+  huyDatCocQuaHan().catch((error) => console.warn('Chưa chạy được job đặt cọc:', error.message));
+}
