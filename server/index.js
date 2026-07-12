@@ -534,12 +534,14 @@ app.get('/api/supabase-test', async (req, res) => {
 
 
 async function taiPhieuDoiSoatDatCoc(maDatCoc) {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('PhieuDoiSoat')
     .select('*')
     .eq('MaDatCoc', maDatCoc)
-    .maybeSingle();
-  return data || null;
+    .order('MaPhieu', { ascending: false })
+    .limit(1);
+  if (error) console.error('Lỗi taiPhieuDoiSoatDatCoc:', error);
+  return data && data.length > 0 ? data[0] : null;
 }
 
 async function luuPhieuDoiSoatDatCoc(maDatCoc, fields) {
@@ -551,12 +553,17 @@ async function luuPhieuDoiSoatDatCoc(maDatCoc, fields) {
   };
 
   if (existing?.MaPhieu) {
-    await supabase.from('PhieuDoiSoat').update(payload).eq('MaPhieu', existing.MaPhieu);
+    const { error } = await supabase.from('PhieuDoiSoat').update(payload).eq('MaPhieu', existing.MaPhieu);
+    if (error) {
+      console.error('LỖI UPDATE PHIẾU ĐỐI SOÁT CỌC:', error);
+      throw error;
+    }
     return;
   }
 
   const insertPayload = { ...payload, MaDatCoc: maDatCoc };
-  await supabase.from('PhieuDoiSoat').insert(insertPayload);
+  const { error } = await supabase.from('PhieuDoiSoat').insert(insertPayload);
+  if (error) throw error;
 }
 
 async function layDatCocMap() {
@@ -859,8 +866,7 @@ app.post('/api/checkout/inspect', async (req, res) => {
       const id = Number(maChungTu.replace('PC-', ''));
       await supabase.from('DatCoc').update({ TrangThai: nextTrangThai }).eq('MaDatCoc', id);
       await luuPhieuDoiSoatDatCoc(id, {
-        TrangThai: nextTrangThai,
-        MoTaHuHong: moTaHuHong || 'Xác nhận hủy cọc giữ chỗ — chưa bàn giao tài sản'
+        TrangThai: nextTrangThai
       });
 
       const { data: giuongCoc } = await supabase.from('GiuongDatCoc').select('MaGiuong').eq('MaDatCoc', id);
@@ -932,8 +938,7 @@ app.post('/api/checkout/reconcile', async (req, res) => {
         DanhSachKhauTru: danhSachKhauTruKhac || [],
         SoTienHoanTamTinh: soTienHoan,
         SoTienHoanThuc: soTienHoan,
-        TrangThai: nextTrangThai,
-        MoTaHuHong: moTaKhauTru || ''
+        TrangThai: nextTrangThai
       });
     }
     res.json({ ok: true });
@@ -944,6 +949,7 @@ app.post('/api/checkout/reconcile', async (req, res) => {
 
 // 6. POST /api/checkout/confirm — Quản lý xác nhận đối soát với khách
 app.post('/api/checkout/confirm', async (req, res) => {
+  console.log('--- POST /api/checkout/confirm CALLED ---', req.body);
   const { maChungTu, phanHoiKhach, yKienTranhChap } = req.body;
   if (!ensureCheckoutSupabase(res)) {
     return;
@@ -978,9 +984,9 @@ app.post('/api/checkout/confirm', async (req, res) => {
         const item = await layItemQuyetToanTuMaSo(`PC-${id}`);
         if (item) {
           const soTien = tinhSoTienQuyetToan(item);
-          nextTrangThai = soTien < 0 ? 'Chờ thanh toán thêm' : 'Chờ thanh lý';
+          nextTrangThai = soTien < 0 ? 'Chờ thanh toán thêm' : 'Chờ hoàn cọc';
         } else {
-          nextTrangThai = 'Chờ thanh lý';
+          nextTrangThai = 'Chờ hoàn cọc';
         }
       }
 
@@ -1002,19 +1008,65 @@ app.post('/api/phieu-doi-soat/xac-nhan-khach', async (req, res) => {
   if (!ensureCheckoutSupabase(res)) return;
 
   try {
+    const isDatCoc = maHD.startsWith('PC');
     const id = parseInt(maHD.replace(/\D/g, ''), 10);
     
-    // Cập nhật Phiếu Đối Soát
-    const { error: errPDS } = await supabase.from('PhieuDoiSoat').update({ TrangThai: trangThai }).eq('MaHopDong', id);
-    if (errPDS) throw errPDS;
+    if (isDatCoc) {
+      // Cập nhật phiếu đối soát (mã đặt cọc)
+      const { error: errPDS } = await supabase.from('PhieuDoiSoat').update({ TrangThai: trangThai }).eq('MaDatCoc', id);
+      if (errPDS) throw errPDS;
 
-    // Đồng thời cập nhật trạng thái Hợp đồng tương ứng nếu muốn đồng bộ
-    const { error: errHD } = await supabase.from('HopDong').update({ TrangThai: trangThai }).eq('MaHopDong', id);
-    if (errHD) throw errHD;
+      // Cập nhật Đặt Cọc
+      const { error: errDC } = await supabase.from('DatCoc').update({ TrangThai: trangThai }).eq('MaDatCoc', id);
+      if (errDC) throw errDC;
+    } else {
+      // Cập nhật phiếu đối soát (mã hợp đồng)
+      const { error: errPDS } = await supabase.from('PhieuDoiSoat').update({ TrangThai: trangThai }).eq('MaHopDong', id);
+      if (errPDS) throw errPDS;
+
+      // Cập nhật Hợp đồng
+      const { error: errHD } = await supabase.from('HopDong').update({ TrangThai: trangThai }).eq('MaHopDong', id);
+      if (errHD) throw errHD;
+    }
 
     res.json({ ok: true });
   } catch (error) {
     console.error('Error updating PDS status:', error);
+    res.status(500).json({ ok: false, message: 'Lỗi server: ' + error.message });
+  }
+});
+
+// Thêm API mới để hoàn tất trả phòng / thanh lý
+app.post('/api/phieu-doi-soat/hoan-tat-tra-phong', async (req, res) => {
+  const { maHD, trangThai } = req.body;
+  if (!ensureCheckoutSupabase(res)) return;
+
+  try {
+    const isDatCoc = maHD.startsWith('PC');
+    const id = parseInt(maHD.replace(/\D/g, ''), 10);
+    const newStatus = trangThai || 'Đã trả phòng';
+    
+    if (isDatCoc) {
+      // Cập nhật phiếu đối soát (mã đặt cọc)
+      const { error: errPDS } = await supabase.from('PhieuDoiSoat').update({ TrangThai: newStatus }).eq('MaDatCoc', id);
+      if (errPDS) throw errPDS;
+
+      // Cập nhật Đặt Cọc
+      const { error: errDC } = await supabase.from('DatCoc').update({ TrangThai: newStatus }).eq('MaDatCoc', id);
+      if (errDC) throw errDC;
+    } else {
+      // Cập nhật phiếu đối soát (mã hợp đồng)
+      const { error: errPDS } = await supabase.from('PhieuDoiSoat').update({ TrangThai: newStatus }).eq('MaHopDong', id);
+      if (errPDS) throw errPDS;
+
+      // Cập nhật Hợp đồng
+      const { error: errHD } = await supabase.from('HopDong').update({ TrangThai: newStatus }).eq('MaHopDong', id);
+      if (errHD) throw errHD;
+    }
+
+    res.json({ ok: true });
+  } catch (error) {
+    console.error('Error updating to Đã trả phòng:', error);
     res.status(500).json({ ok: false, message: 'Lỗi server: ' + error.message });
   }
 });

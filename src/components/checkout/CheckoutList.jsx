@@ -156,10 +156,20 @@ export default function CheckoutList({
   };
 
 
-  const allFiltered = danhSachQuyetToan.filter(h =>
-    h.maSo.toLowerCase().includes(checkoutSearch.toLowerCase()) ||
-    h.tenKhachHang.toLowerCase().includes(checkoutSearch.toLowerCase())
-  );
+  const [statusFilter, setStatusFilter] = React.useState('ALL');
+
+  const allFiltered = danhSachQuyetToan.filter(h => {
+    const matchSearch = h.maSo.toLowerCase().includes(checkoutSearch.toLowerCase()) ||
+                        h.tenKhachHang.toLowerCase().includes(checkoutSearch.toLowerCase());
+    let matchStatus = true;
+    if (statusFilter === 'HIEU_LUC') matchStatus = h.trangThai === 'Hiệu lực';
+    else if (statusFilter === 'CHO_KIEM_TRA') matchStatus = h.trangThai === 'Chờ kiểm tra';
+    else if (statusFilter === 'CHO_DOI_SOAT') matchStatus = h.trangThai === 'Chờ đối soát' || h.trangThai === 'Chờ xác nhận đối soát';
+    else if (statusFilter === 'CHO_THANH_LY') matchStatus = h.trangThai === 'Chờ thanh lý';
+    else if (statusFilter === 'DA_THANH_LY') matchStatus = h.trangThai === 'Đã thanh lý';
+
+    return matchSearch && matchStatus;
+  });
 
   // Số hợp đồng role này có thể xử lý ngay
   const myActionStates = {
@@ -168,7 +178,7 @@ export default function CheckoutList({
     ketoan: ['Chờ đối soát', 'Chờ hoàn cọc', 'Chờ thanh toán', 'Chờ thanh toán thêm'],
   };
   const myStates = myActionStates[checkoutRole] || [];
-  const pendingCount = allFiltered.filter(h => myStates.includes(h.trangThai)).length;
+  const pendingCount = danhSachQuyetToan.filter(h => myStates.includes(h.trangThai)).length;
 
   const layVanBanChucVu = () => {
     return (
@@ -188,6 +198,16 @@ export default function CheckoutList({
     'Chờ thanh toán': 'hen-them',
     'Đã thanh lý': 'khong-thue',
   };
+
+  const getBorderStyle = (type) => ({
+    cursor: 'pointer',
+    border: statusFilter === type ? '2px solid var(--primary-color)' : '1px solid transparent',
+    boxShadow: statusFilter === type ? '0 4px 12px rgba(249, 115, 22, 0.15)' : 'none',
+    transform: statusFilter === type ? 'translateY(-2px)' : 'none',
+    transition: 'all 0.2s ease'
+  });
+
+  const toggleFilter = (type) => setStatusFilter(prev => prev === type ? 'ALL' : type);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -213,23 +233,23 @@ export default function CheckoutList({
 
       {/* Counts Grid */}
       <div className="overview-counts-grid" style={{ gridTemplateColumns: 'repeat(5, 1fr)' }}>
-        <div className="count-card">
+        <div className="count-card" style={getBorderStyle('HIEU_LUC')} onClick={() => toggleFilter('HIEU_LUC')}>
           <span className="count-title">ĐANG HIỆU LỰC</span>
           <strong className="count-num">{danhSachQuyetToan.filter(h => h.trangThai === 'Hiệu lực').length}</strong>
         </div>
-        <div className="count-card count-blue">
+        <div className="count-card count-blue" style={getBorderStyle('CHO_KIEM_TRA')} onClick={() => toggleFilter('CHO_KIEM_TRA')}>
           <span className="count-title">CHỜ KIỂM TRA PHÒNG</span>
           <strong className="count-num">{danhSachQuyetToan.filter(h => h.trangThai === 'Chờ kiểm tra').length}</strong>
         </div>
-        <div className="count-card count-orange">
+        <div className="count-card count-orange" style={getBorderStyle('CHO_DOI_SOAT')} onClick={() => toggleFilter('CHO_DOI_SOAT')}>
           <span className="count-title">CHỜ ĐỐI SOÁT VÀ DUYỆT</span>
           <strong className="count-num">{danhSachQuyetToan.filter(h => h.trangThai === 'Chờ đối soát' || h.trangThai === 'Chờ xác nhận đối soát').length}</strong>
         </div>
-        <div className="count-card count-purple">
+        <div className="count-card count-purple" style={getBorderStyle('CHO_THANH_LY')} onClick={() => toggleFilter('CHO_THANH_LY')}>
           <span className="count-title">CHỜ KÝ THANH LÝ</span>
           <strong className="count-num">{danhSachQuyetToan.filter(h => h.trangThai === 'Chờ thanh lý').length}</strong>
         </div>
-        <div className="count-card count-green">
+        <div className="count-card count-green" style={getBorderStyle('DA_THANH_LY')} onClick={() => toggleFilter('DA_THANH_LY')}>
           <span className="count-title">ĐÃ THANH LÝ XONG</span>
           <strong className="count-num">{danhSachQuyetToan.filter(h => h.trangThai === 'Đã thanh lý').length}</strong>
         </div>

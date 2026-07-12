@@ -2,6 +2,8 @@ import React from 'react';
 
 export default function PayoutForm({
   selectedItem,
+  formValues,
+  onChange,
   onSubmit,
   onCancel
 }) {
