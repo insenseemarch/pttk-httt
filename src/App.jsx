@@ -8,6 +8,21 @@ import { useNavigate } from 'react-router-dom';
 import { ROUTES } from './config/routes';
 import CheckoutContainer from './components/checkout/CheckoutContainer';
 import { useRef } from 'react';
+import {
+  chuanHoaVaiTroNhanVien,
+  docNguoiDungDangNhap,
+  xoaNguoiDungDangNhap,
+} from './utils/nhanVienSession';
+import TraCuuPhongGiuongPage from './features/traCuuPhongGiuong/TraCuuPhongGiuongPage';
+import TiepNhanDangKyThuePage from './features/tiepNhanDangKyThue/TiepNhanDangKyThuePage';
+import {
+  guiTiepNhanDangKyThue,
+  kiemTraThongTinDangKyThue,
+  layDanhSachTieuChiDangKyThue,
+  mapYeuCauThueSangBoLoc,
+  taoPayloadTiepNhanDangKyThue,
+} from './features/tiepNhanDangKyThue/tiepNhanDangKyThue';
+import { layDanhSachTienIchHienThi } from './utils/tienIchPhong';
 
 function AnimatedCounter({ end, duration = 1500, suffix = "" }) {
   const [count, setCount] = useState(0);
@@ -41,14 +56,23 @@ function AnimatedCounter({ end, duration = 1500, suffix = "" }) {
   return <>{count.toLocaleString('vi-VN')}{suffix}</>;
 }
 
-export default function App() {
+export default function App({
+  manHinhKhoiTao = 'guest_home',
+  batDauCheDoNhanVien = false,
+  nguoiDungDangNhap: nguoiDungDangNhapProp = null,
+  dangXuatDangNhap = null,
+} = {}) {
   // Quản lý chuyển màn hình: 'guest_home', 'staff_reception', 'search_vacancy', 'room_detail', 'staff_contracts', 'staff_stay_check', 'staff_contract_draft', 'staff_handover', 'staff_payment', 'staff_liquidation'
   const navigate = useNavigate();
+  const nguoiDungKhoiTao = nguoiDungDangNhapProp || docNguoiDungDangNhap();
+  const boQuaTaiTuDongPhongTrongRef = useRef(false);
 
   const chuyenDenKhuVucNhanVien = () => {
     try {
-      if (localStorage.getItem('homestay_nguoiDung')) {
-        navigate(ROUTES.dashboard);
+      const nguoiDung = docNguoiDungDangNhap();
+      if (nguoiDung) {
+        const role = chuanHoaVaiTroNhanVien(nguoiDung.vaiTro);
+        navigate(role === 'sale' ? ROUTES.tiepNhanDangKyThue : ROUTES.dashboard);
       } else {
         navigate(ROUTES.dangNhap);
       }
@@ -58,7 +82,7 @@ export default function App() {
   };
 
   // Quản lý chuyển màn hình: 'guest_home', 'staff_reception', 'search_vacancy', 'room_detail', hoặc 'staff_checkout'
-  const [trangHienTai, setTrangHienTai] = useState('guest_home');
+  const [trangHienTai, setTrangHienTai] = useState(manHinhKhoiTao);
 
   const [activeSection, setActiveSection] = useState('home');
 
@@ -96,8 +120,9 @@ export default function App() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [trangHienTai]);
 
+  const [nguoiDungDangNhap, setNguoiDungDangNhap] = useState(nguoiDungKhoiTao);
   // Phân quyền nhân viên: null, 'sale', 'quanly', 'ketoan'
-  const [vaiTroNhanVien, setVaiTroNhanVien] = useState(null);
+  const [vaiTroNhanVien, setVaiTroNhanVien] = useState(() => chuanHoaVaiTroNhanVien(nguoiDungKhoiTao?.vaiTro));
   const [showLoginModal, setShowLoginModal] = useState(false);
   // Quản lý chuyển màn hình: 'guest_home', 'staff_reception', 'search_vacancy', hoặc 'room_detail'
   // Các màn hình mới (luồng đặt cọc - vùng xanh lá trên flow):
@@ -143,7 +168,16 @@ export default function App() {
   const [giayConLaiTiepNhan, setGiayConLaiTiepNhan] = useState(14 * 60 + 56); // 2.4: 14:56
 
   // Chế độ người dùng: false = Guest, true = Nhân viên
-  const [cheDoNhanVien, setCheDoNhanVien] = useState(false);
+  const [cheDoNhanVien, setCheDoNhanVien] = useState(() => batDauCheDoNhanVien || (Boolean(nguoiDungKhoiTao) && manHinhKhoiTao !== 'guest_home'));
+
+  useEffect(() => {
+    const nguoiDungMoi = nguoiDungDangNhapProp || docNguoiDungDangNhap();
+    setNguoiDungDangNhap(nguoiDungMoi);
+    setVaiTroNhanVien(chuanHoaVaiTroNhanVien(nguoiDungMoi?.vaiTro));
+    if (batDauCheDoNhanVien && nguoiDungMoi) {
+      setCheDoNhanVien(true);
+    }
+  }, [nguoiDungDangNhapProp, batDauCheDoNhanVien]);
 
   // Phòng đang chọn xem chi tiết
   const [phongDaChon, setPhongDaChon] = useState(null);
@@ -152,8 +186,10 @@ export default function App() {
   const [danhSachPhongDatHen, setDanhSachPhongDatHen] = useState([]);
   const [ngayHen, setNgayHen] = useState(new Date(Date.now() + 86400000).toISOString().split('T')[0]);
   const [gioHen, setGioHen] = useState('09:00');
-  const [hinhThucThongBao, setHinhThucThongBao] = useState('email');
-  const [ghiChuLichHen, setGhiChuLichHen] = useState('');
+  const [tuKhoaKhachHangLichHen, setTuKhoaKhachHangLichHen] = useState('');
+  const [danhSachGoiYKhachHang, setDanhSachGoiYKhachHang] = useState([]);
+  const [dangTimKhachHang, setDangTimKhachHang] = useState(false);
+  const [khachHangDaChon, setKhachHangDaChon] = useState(null);
   const [bookingSuccessModal, setBookingSuccessModal] = useState(false);
 
   // --- TRANG DANH SÁCH LỊCH HẸN NHÂN VIÊN (STAFF CONTRACTS/APPOINTMENTS) ---
@@ -161,6 +197,9 @@ export default function App() {
   const [boLocLichHen, setBoLocLichHen] = useState('tat-ca');
   const [tuKhoaLichHen, setTuKhoaLichHen] = useState('');
   const [trangHienHen, setTrangHienHen] = useState(1);
+  const [lichHenDangSua, setLichHenDangSua] = useState(null);
+  const [formSuaLichHen, setFormSuaLichHen] = useState({ ketQua: 'Chưa xem', ghiChu: '' });
+  const [trangTruocChiTietPhong, setTrangTruocChiTietPhong] = useState('search_vacancy');
 
   // Thống kê tổng hợp trang chủ (Khách, Đang thuê, Còn trống)
   const [thongKeTongHop, setThongKeTongHop] = useState({
@@ -198,13 +237,14 @@ export default function App() {
     quocTich: 'Việt Nam',
     sdt: '',
     email: '',
+    diaChi: '',
     khaNangTaiChinh: ''
   });
 
   // State form Yêu cầu thuê (Trang nhân viên)
   const [formYeuCauThue, setFormYeuCauThue] = useState({
     loaiPhong: 'Giường ghép',
-    khuVucMongMuon: 'Quận 1, Quận Bình Thạnh',
+    khuVucMongMuon: 'Tất cả',
     mucGiaTu: '',
     mucGiaDen: '',
     soNguoi: 1,
@@ -212,6 +252,7 @@ export default function App() {
     thoiGianVao: new Date().toISOString().split('T')[0],
     thoiHanThue: '6'
   });
+  const [yeuCauThueDaLuu, setYeuCauThueDaLuu] = useState(null);
 
   // State tab cho Phòng/Giường nhân viên
   const [tabPhongGiuongNhanVien, setTabPhongGiuongNhanVien] = useState('danh-sach'); // 'danh-sach' hoặc 'xac-nhan'
@@ -241,11 +282,13 @@ export default function App() {
     khuVuc: 'Tất cả',
     loaiPhong: 'Tất cả', // 'Tất cả', 'Phòng đơn' (Nguyên phòng), 'Giường dorm' (Giường ghép)
     mucGiaTu: '',
+    mucGiaDen: '',
     gioiTinh: 'Tất cả',
     soNguoi: '',
     tienIch: 'Tất cả',
     yeuCauList: []
   });
+  const [tuyChonTraCuuPhong, setTuyChonTraCuuPhong] = useState({ khuVuc: [], tienIch: [] });
 
   // Hộp thoại modal xem chi tiết
   const [chiTietPhongModal, setChiTietPhongModal] = useState(null);
@@ -273,6 +316,108 @@ export default function App() {
     setTimeout(() => {
       setThongBao(null);
     }, 4000);
+  };
+
+  const layNgayInputLocal = (date = new Date()) => {
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return local.toISOString().split('T')[0];
+  };
+
+  const layGioInputLocal = (date = new Date()) => (
+    `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+  );
+
+  const xuLyDoiNgayHen = (value) => {
+    const ngayHomNay = layNgayInputLocal();
+    const ngayMoi = !value || value < ngayHomNay ? ngayHomNay : value;
+    if (value && value < ngayHomNay) {
+      hienThongBao('error', 'Ngày hẹn không được nằm trong quá khứ.');
+    }
+    setNgayHen(ngayMoi);
+    if (ngayMoi === ngayHomNay && gioHen < layGioInputLocal()) {
+      setGioHen(layGioInputLocal());
+    }
+  };
+
+  const xuLyDoiGioHen = (value) => {
+    const ngayHomNay = layNgayInputLocal();
+    const gioHienTai = layGioInputLocal();
+    if (ngayHen === ngayHomNay && value < gioHienTai) {
+      hienThongBao('error', 'Giờ hẹn không được nằm trong quá khứ.');
+      setGioHen(gioHienTai);
+      return;
+    }
+    setGioHen(value);
+  };
+
+  useEffect(() => {
+    if (trangHienTai !== 'staff_booking') return;
+
+    const tuKhoa = tuKhoaKhachHangLichHen.trim();
+    if (tuKhoa.length < 2) {
+      setDanhSachGoiYKhachHang([]);
+      return;
+    }
+    if (khachHangDaChon?.hoTen && tuKhoa.includes(khachHangDaChon.hoTen)) {
+      setDanhSachGoiYKhachHang([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(async () => {
+      setDangTimKhachHang(true);
+      try {
+        const qs = new URLSearchParams({ timKiem: tuKhoa, limit: '8' });
+        const res = await fetch(`/api/khach-hang?${qs.toString()}`, { signal: controller.signal });
+        const json = await res.json().catch(() => ({}));
+        if (json.ok) {
+          setDanhSachGoiYKhachHang(json.danhSach || []);
+        }
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          console.error('Lỗi tìm khách hàng:', err);
+        }
+      } finally {
+        if (!controller.signal.aborted) setDangTimKhachHang(false);
+      }
+    }, 250);
+
+    return () => {
+      controller.abort();
+      clearTimeout(timer);
+    };
+  }, [tuKhoaKhachHangLichHen, trangHienTai, khachHangDaChon]);
+
+  const chonKhachHangChoLichHen = (khachHang) => {
+    setKhachHangDaChon(khachHang);
+    setYeuCauThueDaLuu(null);
+    setFormKhachHang(prev => ({
+      ...prev,
+      cccd: khachHang.cccd || '',
+      hoTen: khachHang.hoTen || '',
+      sdt: khachHang.sdt || '',
+      email: khachHang.email || '',
+    }));
+    setTuKhoaKhachHangLichHen(`${khachHang.hoTen || 'Khách hàng'}${khachHang.sdt ? ` - ${khachHang.sdt}` : ''}`);
+    setDanhSachGoiYKhachHang([]);
+  };
+
+  const chuyenTiepNhanKhachHangMoi = () => {
+    setKhachHangDaChon(null);
+    setTuKhoaKhachHangLichHen('');
+    setDanhSachGoiYKhachHang([]);
+    setFormKhachHang({
+      cccd: '',
+      hoTen: '',
+      ngaySinh: '',
+      gioiTinh: 'Nam',
+      quocTich: 'Việt Nam',
+      sdt: '',
+      email: '',
+      khaNangTaiChinh: ''
+    });
+    setCheDoNhanVien(true);
+    chuyenTrang('staff_reception');
   };
 
   // 2. Tải thống kê tổng hợp cho trang chủ Guest
@@ -304,12 +449,27 @@ export default function App() {
     }
   };
 
+  const taiTuyChonTraCuuPhong = async () => {
+    try {
+      const response = await fetch('/api/tuy-chon-tra-cuu-phong');
+      const resData = await response.json();
+      if (resData.ok) {
+        setTuyChonTraCuuPhong({
+          khuVuc: Array.isArray(resData.data?.khuVuc) ? resData.data.khuVuc : [],
+          tienIch: Array.isArray(resData.data?.tienIch) ? resData.data.tienIch : [],
+        });
+      }
+    } catch (err) {
+      console.error('Lỗi kết nối API tùy chọn tra cứu phòng:', err);
+    }
+  };
+
   // Tải danh sách phòng trống thực tế cho trang Tra cứu phòng trống
   const taiTatCaPhongTrong = async (boLocHienTai = boLocTraCuu) => {
     setDangTaiPhongTrong(true);
     try {
       let paramLoaiPhong = 'Giường ghép';
-      if (boLocHienTai.loaiPhong === 'Phòng đơn') {
+      if (boLocHienTai.loaiPhong === 'Phòng đơn' || boLocHienTai.loaiPhong === 'Nguyên phòng') {
         paramLoaiPhong = 'Nguyên phòng';
       }
 
@@ -318,49 +478,52 @@ export default function App() {
         ? boLocHienTai.yeuCauList
         : (boLocHienTai.tienIch === 'Tất cả' ? [] : [boLocHienTai.tienIch]);
 
+      const goiApiTraCuuPhong = async (payload) => {
+        const goiApi = async (body) => fetch('/api/tra-cuu-phong', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        }).then(r => r.json());
+
+        return goiApi(payload);
+      };
+
       let ketQuaGop = [];
       if (boLocHienTai.loaiPhong === 'Tất cả') {
         const [resPhong, resGiuong] = await Promise.all([
-          fetch('/api/tra-cuu-phong', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              loaiPhong: 'Nguyên phòng',
-              khuVucMongMuon: paramKhuVuc,
-              mucGiaTu: boLocHienTai.mucGiaTu,
-              soNguoi: boLocHienTai.soNguoi,
-              yeuCauList: paramYeuCauList
-            })
-          }).then(r => r.json()),
-          fetch('/api/tra-cuu-phong', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              loaiPhong: 'Giường ghép',
-              khuVucMongMuon: paramKhuVuc,
-              mucGiaTu: boLocHienTai.mucGiaTu,
-              gioiTinh: boLocHienTai.gioiTinh,
-              yeuCauList: paramYeuCauList
-            })
-          }).then(r => r.json())
+          goiApiTraCuuPhong({
+            loaiPhong: 'Nguyên phòng',
+            kieuThue: 'PHONG',
+            khuVucMongMuon: paramKhuVuc,
+            mucGiaTu: boLocHienTai.mucGiaTu,
+            mucGiaDen: boLocHienTai.mucGiaDen,
+            soNguoi: boLocHienTai.soNguoi,
+            yeuCauList: paramYeuCauList
+          }),
+          goiApiTraCuuPhong({
+            loaiPhong: 'Giường ghép',
+            kieuThue: 'GIUONG',
+            khuVucMongMuon: paramKhuVuc,
+            mucGiaTu: boLocHienTai.mucGiaTu,
+            mucGiaDen: boLocHienTai.mucGiaDen,
+            gioiTinh: boLocHienTai.gioiTinh,
+            yeuCauList: paramYeuCauList
+          })
         ]);
 
         if (resPhong.ok) ketQuaGop = [...ketQuaGop, ...resPhong.data];
         if (resGiuong.ok) ketQuaGop = [...ketQuaGop, ...resGiuong.data];
       } else {
-        const response = await fetch('/api/tra-cuu-phong', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            loaiPhong: paramLoaiPhong,
-            khuVucMongMuon: paramKhuVuc,
-            mucGiaTu: boLocHienTai.mucGiaTu,
-            gioiTinh: boLocHienTai.gioiTinh,
-            soNguoi: boLocHienTai.soNguoi,
-            yeuCauList: paramYeuCauList
-          })
+        const resData = await goiApiTraCuuPhong({
+          loaiPhong: paramLoaiPhong,
+          kieuThue: paramLoaiPhong === 'Nguyên phòng' ? 'PHONG' : 'GIUONG',
+          khuVucMongMuon: paramKhuVuc,
+          mucGiaTu: boLocHienTai.mucGiaTu,
+          mucGiaDen: boLocHienTai.mucGiaDen,
+          gioiTinh: boLocHienTai.gioiTinh,
+          soNguoi: boLocHienTai.soNguoi,
+          yeuCauList: paramYeuCauList
         });
-        const resData = await response.json();
         if (resData.ok) {
           ketQuaGop = resData.data;
         }
@@ -368,9 +531,11 @@ export default function App() {
 
       setDanhSachTatCaPhongTrong(ketQuaGop);
       setTrangTraCuuHienTai(1);
+      return ketQuaGop;
     } catch (err) {
       console.error('Lỗi tải phòng trống:', err);
       hienThongBao('error', 'Không thể kết nối đến cơ sở dữ liệu tra cứu!');
+      return [];
     } finally {
       setDangTaiPhongTrong(false);
     }
@@ -380,7 +545,8 @@ export default function App() {
     const { name, value } = e.target;
     setBoLocTraCuu(prev => ({
       ...prev,
-      [name]: value
+      [name]: value,
+      ...(name === 'tienIch' ? { yeuCauList: [] } : {})
     }));
   };
 
@@ -411,7 +577,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...formHenXem,
-          maPhong: henXemPhongModal.maId,
+          maPhong: henXemPhongModal.maPhong || henXemPhongModal.maId,
           loaiPhong: henXemPhongModal.kieu
         })
       });
@@ -477,43 +643,52 @@ export default function App() {
       khuVuc: timKiemNhanhKhuVuc,
       loaiPhong: mappedLoai,
       mucGiaTu: '',
+      mucGiaDen: '',
       gioiTinh: 'Tất cả',
       soNguoi: '',
-      tienIch: 'Tất cả'
+      tienIch: 'Tất cả',
+      yeuCauList: []
     });
 
     setCheDoNhanVien(false);
     chuyenTrang('search_vacancy');
   };
 
+  const layMaPhongDatHen = (room) => Number(room?.maPhong || room?.maId);
+
   const xuLyXoaPhongLichHen = (room) => {
-    setDanhSachPhongDatHen(prev => prev.filter(r => r.maId !== room.maId));
+    const maPhongCanXoa = layMaPhongDatHen(room);
+    setDanhSachPhongDatHen(prev => prev.filter(r => layMaPhongDatHen(r) !== maPhongCanXoa));
+    if (layMaPhongDatHen(phongDaChon) === maPhongCanXoa) {
+      setPhongDaChon(null);
+    }
   };
 
   const xuLyThemPhongLichHen = () => {
-    if (!phongDaChon) {
-      hienThongBao('error', 'Vui lòng chọn một phòng/giường trước khi thêm.');
-      return;
-    }
-
-    const phongDaChonDatHen = {
-      maId: phongDaChon.maId,
-      ten: phongDaChon.ten,
-      kieu: phongDaChon.kieu,
-      giaThue: phongDaChon.giaThue,
-      chiNhanh: phongDaChon.chiNhanh,
-      diaChi: phongDaChon.diaChi
-    };
-    setDanhSachPhongDatHen(prev => {
-      if (prev.some(r => r.maId === phongDaChonDatHen.maId)) return prev;
-      return [...prev, phongDaChonDatHen];
-    });
+    setPhongDaChon(null);
+    setCheDoNhanVien(true);
+    setTabPhongGiuongNhanVien('danh-sach');
+    setBoLocTraCuu(prev => ({
+      ...prev,
+      loaiPhong: 'Phòng đơn',
+      tienIch: 'Tất cả',
+      yeuCauList: [],
+    }));
+    chuyenTrang('search_vacancy');
+    hienThongBao('info', 'Chọn một phòng trong danh sách tra cứu để thêm vào lịch hẹn.');
   };
 
   const guiLichHenNhanVien = async (e) => {
     if (e) e.preventDefault();
     if (danhSachPhongDatHen.length === 0) {
-      hienThongBao('error', 'Vui lòng chọn ít nhất một phòng/giường để đặt hẹn!');
+      hienThongBao('error', 'Vui lòng chọn ít nhất một phòng để đặt hẹn!');
+      return;
+    }
+
+    const ngayGioHenCombined = `${ngayHen}T${gioHen}:00`;
+    const thoiDiemHen = new Date(ngayGioHenCombined);
+    if (Number.isNaN(thoiDiemHen.getTime()) || thoiDiemHen.getTime() < Date.now()) {
+      hienThongBao('error', 'Thời điểm hẹn phải từ hiện tại trở đi.');
       return;
     }
 
@@ -528,24 +703,28 @@ export default function App() {
       }
 
       for (const room of danhSachPhongDatHen) {
-        const ngayGioHenCombined = `${ngayHen}T${gioHen}:00`;
-
-        await fetch('/api/dat-lich-hen', {
+        const response = await fetch('/api/dat-lich-hen', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            maYC: yeuCauThueDaLuu?.MaYC || null,
             hoTen: customerName,
             sdt: customerPhone,
             email: customerEmail,
+            cccd: formKhachHang.cccd || khachHangDaChon?.cccd || '',
             ngayGioHen: ngayGioHenCombined,
-            ghiChu: `[Nhân viên đặt lịch - Thông báo qua ${hinhThucThongBao}] ${ghiChuLichHen}`,
-            maPhong: room.maId || room.maPhong,
+            maPhong: layMaPhongDatHen(room),
             loaiPhong: room.kieu
           })
         });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.ok) {
+          throw new Error(data.error || 'Không thể tạo lịch hẹn xem phòng.');
+        }
       }
 
-      hienThongBao('success', `Đã gửi thông báo lịch hẹn thành công đến khách hàng ${customerName}!`);
+      hienThongBao('success', `Đã đặt lịch hẹn xem phòng cho khách hàng ${customerName}!`);
+      taiDanhSachLichHen();
       setBookingSuccessModal(true);
     } catch (err) {
       console.error('Lỗi khi nhân viên đặt lịch hẹn:', err);
@@ -560,10 +739,11 @@ export default function App() {
       const tenKhach = lich.YeuCauThue?.KhachHang?.HoTen || 'Khách Vãng Lai';
       const sdt = lich.YeuCauThue?.KhachHang?.SDT || 'Không có';
       const initials = tenKhach.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+      const ketQuaChuanHoa = lich.KetQua === 'Đã xem' ? 'Đã xem' : 'Chưa xem';
       return {
         MaLich: lich.MaLich,
         NgayGioHen: lich.NgayGioHen,
-        KetQua: lich.KetQua || 'Chờ xem',
+        KetQua: ketQuaChuanHoa,
         GhiChu: lich.GhiChu || '',
         MaPhong: lich.MaPhong,
         TenKhach: tenKhach,
@@ -588,18 +768,20 @@ export default function App() {
     }
   };
 
-  const capNhatTrangThaiLichHen = async (maLich, trangThaiMoi) => {
+  const capNhatTrangThaiLichHen = async (maLich, trangThaiMoi, ghiChuMoi = '') => {
     try {
-      hienThongBao('success', `Đã cập nhật trạng thái lịch hẹn sang: ${trangThaiMoi}`);
-
       if (typeof maLich === 'number') {
         const res = await fetch('/api/cap-nhat-trang-thai-hen', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ maLich, ketQua: trangThaiMoi })
+          body: JSON.stringify({ maLich, ketQua: trangThaiMoi, ghiChu: ghiChuMoi })
         });
-        const json = await res.json();
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) {
+          throw new Error(json.error || 'Không thể cập nhật trạng thái lịch hẹn.');
+        }
         if (json.ok) {
+          hienThongBao('success', `Đã cập nhật trạng thái lịch hẹn sang: ${trangThaiMoi}`);
           taiDanhSachLichHen();
         }
       } else {
@@ -610,12 +792,21 @@ export default function App() {
       hienThongBao('error', 'Không thể cập nhật trạng thái lịch hẹn!');
     }
   };
+
+  useEffect(() => {
+    taiTuyChonTraCuuPhong();
+  }, []);
+
   useEffect(() => {
     if (trangHienTai === 'guest_home') {
       taiThongKeTongHop();
     } else if (trangHienTai === 'staff_reception') {
       taiThongKePhongTrong();
     } else if (trangHienTai === 'search_vacancy' || (trangHienTai === 'confirm_status' && tabPhongGiuongNhanVien === 'danh-sach')) {
+      if (boQuaTaiTuDongPhongTrongRef.current) {
+        boQuaTaiTuDongPhongTrongRef.current = false;
+        return;
+      }
       taiTatCaPhongTrong();
     } else if (trangHienTai === 'staff_contracts') {
       taiDanhSachLichHen();
@@ -695,13 +886,27 @@ export default function App() {
 
   // 6. Chuyển đổi trang màn hình
   const chuyenTrang = (trang) => {
-    setTrangHienTai(trang);
+    setTrangHienTai(trang === 'review_info' ? 'staff_reception' : trang);
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const xuLyDangXuatNhanVien = () => {
+    if (typeof dangXuatDangNhap === 'function') {
+      dangXuatDangNhap();
+      return;
+    }
+
+    xoaNguoiDungDangNhap();
+    setNguoiDungDangNhap(null);
+    setCheDoNhanVien(false);
+    setVaiTroNhanVien(null);
+    chuyenTrang('guest_home');
   };
 
   // --- LOGIC PHÍA NHÂN VIÊN (STAFF RECEPTION) ---
   const xuLyThayDoiKhachHang = (e) => {
     const { name, value } = e.target;
+    setYeuCauThueDaLuu(null);
     setFormKhachHang(prev => ({
       ...prev,
       [name]: value
@@ -710,6 +915,7 @@ export default function App() {
 
   const xuLyThayDoiYeuCau = (e) => {
     const { name, value } = e.target;
+    setYeuCauThueDaLuu(null);
     setFormYeuCauThue(prev => ({
       ...prev,
       [name]: value
@@ -717,6 +923,7 @@ export default function App() {
   };
 
   const xuLyChonLoaiPhong = (loai) => {
+    setYeuCauThueDaLuu(null);
     setFormYeuCauThue(prev => ({
       ...prev,
       loaiPhong: loai
@@ -724,87 +931,33 @@ export default function App() {
   };
 
   const xuLyThayDoiTieuChi = (name) => {
+    setYeuCauThueDaLuu(null);
     setTieuChiUuTien(prev => ({
       ...prev,
       [name]: !prev[name]
     }));
   };
 
-  const layDanhSachTieuChiChuoi = () => {
-    const mapTieuChi = {
-      yenTinh: 'Yên tĩnh',
-      guiXe: 'Gửi xe',
-      dieuHoa: 'Điều hòa',
-      wifiRieng: 'Wifi riêng',
-      gioGiacTuDo: 'Giờ giấc tự do'
-    };
-    return Object.keys(tieuChiUuTien)
-      .filter(key => tieuChiUuTien[key])
-      .map(key => mapTieuChi[key]);
-  };
-
   const chuyenSangTraCuuTuNhanVien = async () => {
-    const danhSachTieuChi = layDanhSachTieuChiChuoi();
+    const danhSachTieuChi = layDanhSachTieuChiDangKyThue(tieuChiUuTien, tuyChonTraCuuPhong.tienIch);
+    const loiKiemTra = kiemTraThongTinDangKyThue(formKhachHang, formYeuCauThue);
 
-    if (danhSachTieuChi.length === 0) {
-      hienThongBao('error', 'Vui lòng chọn ít nhất một tiêu chí ưu tiên trước khi tra cứu!');
+    if (loiKiemTra) {
+      hienThongBao('error', loiKiemTra);
       return;
     }
 
-    // 1. Map bộ lọc từ form yêu cầu thuê + tiêu chí ưu tiên
-    let mappedKhuVuc = 'Tất cả';
-    const kv = (formYeuCauThue.khuVucMongMuon || '').toLowerCase();
-    if (kv.includes('quận 1') || kv.includes('q1')) mappedKhuVuc = 'Quận 1';
-    else if (kv.includes('bình thạnh') || kv.includes('bt')) mappedKhuVuc = 'Bình Thạnh';
-    else if (kv.includes('quận 3') || kv.includes('q3')) mappedKhuVuc = 'Quận 3';
-
-    let mappedLoaiPhong = 'Tất cả';
-    if (formYeuCauThue.loaiPhong === 'Nguyên phòng') mappedLoaiPhong = 'Phòng đơn';
-    else if (formYeuCauThue.loaiPhong === 'Giường ghép') mappedLoaiPhong = 'Giường dorm';
-
-    const newFilters = {
-      khuVuc: mappedKhuVuc,
-      loaiPhong: mappedLoaiPhong,
-      mucGiaTu: formYeuCauThue.mucGiaTu || '',
-      gioiTinh: formYeuCauThue.gioiTinh || 'Tất cả',
-      soNguoi: formYeuCauThue.soNguoi || '',
-      tienIch: danhSachTieuChi.length === 1 ? danhSachTieuChi[0] : 'Tất cả',
-      yeuCauList: danhSachTieuChi
-    };
+    const newFilters = mapYeuCauThueSangBoLoc(formYeuCauThue, danhSachTieuChi);
 
     setBoLocTraCuu(newFilters);
-
-    // 2. Lưu thông tin tiếp nhận nếu đủ dữ liệu khách hàng
-    const cccdHopLe = /^\d+$/.test(formKhachHang.cccd) && formKhachHang.cccd.length >= 9 && formKhachHang.cccd.length <= 12;
-    const coHoTen = formKhachHang.hoTen && formKhachHang.hoTen.trim() !== '';
-
-    if (cccdHopLe && coHoTen) {
-      try {
-        await fetch('/api/tiep-nhan', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            khachHang: formKhachHang,
-            yeuCauThue: {
-              ...formYeuCauThue,
-              yeuCauList: danhSachTieuChi
-            },
-            maNV: 101
-          })
-        });
-      } catch (err) {
-        console.error('Lỗi lưu thông tin tiếp nhận:', err);
-      }
-    }
-
-    // 3. Chuyển sang tab Danh sách phòng/giường (nhân viên)
     setCheDoNhanVien(true);
     setTabPhongGiuongNhanVien('danh-sach');
-    chuyenTrang('confirm_status');
 
-    // 4. Tra cứu phòng theo tiêu chí đã chọn
-    await taiTatCaPhongTrong(newFilters);
-    hienThongBao('success', `Đang hiển thị phòng phù hợp với ${danhSachTieuChi.length} tiêu chí đã chọn.`);
+    const ketQuaPhong = await taiTatCaPhongTrong(newFilters);
+    setDanhSachPhong(ketQuaPhong);
+    setDaTraCuu(false);
+    chuyenTrang('search_vacancy');
+    hienThongBao('success', `Đã chuyển sang Tra cứu phòng/giường với ${ketQuaPhong.length} kết quả phù hợp.`);
   };
 
   const xuLyGuiYeuCauNhanVien = async (e) => {
@@ -812,13 +965,98 @@ export default function App() {
     setDangXuLy(true);
     try {
       await chuyenSangTraCuuTuNhanVien();
+    } catch (err) {
+      console.error('Lỗi tiếp nhận đăng ký thuê:', err);
+      hienThongBao('error', err.message || 'Không thể tiếp nhận đăng ký thuê.');
     } finally {
       setDangXuLy(false);
     }
   };
 
+  const moPopupChinhSuaLichHen = (lichHen) => {
+    setLichHenDangSua(lichHen);
+    setFormSuaLichHen({
+      ketQua: lichHen.KetQua || 'Chưa xem',
+      ghiChu: lichHen.GhiChu || '',
+    });
+  };
+
+  const luuChinhSuaLichHen = async (e) => {
+    if (e) e.preventDefault();
+    if (!lichHenDangSua) return;
+    await capNhatTrangThaiLichHen(lichHenDangSua.MaLich, formSuaLichHen.ketQua, formSuaLichHen.ghiChu);
+    setLichHenDangSua(null);
+  };
+
+  const xuLyLuuThongTinDangKyThue = async () => {
+    const danhSachTieuChi = layDanhSachTieuChiDangKyThue(tieuChiUuTien, tuyChonTraCuuPhong.tienIch);
+    const loiKiemTra = kiemTraThongTinDangKyThue(formKhachHang, formYeuCauThue);
+
+    if (loiKiemTra) {
+      hienThongBao('error', loiKiemTra);
+      chuyenTrang('staff_reception');
+      return;
+    }
+
+    setDangXuLy(true);
+    try {
+      const payload = taoPayloadTiepNhanDangKyThue({
+        formKhachHang,
+        formYeuCauThue,
+        danhSachTieuChi,
+        nguoiDungDangNhap,
+      });
+      const data = await guiTiepNhanDangKyThue(payload);
+      const yeuCauDaLuu = data.data?.yeuCauThue || null;
+      setYeuCauThueDaLuu(yeuCauDaLuu);
+      const maYC = yeuCauDaLuu?.MaYC ? ` #${yeuCauDaLuu.MaYC}` : '';
+
+      if (phongDaChon) {
+        setDanhSachPhongDatHen(prev => {
+          if (prev.some(room => room.maId === phongDaChon.maId && room.kieu === phongDaChon.kieu)) return prev;
+          return [...prev, phongDaChon];
+        });
+        hienThongBao('success', `Đã lưu thông tin đăng ký thuê${maYC}. Tiếp tục đặt lịch hẹn xem phòng.`);
+        chuyenTrang('staff_booking');
+      } else {
+        hienThongBao('success', `Đã lưu thông tin đăng ký thuê${maYC}. Hãy tra cứu và chọn phòng để đặt lịch hẹn.`);
+      }
+    } catch (err) {
+      console.error('Lỗi lưu thông tin đăng ký thuê:', err);
+      hienThongBao('error', err.message || 'Không thể lưu thông tin đăng ký thuê.');
+    } finally {
+      setDangXuLy(false);
+    }
+  };
+
+  const moChiTietPhong = (item, trangNguon = 'search_vacancy') => {
+    setPhongDaChon(item);
+    setTrangTruocChiTietPhong(trangNguon);
+    setTrangHienTai('room_detail');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const xuLyDatPhong = (item) => {
-    hienThongBao('success', `Đã tạo yêu cầu giữ chỗ cho ${item.ten} thành công!`);
+    if (cheDoNhanVien) {
+      if (vaiTroNhanVien !== 'sale') {
+        setPhongDaChon(item);
+        setTrangTruocChiTietPhong('search_vacancy');
+        setTrangHienTai('room_detail');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
+      }
+      setPhongDaChon(item);
+      setDanhSachPhongDatHen(prev => {
+        if (prev.some(room => layMaPhongDatHen(room) === layMaPhongDatHen(item))) return prev;
+        return [...prev, item];
+      });
+      setTrangHienTai('staff_booking');
+      hienThongBao('success', `Đã chọn ${item.ten}. Tiếp tục đặt lịch hẹn xem phòng.`);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    setHenXemPhongModal(item);
   };
 
   // --- LOGIC 2.1 RÀ SOÁT THÔNG TIN THUÊ (SALE) ---
@@ -910,7 +1148,7 @@ export default function App() {
       {/* HEADER NAVBAR (Chung cho toàn web) */}
       <nav className="navbar">
         <div className="logo-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <a href="#" className="logo" onClick={() => chuyenTrang('guest_home')}>
+          <a href="#" className="logo" onClick={(e) => { e.preventDefault(); if (cheDoNhanVien) navigate(ROUTES.dashboard); else chuyenTrang('guest_home'); }}>
             HomeStay Dorm
           </a>
         </div>
@@ -943,20 +1181,23 @@ export default function App() {
             {/* 1. Menu cho SALE */}
             {vaiTroNhanVien === 'sale' && (
               <>
-                <li className={['staff_reception', 'review_info'].includes(trangHienTai) ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>Tiếp nhận khách</a>
+                <li className={trangHienTai === 'dashboard' ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.dashboard); }}>Tổng quan</a>
                 </li>
-                <li className={trangHienTai === 'search_vacancy' ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('search_vacancy'); }}>Phòng/Giường</a>
+                <li className={trangHienTai === 'staff_reception' ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_reception'); navigate(ROUTES.tiepNhanDangKyThue); }}>Tiếp nhận thuê</a>
                 </li>
-                <li className={trangHienTai === 'staff_contracts' ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_contracts'); }}>Lịch hẹn</a>
+                <li className={trangHienTai === 'search_vacancy' || (trangHienTai === 'confirm_status' && tabPhongGiuongNhanVien === 'danh-sach') ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.phongGiuong); }}>Tra cứu phòng/giường</a>
                 </li>
-                <li className={trangHienTai === 'payment_request' ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('payment_request'); }}>Y/c Thu cọc</a>
+                <li>
+                  <a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.soDoPhong); }}>Sơ đồ phòng</a>
                 </li>
-                <li className={trangHienTai.startsWith('staff_checkout') ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_checkout'); }}>Báo trả phòng</a>
+                <li className={trangHienTai === 'staff_contracts' && tabHopDongNhanVien === 'danh-sach-hen' ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.lichHen); }}>Lịch hẹn</a>
+                </li>
+                <li>
+                  <a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.thongBao); }}>Thông báo</a>
                 </li>
               </>
             )}
@@ -964,23 +1205,16 @@ export default function App() {
             {/* 2. Menu cho QUẢN LÝ */}
             {vaiTroNhanVien === 'quanly' && (
               <>
-                <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.dashboard); }}>Dashboard</a></li>
-                <li className={trangHienTai === 'confirm_status' || trangHienTai === 'search_vacancy' ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); setTabPhongGiuongNhanVien('danh-sach'); chuyenTrang('confirm_status'); }}>Xác nhận phòng</a>
+                <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.dashboard); }}>Tổng quan</a></li>
+                <li className={trangHienTai === 'search_vacancy' || (trangHienTai === 'confirm_status' && tabPhongGiuongNhanVien === 'danh-sach') ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.phongGiuong); }}>Tra cứu phòng/giường</a>
                 </li>
-                <li className={trangHienTai === 'deposit_approve' ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); setTabHopDongNhanVien('phe-duyet'); chuyenTrang('deposit_approve'); }}>Duyệt cọc</a>
+                <li>
+                  <a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.soDoPhong); }}>Sơ đồ phòng</a>
                 </li>
-                <li className={trangHienTai === 'staff_stay_check' ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_stay_check'); }}>ĐK Lưu trú</a>
+                <li>
+                  <a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.thongBao); }}>Thông báo</a>
                 </li>
-                <li className={trangHienTai === 'staff_handover' ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_handover'); }}>Bàn giao</a>
-                </li>
-                <li className={trangHienTai.startsWith('staff_checkout') ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_checkout'); }}>KT Trả phòng</a>
-                </li>
-                <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.phongGiuong); }}>Danh mục</a></li>
               </>
             )}
 
@@ -1016,8 +1250,9 @@ export default function App() {
             )}
 
             {/* Chung */}
-            <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.thongBao); }}>Thông báo</a></li>
-            <li><a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(false); chuyenTrang('guest_home'); }}>Về Guest</a></li>
+            {!['sale', 'quanly'].includes(vaiTroNhanVien) && (
+              <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.thongBao); }}>Thông báo</a></li>
+            )}
           </ul>
         )}
 
@@ -1029,10 +1264,11 @@ export default function App() {
           ) : (
             <div className="user-profile">
               <span className="mini-tag" style={{ background: vaiTroNhanVien === 'sale' ? 'var(--primary-color)' : vaiTroNhanVien === 'quanly' ? '#3B82F6' : vaiTroNhanVien === 'ketoan' ? '#10B981' : vaiTroNhanVien === 'admin' ? '#8B5CF6' : '#F59E0B', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', textTransform: 'capitalize' }}>
-                {vaiTroNhanVien}
+                {vaiTroNhanVien || 'staff'}
               </span>
+              {nguoiDungDangNhap?.hoTen && <span className="qt-user-name">{nguoiDungDangNhap.hoTen}</span>}
               <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&width=100&auto=format&fit=crop" alt="Staff avatar" className="avatar" />
-              <button className="logout-btn" onClick={() => { setCheDoNhanVien(false); setVaiTroNhanVien(null); chuyenTrang('guest_home'); }}>Đăng xuất</button>
+              <button className="logout-btn" onClick={xuLyDangXuatNhanVien}>Đăng xuất</button>
             </div>
           )}
         </div>
@@ -1478,346 +1714,41 @@ export default function App() {
       {/* ==========================================
           TRANG TRA CỨU PHÒNG TRỐNG (VACANCY SEARCH)
           ========================================== */}
-      {((trangHienTai === 'search_vacancy' && !cheDoNhanVien) || (trangHienTai === 'confirm_status' && tabPhongGiuongNhanVien === 'danh-sach')) && (
-        <div className="vacancy-search-page fade-in-up">
-
-          {cheDoNhanVien && (
-            <div className="staff-room-page-header">
-              <p className="payment-breadcrumb">Phòng/Giường &nbsp;&gt;&nbsp; <span>Danh sách phòng/giường</span></p>
-              <div className="payment-subtabs staff-room-subtabs">
-                <button type="button" className="payment-subtab active" onClick={() => setTabPhongGiuongNhanVien('danh-sach')}>Danh sách phòng/giường</button>
-                <button type="button" className="payment-subtab" onClick={() => setTabPhongGiuongNhanVien('xac-nhan')}>Xác nhận tình trạng</button>
-              </div>
-            </div>
-          )}
-
-          {/* Cover Hero + Filters Container */}
-          <header className="vacancy-hero" style={{ backgroundImage: `url('/hero_cover.png')` }}>
-            <div className="vacancy-hero-overlay"></div>
-            <div className="vacancy-hero-container">
-
-              <div className="vacancy-hero-left">
-                <span className="hero-tagline">Buy, Rent, &amp; Sell Property</span>
-                <h2>Homestay Dorm</h2>
-                <p>Giải pháp quản lý và tìm kiếm nơi lưu trú hiện đại, tiện nghi bậc nhất cho thế hệ trẻ năng động.</p>
-              </div>
-
-              <form className="search-filters-card" onSubmit={guiYeuCauTimKiemVacant}>
-                <h3>Find your Best Property <span>what do you want!</span></h3>
-
-                <div className="filters-grid">
-
-                  <div className="filter-group">
-                    <label htmlFor="filter-khuVuc">Khu vực</label>
-                    <select id="filter-khuVuc" name="khuVuc" value={boLocTraCuu.khuVuc} onChange={xuLyThayDoiBoLoc}>
-                      <option value="Tất cả">Tất cả chi nhánh</option>
-                      <option value="Quận 1">Quận 1, TP.HCM</option>
-                      <option value="Bình Thạnh">Bình Thạnh, TP.HCM</option>
-                      <option value="Quận 3">Quận 3, TP.HCM</option>
-                    </select>
-                  </div>
-
-                  <div className="filter-group">
-                    <label htmlFor="filter-loaiPhong">Loại phòng</label>
-                    <select id="filter-loaiPhong" name="loaiPhong" value={boLocTraCuu.loaiPhong} onChange={xuLyThayDoiBoLoc}>
-                      <option value="Tất cả">Tất cả loại phòng</option>
-                      <option value="Phòng đơn">Phòng đơn (Nguyên căn)</option>
-                      <option value="Giường dorm">Giường dorm (Ghép)</option>
-                    </select>
-                  </div>
-
-                  <div className="filter-group">
-                    <label htmlFor="filter-mucGiaTu">Giá từ (VNĐ)</label>
-                    <input type="number" id="filter-mucGiaTu" name="mucGiaTu" placeholder="Ví dụ: 1,500,000" value={boLocTraCuu.mucGiaTu} onChange={xuLyThayDoiBoLoc} />
-                  </div>
-
-                  <div className="filter-group">
-                    <label htmlFor="filter-gioiTinh">Giới tính</label>
-                    <select id="filter-gioiTinh" name="gioiTinh" value={boLocTraCuu.gioiTinh} onChange={xuLyThayDoiBoLoc}>
-                      <option value="Tất cả">Tất cả giới tính</option>
-                      <option value="Nam">Nam</option>
-                      <option value="Nữ">Nữ</option>
-                    </select>
-                  </div>
-
-                  <div className="filter-group">
-                    <label htmlFor="filter-soNguoi">Sức chứa (Số người)</label>
-                    <input type="number" id="filter-soNguoi" name="soNguoi" placeholder="Số người tối thiểu" value={boLocTraCuu.soNguoi} onChange={xuLyThayDoiBoLoc} />
-                  </div>
-
-                  <div className="filter-group">
-                    <label htmlFor="filter-tienIch">Tiện ích</label>
-                    <select id="filter-tienIch" name="tienIch" value={boLocTraCuu.tienIch} onChange={xuLyThayDoiBoLoc}>
-                      <option value="Tất cả">Tất cả tiện ích</option>
-                      <option value="Điều hòa">Có điều hòa</option>
-                      <option value="Gửi xe">Có chỗ gửi xe</option>
-                      <option value="Wifi riêng">Có Wifi riêng</option>
-                      <option value="Yên tĩnh">Không gian yên tĩnh</option>
-                      <option value="Giờ giấc tự do">Giờ giấc tự do</option>
-                    </select>
-                  </div>
-
-                </div>
-
-                <button type="submit" className="submit-btn" style={{ marginTop: '10px' }} disabled={dangTaiPhongTrong}>
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style={{ marginRight: '6px' }}>
-                    <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z" />
-                  </svg>
-                  {dangTaiPhongTrong ? 'Đang tra cứu...' : 'Tìm kiếm'}
-                </button>
-              </form>
-
-            </div>
-          </header>
-
-          {/* Warning Banner */}
-          <div className="warning-banner-container">
-            <div className="warning-banner-bar">
-              <span className="warning-banner-icon">⚠️</span>
-              <p>Chỉ hiển thị phòng/giường còn <strong>Trống</strong> và <strong>Chưa đặt cọc</strong></p>
-            </div>
-          </div>
-
-          {/* Main list */}
-          <main className="vacancy-list-section">
-            <div className="list-title-bar">
-              <div>
-                <h2>Danh sách phòng khả dụng</h2>
-                <p>Tìm thấy {danhSachTatCaPhongTrong.length} kết quả phù hợp với tiêu chí của bạn</p>
-              </div>
-              <div className="layout-buttons">
-                <button className="layout-toggle active" aria-label="Grid view">Grid</button>
-                <button className="layout-toggle" aria-label="List view">List</button>
-              </div>
-            </div>
-
-            {danhSachTatCaPhongTrong.length > 0 ? (
-              <div className="vacancy-grid-layout">
-                {danhSachTatCaPhongTrong.slice((trangTraCuuHienTai - 1) * SO_LUONG_MOI_TRANG, trangTraCuuHienTai * SO_LUONG_MOI_TRANG).map((item) => (
-                  <article key={`${item.kieu}-${item.maId}`} className="vacancy-room-card">
-                    <div className="vacancy-card-img-wrapper" onClick={() => { setPhongDaChon(item); setTrangHienTai('room_detail'); }} style={{ cursor: 'pointer' }}>
-                      <img src={layAnhMinhHoaPhong(item)} alt={item.ten} className="vacancy-card-img" />
-                      <div className="vacancy-card-badges">
-                        <span className={`badge-type ${item.kieu === 'Phong' ? 'badge-phong-loai' : 'badge-giuong-loai'}`}>
-                          {item.kieu === 'Phong' ? 'Nguyên căn' : 'Ghép'}
-                        </span>
-                        <span className="badge-status-empty">Trống</span>
-                      </div>
-                    </div>
-
-                    <div className="vacancy-card-body">
-                      <div className="vacancy-card-title-row">
-                        <h4 className="vacancy-card-title" onClick={() => { setPhongDaChon(item); setTrangHienTai('room_detail'); }} style={{ cursor: 'pointer' }}>{item.ten}</h4>
-                        <span className="vacancy-card-price">{Number(item.giaThue).toLocaleString('vi-VN')}đ<span>/tháng</span></span>
-                      </div>
-
-                      <div className="vacancy-card-address">
-                        📍 {item.chiNhanh} • {item.diaChi}
-                      </div>
-
-                      <div className="vacancy-card-details">
-                        <span>👤 {item.kieu === 'Phong' ? `${item.sucChua} Người` : `1 Giường (${item.gioiTinh})`}</span>
-                        <div className="card-utils-mini">
-                          {item.tienIch ? item.tienIch.split(',').slice(0, 3).map((u, i) => (
-                            <span key={i} className="mini-tag" title={u.trim()}>{u.trim()}</span>
-                          )) : <span className="mini-tag">Cơ bản</span>}
-                        </div>
-                      </div>
-
-                      <div className="vacancy-card-actions">
-                        <button type="button" className="btn-detail-outline" onClick={() => { setPhongDaChon(item); setTrangHienTai('room_detail'); }}>
-                          Xem chi tiết
-                        </button>
-                        {cheDoNhanVien ? (
-                          <button type="button" className="btn-book-filled" onClick={() => setTabPhongGiuongNhanVien('xac-nhan')}>
-                            Xác nhận yêu cầu
-                          </button>
-                        ) : (
-                          <button type="button" className="btn-book-filled" onClick={() => setHenXemPhongModal(item)}>
-                            Chọn để hẹn
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <div className="no-results-vacant">
-                <p>Không tìm thấy phòng hoặc giường nào trống khớp với các tiêu chí tìm kiếm hiện tại.</p>
-                <p style={{ fontSize: '13px', marginTop: '6px', color: 'var(--text-muted)' }}>Vui lòng mở rộng khoảng lọc hoặc chọn "Tất cả chi nhánh" để tìm kiếm lại.</p>
-              </div>
-            )}
-
-            {/* Pagination Component */}
-            {danhSachTatCaPhongTrong.length > 0 && (
-              <nav className="pagination-nav" aria-label="Pagination">
-                <button
-                  className="pag-btn"
-                  onClick={() => { setTrangTraCuuHienTai(Math.max(1, trangTraCuuHienTai - 1)); window.scrollTo({ top: 500, behavior: 'smooth' }); }}
-                  disabled={trangTraCuuHienTai === 1}
-                >&lt;</button>
-
-                {Array.from({ length: Math.ceil(danhSachTatCaPhongTrong.length / SO_LUONG_MOI_TRANG) }).map((_, i) => (
-                  <button
-                    key={i + 1}
-                    className={`pag-btn ${trangTraCuuHienTai === i + 1 ? 'active' : ''}`}
-                    onClick={() => { setTrangTraCuuHienTai(i + 1); window.scrollTo({ top: 500, behavior: 'smooth' }); }}
-                  >
-                    {i + 1}
-                  </button>
-                ))}
-
-                <button
-                  className="pag-btn"
-                  onClick={() => { setTrangTraCuuHienTai(Math.min(Math.ceil(danhSachTatCaPhongTrong.length / SO_LUONG_MOI_TRANG), trangTraCuuHienTai + 1)); window.scrollTo({ top: 500, behavior: 'smooth' }); }}
-                  disabled={trangTraCuuHienTai === Math.ceil(danhSachTatCaPhongTrong.length / SO_LUONG_MOI_TRANG)}
-                >&gt;</button>
-              </nav>
-            )}
-
-          </main>
-
-          {/* Footer */}
-          <footer className="footer-dark">
-            <div className="footer-dark-top">
-              <div className="footer-brand">
-                <h3>HomeStay Dorm</h3>
-                <p>Hệ thống quản lý ký túc xá và homestay chuyên nghiệp, mang lại trải nghiệm sống tốt nhất cho cư dân.</p>
-              </div>
-              <div className="footer-links-col">
-                <h4>Khám phá</h4>
-                <ul>
-                  <li><a href="#" onClick={() => chuyenTrang('guest_home')}>Về chúng tôi</a></li>
-                  <li><a href="#" onClick={() => chuyenTrang('search_vacancy')}>Tìm phòng nhanh</a></li>
-                  <li><a href="#">Chính sách bảo mật</a></li>
-                </ul>
-              </div>
-              <div className="footer-links-col">
-                <h4>Hỗ trợ</h4>
-                <ul>
-                  <li><a href="#">Trung tâm trợ giúp</a></li>
-                  <li><a href="#">Liên hệ Sale</a></li>
-                  <li><a href="#">Báo cáo sự cố</a></li>
-                </ul>
-              </div>
-              <div className="footer-subscribe">
-                <h4>Đăng ký bản tin</h4>
-                <div className="subscribe-input-row">
-                  <input type="email" placeholder="Email của bạn" aria-label="Email của bạn" />
-                  <button type="button" aria-label="Gửi">Gửi</button>
-                </div>
-              </div>
-            </div>
-            <div className="footer-dark-bottom">
-              <p>© 2026 HomeStay Dorm. All Rights Reserved. Professional Real Estate Solutions.</p>
-            </div>
-          </footer>
-
-          {/* Modal 1: Details */}
-          {chiTietPhongModal && (
-            <div className="modal-backdrop" onClick={() => setChiTietPhongModal(null)}>
-              <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                  <h3>Chi tiết {chiTietPhongModal.ten}</h3>
-                  <button className="close-modal-btn" onClick={() => setChiTietPhongModal(null)} aria-label="Đóng">×</button>
-                </div>
-                <div className="modal-body-detail">
-                  <img src={layAnhMinhHoaPhong(chiTietPhongModal)} alt={chiTietPhongModal.ten} className="modal-img" />
-                  <div className="modal-details-grid">
-                    <div className="modal-detail-row">
-                      <strong>Loại chỗ ở:</strong>
-                      <span>{chiTietPhongModal.kieu === 'Phong' ? 'Phòng đơn (Nguyên căn)' : 'Giường Dorm (Ở ghép)'}</span>
-                    </div>
-                    <div className="modal-detail-row">
-                      <strong>Giá thuê:</strong>
-                      <span className="text-orange">{Number(chiTietPhongModal.giaThue).toLocaleString('vi-VN')} đ/tháng</span>
-                    </div>
-                    <div className="modal-detail-row">
-                      <strong>Địa chỉ chi nhánh:</strong>
-                      <span>{chiTietPhongModal.chiNhanh} • {chiTietPhongModal.diaChi}</span>
-                    </div>
-                    <div className="modal-detail-row">
-                      <strong>Giới tính yêu cầu:</strong>
-                      <span>{chiTietPhongModal.kieu === 'Phong' ? 'Tất cả' : chiTietPhongModal.gioiTinh}</span>
-                    </div>
-                    <div className="modal-detail-row" style={{ flexDirection: 'column', gap: '8px', alignItems: 'flex-start' }}>
-                      <strong>Tiện ích đi kèm:</strong>
-                      <div className="room-utils-container">
-                        {chiTietPhongModal.tienIch ? chiTietPhongModal.tienIch.split(',').map((u, i) => (
-                          <span key={i} className="room-util-tag">{u.trim()}</span>
-                        )) : <span className="room-util-tag">Cơ bản</span>}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="modal-footer">
-                  <button type="button" className="btn-detail-outline" onClick={() => setChiTietPhongModal(null)}>Đóng</button>
-                  <button type="button" className="btn-book-filled" onClick={() => { setHenXemPhongModal(chiTietPhongModal); setChiTietPhongModal(null); }}>Hẹn xem phòng</button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Modal 2: Appointment Booking */}
-          {henXemPhongModal && (
-            <div className="modal-backdrop" onClick={() => setHenXemPhongModal(null)}>
-              <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                <div className="modal-header">
-                  <h3>Đăng ký xem {henXemPhongModal.ten}</h3>
-                  <button className="close-modal-btn" onClick={() => setHenXemPhongModal(null)} aria-label="Đóng">×</button>
-                </div>
-                <form onSubmit={guiYeuCauDatLichHen}>
-                  <div className="modal-body">
-                    <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '16px' }}>Bạn đang đăng ký lịch xem phòng tại: <strong>{henXemPhongModal.chiNhanh} • {henXemPhongModal.diaChi}</strong></p>
-
-                    <div className="input-group">
-                      <label htmlFor="hen-hoTen">Họ và tên khách hàng</label>
-                      <input type="text" id="hen-hoTen" name="hoTen" placeholder="Nguyễn Văn A" value={formHenXem.hoTen} onChange={xuLyThayDoiHenXem} required />
-                    </div>
-
-                    <div className="input-group">
-                      <label htmlFor="hen-sdt">Số điện thoại liên hệ</label>
-                      <input type="tel" id="hen-sdt" name="sdt" placeholder="09xx xxx xxx" value={formHenXem.sdt} onChange={xuLyThayDoiHenXem} required />
-                    </div>
-
-                    <div className="input-group">
-                      <label htmlFor="hen-email">Email (Không bắt buộc)</label>
-                      <input type="email" id="hen-email" name="email" placeholder="example@gmail.com" value={formHenXem.email} onChange={xuLyThayDoiHenXem} />
-                    </div>
-
-                    <div className="input-group">
-                      <label htmlFor="hen-ngayGioHen">Ngày giờ muốn xem phòng</label>
-                      <input type="datetime-local" id="hen-ngayGioHen" name="ngayGioHen" value={formHenXem.ngayGioHen} onChange={xuLyThayDoiHenXem} required />
-                    </div>
-
-                    <div className="input-group">
-                      <label htmlFor="hen-ghiChu">Ghi chú thêm</label>
-                      <textarea id="hen-ghiChu" name="ghiChu" rows="2" placeholder="Ví dụ: Em muốn xem phòng buổi sáng, gọi trước cho em 15 phút..." value={formHenXem.ghiChu} onChange={xuLyThayDoiHenXem} style={{ padding: '10px 14px', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: '#f8fafc', fontSize: '13.5px', fontFamily: 'inherit', resize: 'vertical' }}></textarea>
-                    </div>
-                  </div>
-                  <div className="modal-footer">
-                    <button type="button" className="btn-detail-outline" onClick={() => setHenXemPhongModal(null)}>Hủy bỏ</button>
-                    <button type="submit" className="btn-book-filled" disabled={dangXuLy}>
-                      {dangXuLy ? 'Đang đăng ký...' : 'Xác nhận đặt lịch'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-
-        </div>
-      )}
-
-      {/* ==========================================
-          TRANG CHI TIẾT PHÒNG/GIƯỜNG (ROOM DETAILS)
-          ========================================== */}
+      <TraCuuPhongGiuongPage
+        trangHienTai={trangHienTai}
+        cheDoNhanVien={cheDoNhanVien}
+        vaiTroNhanVien={vaiTroNhanVien}
+        tabPhongGiuongNhanVien={tabPhongGiuongNhanVien}
+        setTabPhongGiuongNhanVien={setTabPhongGiuongNhanVien}
+        guiYeuCauTimKiemVacant={guiYeuCauTimKiemVacant}
+        boLocTraCuu={boLocTraCuu}
+        tuyChonTraCuuPhong={tuyChonTraCuuPhong}
+        xuLyThayDoiBoLoc={xuLyThayDoiBoLoc}
+        dangTaiPhongTrong={dangTaiPhongTrong}
+        danhSachTatCaPhongTrong={danhSachTatCaPhongTrong}
+        trangTraCuuHienTai={trangTraCuuHienTai}
+        SO_LUONG_MOI_TRANG={SO_LUONG_MOI_TRANG}
+        setTrangTraCuuHienTai={setTrangTraCuuHienTai}
+        setPhongDaChon={setPhongDaChon}
+        setTrangHienTai={setTrangHienTai}
+        layAnhMinhHoaPhong={layAnhMinhHoaPhong}
+        setHenXemPhongModal={setHenXemPhongModal}
+        chuyenTrang={chuyenTrang}
+        chiTietPhongModal={chiTietPhongModal}
+        setChiTietPhongModal={setChiTietPhongModal}
+        henXemPhongModal={henXemPhongModal}
+        guiYeuCauDatLichHen={guiYeuCauDatLichHen}
+        formHenXem={formHenXem}
+        xuLyThayDoiHenXem={xuLyThayDoiHenXem}
+        dangXuLy={dangXuLy}
+        xuLyDatPhong={xuLyDatPhong}
+        moChiTietPhong={moChiTietPhong}
+      />
       {trangHienTai === 'room_detail' && phongDaChon && (
         <div className="room-detail-page">
 
           <div className="back-navigation">
-            <button type="button" className="btn-back-link" onClick={() => { if (cheDoNhanVien) setTabPhongGiuongNhanVien('danh-sach'); chuyenTrang(cheDoNhanVien ? 'confirm_status' : 'search_vacancy'); }}>
+            <button type="button" className="btn-back-link" onClick={() => { chuyenTrang(cheDoNhanVien ? trangTruocChiTietPhong : 'search_vacancy'); }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
                 <path fillRule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z" />
               </svg>
@@ -1833,7 +1764,7 @@ export default function App() {
                 <img src={layAnhMinhHoaPhong(phongDaChon)} alt={phongDaChon.ten} className="detail-main-img" />
                 <div className="detail-main-badges">
                   <span className={`badge-type ${phongDaChon.kieu === 'Phong' ? 'badge-phong-loai' : 'badge-giuong-loai'}`}>
-                    {phongDaChon.kieu === 'Phong' ? 'PHÒNG ĐƠN' : 'PHÒNG GHÉP'}
+                    {phongDaChon.kieu === 'Phong' ? 'NGUYÊN PHÒNG' : 'PHÒNG GHÉP'}
                   </span>
                   <span className="badge-status-empty">
                     {phongDaChon.kieu === 'Phong' ? 'Đang trống' : 'Đang Trống 2 Chỗ'}
@@ -1927,22 +1858,20 @@ export default function App() {
               <div className="detail-utils-section">
                 <h4>Tiện ích bao gồm</h4>
                 <div className="detail-utils-row">
-                  {phongDaChon.tienIch ? phongDaChon.tienIch.split(',').map((u, i) => (
-                    <span key={i} className="detail-util-tag">
-                      {u.trim().includes('Điều hòa') && '❄️ '}
-                      {u.trim().includes('Wifi') && '📶 '}
-                      {u.trim().includes('giặt') && '🧺 '}
-                      {u.trim().includes('Tủ lạnh') && '🧊 '}
-                      {u.trim().includes('ninh') && '🔒 '}
-                      {u.trim()}
-                    </span>
-                  )) : (
+                  {layDanhSachTienIchHienThi(phongDaChon.tienIch).length > 0 ? (
+                    layDanhSachTienIchHienThi(phongDaChon.tienIch).map((u) => (
+                      <span key={u.key} className="detail-util-tag">
+                        <span className="material-symbols-outlined util-icon">{u.icon}</span>
+                        {u.label}
+                      </span>
+                    ))
+                  ) : (
                     <>
-                      <span className="detail-util-tag">❄️ Điều hòa</span>
-                      <span className="detail-util-tag">📶 Wi-Fi</span>
-                      <span className="detail-util-tag">🧺 Máy giặt</span>
-                      <span className="detail-util-tag">🧊 Tủ lạnh</span>
-                      <span className="detail-util-tag">🔒 An ninh 24/7</span>
+                      <span className="detail-util-tag"><span className="material-symbols-outlined util-icon">ac_unit</span>Điều hòa</span>
+                      <span className="detail-util-tag"><span className="material-symbols-outlined util-icon">wifi</span>Wifi</span>
+                      <span className="detail-util-tag"><span className="material-symbols-outlined util-icon">local_laundry_service</span>Máy giặt</span>
+                      <span className="detail-util-tag"><span className="material-symbols-outlined util-icon">kitchen</span>Tủ lạnh</span>
+                      <span className="detail-util-tag"><span className="material-symbols-outlined util-icon">security</span>An ninh 24/7</span>
                     </>
                   )}
                 </div>
@@ -1950,30 +1879,37 @@ export default function App() {
 
               {/* Action Buttons */}
               <div className="detail-action-buttons">
-                <button type="button" className="btn-action-orange btn-choose-room" onClick={() => xuLyDatPhong(phongDaChon)}>
-                  Chọn phòng này
-                </button>
-                <div className="btn-divider-pipe">|</div>
-                <button type="button" className="btn-action-orange btn-book-visit" onClick={() => {
-                  if (cheDoNhanVien) {
-                    setDanhSachPhongDatHen([phongDaChon]);
-                    setTrangHienTai('staff_booking');
-                  } else {
-                    setHenXemPhongModal(phongDaChon);
-                  }
-                }}>
-                  Đặt lịch hẹn
-                </button>
+                {cheDoNhanVien ? (
+                  <button
+                    type="button"
+                    className="btn-action-orange btn-choose-room"
+                    onClick={() => vaiTroNhanVien === 'sale' ? xuLyDatPhong(phongDaChon) : chuyenTrang('search_vacancy')}
+                  >
+                    {vaiTroNhanVien === 'sale' ? 'Chọn và đặt lịch hẹn' : 'Quay lại danh sách phòng/giường'}
+                  </button>
+                ) : (
+                  <>
+                    <button type="button" className="btn-action-orange btn-choose-room" onClick={() => xuLyDatPhong(phongDaChon)}>
+                      Chọn phòng này
+                    </button>
+                    <div className="btn-divider-pipe">|</div>
+                    <button type="button" className="btn-action-orange btn-book-visit" onClick={() => setHenXemPhongModal(phongDaChon)}>
+                      Đặt lịch hẹn
+                    </button>
+                  </>
+                )}
               </div>
 
-              <div className="btn-action-outline-row">
-                <button type="button" className="btn-action-outline" onClick={() => hienThongBao('success', 'Đã sao chép liên kết chia sẻ!')}>
-                  🔗 Chia sẻ
-                </button>
-                <button type="button" className="btn-action-outline" onClick={() => hienThongBao('success', 'Đã lưu tin phòng này vào danh sách yêu thích!')}>
-                  ❤️ Lưu tin
-                </button>
-              </div>
+              {!cheDoNhanVien && (
+                <div className="btn-action-outline-row">
+                  <button type="button" className="btn-action-outline" onClick={() => hienThongBao('success', 'Đã sao chép liên kết chia sẻ!')}>
+                    🔗 Chia sẻ
+                  </button>
+                  <button type="button" className="btn-action-outline" onClick={() => hienThongBao('success', 'Đã lưu tin phòng này vào danh sách yêu thích!')}>
+                    ❤️ Lưu tin
+                  </button>
+                </div>
+              )}
 
             </div>
           </div>
@@ -2037,7 +1973,7 @@ export default function App() {
           </nav>
 
           <h1 className="page-title">Đặt lịch hẹn xem phòng</h1>
-          <p className="page-subtitle">Vui lòng hoàn tất thông tin lịch hẹn để gửi thông báo cho khách hàng.</p>
+          <p className="page-subtitle">Vui lòng hoàn tất thông tin lịch hẹn xem phòng cho khách hàng.</p>
 
           <div className="booking-card">
 
@@ -2047,9 +1983,43 @@ export default function App() {
                 <h3>
                   <span className="icon-user">👤</span> Thông tin khách
                 </h3>
-                <button type="button" className="btn-edit-guest" onClick={() => { setCheDoNhanVien(true); chuyenTrang('staff_reception'); }}>
-                  ✏️ Chỉnh sửa
+                <button type="button" className="btn-edit-guest" onClick={chuyenTiepNhanKhachHangMoi}>
+                  + Tiếp nhận khách mới
                 </button>
+              </div>
+              <div className="booking-customer-picker">
+                <label htmlFor="bookingCustomerSearch">Chọn khách hàng có sẵn</label>
+                <input
+                  id="bookingCustomerSearch"
+                  type="text"
+                  placeholder="Nhập tên, SĐT hoặc CCCD để tìm khách..."
+                  value={tuKhoaKhachHangLichHen}
+                  onChange={(e) => {
+                    setTuKhoaKhachHangLichHen(e.target.value);
+                    setKhachHangDaChon(null);
+                  }}
+                />
+                {dangTimKhachHang && <span className="customer-search-hint">Đang tìm khách hàng...</span>}
+                {danhSachGoiYKhachHang.length > 0 && (
+                  <div className="customer-suggestion-list">
+                    {danhSachGoiYKhachHang.map((khach) => (
+                      <button
+                        type="button"
+                        key={khach.cccd}
+                        className="customer-suggestion-item"
+                        onClick={() => chonKhachHangChoLichHen(khach)}
+                      >
+                        <strong>{khach.hoTen}</strong>
+                        <span>{khach.sdt || 'Chưa có SĐT'}{khach.email ? ` • ${khach.email}` : ''}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {!khachHangDaChon && tuKhoaKhachHangLichHen.trim().length >= 2 && !dangTimKhachHang && danhSachGoiYKhachHang.length === 0 && (
+                  <button type="button" className="btn-new-customer-inline" onClick={chuyenTiepNhanKhachHangMoi}>
+                    Không có khách phù hợp? Tiếp nhận đăng ký thuê cho khách hàng mới
+                  </button>
+                )}
               </div>
               <div className="guest-info-grid">
                 <div className="guest-info-cell">
@@ -2072,13 +2042,13 @@ export default function App() {
               {/* 2. Selected Rooms Section */}
               <div className="booking-section">
                 <h4>
-                  <span className="icon-house">🏢</span> Phòng/giường được chọn
+                  <span className="icon-house">🏢</span> Phòng được chọn
                 </h4>
                 <div className="selected-rooms-container">
                   {danhSachPhongDatHen.length > 0 ? (
                     danhSachPhongDatHen.map((room, idx) => (
                       <span key={idx} className="room-tag-badge">
-                        Phòng {room.maId || room.maPhong} - {room.kieu === 'Phong' ? 'Toàn phòng' : 'Giường dorm'}
+                        Phòng {room.maPhong || room.maId}
                         <button type="button" className="btn-remove-tag" onClick={() => xuLyXoaPhongLichHen(room)} aria-label="Xóa">×</button>
                       </span>
                     ))
@@ -2102,7 +2072,8 @@ export default function App() {
                     type="date"
                     id="ngayHen"
                     value={ngayHen}
-                    onChange={(e) => setNgayHen(e.target.value)}
+                    min={layNgayInputLocal()}
+                    onChange={(e) => xuLyDoiNgayHen(e.target.value)}
                     required
                   />
                 </div>
@@ -2114,76 +2085,14 @@ export default function App() {
                     type="time"
                     id="gioHen"
                     value={gioHen}
-                    onChange={(e) => setGioHen(e.target.value)}
+                    min={ngayHen === layNgayInputLocal() ? layGioInputLocal() : undefined}
+                    onChange={(e) => xuLyDoiGioHen(e.target.value)}
                     required
                   />
                 </div>
               </div>
 
-              {/* 4. Notification channel selection */}
-              <div className="booking-section">
-                <h4>
-                  <span className="icon-bell">📢</span> Hình thức thông báo
-                </h4>
-                <div className="radio-group-row">
-                  <label className="radio-label">
-                    <input
-                      type="radio"
-                      name="hinhThucThongBao"
-                      value="email"
-                      checked={hinhThucThongBao === 'email'}
-                      onChange={() => setHinhThucThongBao('email')}
-                    />
-                    Email
-                  </label>
-                  <label className="radio-label">
-                    <input
-                      type="radio"
-                      name="hinhThucThongBao"
-                      value="sms"
-                      checked={hinhThucThongBao === 'sms'}
-                      onChange={() => setHinhThucThongBao('sms')}
-                    />
-                    SMS
-                  </label>
-                  <label className="radio-label">
-                    <input
-                      type="radio"
-                      name="hinhThucThongBao"
-                      value="both"
-                      checked={hinhThucThongBao === 'both'}
-                      onChange={() => setHinhThucThongBao('both')}
-                    />
-                    Cả hai (Email &amp; SMS)
-                  </label>
-                </div>
-              </div>
-
-              {/* 5. Notes for guest */}
-              <div className="input-group" style={{ marginTop: '20px' }}>
-                <label htmlFor="ghiChuLichHen">
-                  <span className="icon-note">📝</span> Ghi chú cho khách
-                </label>
-                <textarea
-                  id="ghiChuLichHen"
-                  rows="3"
-                  placeholder="Nhập lời nhắn hoặc hướng dẫn tìm đường cho khách..."
-                  value={ghiChuLichHen}
-                  onChange={(e) => setGhiChuLichHen(e.target.value)}
-                  style={{
-                    padding: '12px 16px',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '10px',
-                    backgroundColor: '#ffffff',
-                    fontSize: '14px',
-                    fontFamily: 'inherit',
-                    resize: 'vertical',
-                    width: '100%'
-                  }}
-                ></textarea>
-              </div>
-
-              {/* 6. Form Actions */}
+              {/* 4. Form Actions */}
               <div className="booking-form-actions">
                 <button type="button" className="btn-cancel-booking" onClick={() => {
                   if (phongDaChon) {
@@ -2195,7 +2104,7 @@ export default function App() {
                   Hủy
                 </button>
                 <button type="submit" className="btn-submit-booking" disabled={dangXuLy}>
-                  {dangXuLy ? 'Đang gửi...' : 'Gửi thông báo lịch hẹn ✉️'}
+                  {dangXuLy ? 'Đang đặt lịch...' : 'Đặt lịch hẹn'}
                 </button>
               </div>
 
@@ -2204,432 +2113,27 @@ export default function App() {
         </div>
       )}
 
-      {trangHienTai === 'staff_reception' && (
-        // ==========================================
-        // GIAO DIỆN TRANG TIẾP NHẬN CỦA NHÂN VIÊN
-        // ==========================================
-        <div className="app-container">
-          <div className="deposit-page-header" style={{ marginBottom: 0 }}>
-            <div>
-              <p className="payment-breadcrumb">Khách hàng &nbsp;&gt;&nbsp; <span>Tiếp nhận thông tin</span></p>
-              <h1 className="page-title" style={{ margin: 0 }}>Tiếp nhận thông tin &amp; yêu cầu thuê</h1>
-              <p className="page-subtitle" style={{ margin: '4px 0 0 0' }}>Vui lòng nhập chính xác thông tin để tìm kiếm phòng phù hợp nhất cho khách hàng.</p>
-            </div>
-          </div>
-
-          <div className="payment-subtabs" style={{ marginTop: '16px', marginBottom: '24px' }}>
-            <button type="button" className={`payment-subtab ${trangHienTai === 'staff_reception' ? 'active' : ''}`} onClick={() => chuyenTrang('staff_reception')}>Tiếp nhận thông tin</button>
-            <button type="button" className={`payment-subtab ${trangHienTai === 'review_info' ? 'active' : ''}`} onClick={() => chuyenTrang('review_info')}>Rà soát thông tin</button>
-          </div>
-
-          <div className="content-grid">
-            <form className="form-card" onSubmit={xuLyGuiYeuCauNhanVien}>
-
-              <section className="form-section">
-                <div className="section-header">
-                  <span className="section-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                      <path d="M3 14s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1H3zm5-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" />
-                    </svg>
-                  </span>
-                  <h2>Thông tin khách hàng</h2>
-                </div>
-
-                <div className="input-grid-2">
-                  <div className="input-group">
-                    <label htmlFor="hoTen">Họ và tên</label>
-                    <input
-                      type="text"
-                      id="hoTen"
-                      name="hoTen"
-                      placeholder="Nguyễn Văn A"
-                      value={formKhachHang.hoTen}
-                      onChange={xuLyThayDoiKhachHang}
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label htmlFor="cccd">Số Căn cước công dân</label>
-                    <input
-                      type="text"
-                      id="cccd"
-                      name="cccd"
-                      placeholder="12 chữ số"
-                      value={formKhachHang.cccd}
-                      onChange={xuLyThayDoiKhachHang}
-                    />
-                  </div>
-                </div>
-
-                <div className="input-grid-2">
-                  <div className="input-group">
-                    <label htmlFor="sdt">Số điện thoại</label>
-                    <input
-                      type="tel"
-                      id="sdt"
-                      name="sdt"
-                      placeholder="090 000 0000"
-                      value={formKhachHang.sdt}
-                      onChange={xuLyThayDoiKhachHang}
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label htmlFor="email">Email</label>
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      placeholder="example@gmail.com"
-                      value={formKhachHang.email}
-                      onChange={xuLyThayDoiKhachHang}
-                    />
-                  </div>
-                </div>
-
-                <div className="input-grid-2">
-                  <div className="input-group">
-                    <label htmlFor="quocTich">Quốc tịch</label>
-                    <select
-                      id="quocTich"
-                      name="quocTich"
-                      value={formKhachHang.quocTich}
-                      onChange={xuLyThayDoiKhachHang}
-                    >
-                      <option value="Việt Nam">Việt Nam</option>
-                      <option value="Hàn Quốc">Hàn Quốc</option>
-                      <option value="Nhật Bản">Nhật Bản</option>
-                      <option value="Mỹ">Mỹ</option>
-                      <option value="Anh">Anh</option>
-                    </select>
-                  </div>
-                  <div className="input-group">
-                    <label htmlFor="ngaySinh">Ngày sinh</label>
-                    <input
-                      type="date"
-                      id="ngaySinh"
-                      name="ngaySinh"
-                      value={formKhachHang.ngaySinh}
-                      onChange={xuLyThayDoiKhachHang}
-                    />
-                  </div>
-                </div>
-              </section>
-
-              <div className="divider"></div>
-
-              <section className="form-section">
-                <div className="section-header">
-                  <span className="section-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                      <path d="M8.354 1.146a.5.5 0 0 0-.708 0l-6 6A.5.5 0 0 0 2 8h2v7a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V9h2v6a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1V8h2a.5.5 0 0 0 .354-.854l-6-6z" />
-                    </svg>
-                  </span>
-                  <h2>Yêu cầu thuê</h2>
-                </div>
-
-                <div className="rental-type-container">
-                  <span className="rental-type-label">Hình thức thuê</span>
-                  <div className="toggle-group">
-                    <button
-                      type="button"
-                      className={`toggle-btn ${formYeuCauThue.loaiPhong === 'Nguyên phòng' ? 'active' : ''}`}
-                      onClick={() => xuLyChonLoaiPhong('Nguyên phòng')}
-                    >
-                      <svg viewBox="0 0 24 24">
-                        <path d="M12 3L2 12h3v8h14v-8h3L12 3zm0 4.5l5.5 5.5H16v6H8v-6H6.5L12 7.5z" />
-                      </svg>
-                      Thuê nguyên phòng
-                    </button>
-                    <button
-                      type="button"
-                      className={`toggle-btn ${formYeuCauThue.loaiPhong === 'Giường ghép' ? 'active' : ''}`}
-                      onClick={() => xuLyChonLoaiPhong('Giường ghép')}
-                    >
-                      <svg viewBox="0 0 24 24">
-                        <path d="M2 10V5h2v5h16V5h2v15h-2v-3H4v3H2v-5H1v-2h1zm3-3h14v7H5V7zm3 2v3h8V9H8z" />
-                      </svg>
-                      Thuê giường ở ghép
-                    </button>
-                  </div>
-                </div>
-
-                <div className="input-grid-2">
-                  <div className="input-group">
-                    <label htmlFor="khuVucMongMuon">Khu vực ưu tiên</label>
-                    <input
-                      type="text"
-                      id="khuVucMongMuon"
-                      name="khuVucMongMuon"
-                      placeholder="Quận 1, Quận Bình Thạnh..."
-                      value={formYeuCauThue.khuVucMongMuon}
-                      onChange={xuLyThayDoiYeuCau}
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label>Khoảng giá (VNĐ)</label>
-                    <div className="range-inputs">
-                      <input
-                        type="number"
-                        name="mucGiaTu"
-                        placeholder="Từ"
-                        value={formYeuCauThue.mucGiaTu}
-                        onChange={xuLyThayDoiYeuCau}
-                      />
-                      <span>—</span>
-                      <input
-                        type="number"
-                        name="mucGiaDen"
-                        placeholder="Đến"
-                        value={formYeuCauThue.mucGiaDen}
-                        onChange={xuLyThayDoiYeuCau}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="input-grid-4">
-                  <div className="input-group">
-                    <label htmlFor="soNguoi">Số người</label>
-                    <input
-                      type="number"
-                      id="soNguoi"
-                      name="soNguoi"
-                      min="1"
-                      value={formYeuCauThue.soNguoi}
-                      onChange={xuLyThayDoiYeuCau}
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label htmlFor="gioiTinh">Giới tính</label>
-                    <select
-                      id="gioiTinh"
-                      name="gioiTinh"
-                      value={formYeuCauThue.gioiTinh}
-                      onChange={xuLyThayDoiYeuCau}
-                    >
-                      <option value="Tất cả">Tất cả</option>
-                      <option value="Nam">Nam</option>
-                      <option value="Nữ">Nữ</option>
-                    </select>
-                  </div>
-                  <div className="input-group">
-                    <label htmlFor="thoiGianVao">Ngày dọn vào</label>
-                    <input
-                      type="date"
-                      id="thoiGianVao"
-                      name="thoiGianVao"
-                      value={formYeuCauThue.thoiGianVao}
-                      onChange={xuLyThayDoiYeuCau}
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label htmlFor="thoiHanThue">Thời hạn thuê</label>
-                    <select
-                      id="thoiHanThue"
-                      name="thoiHanThue"
-                      value={formYeuCauThue.thoiHanThue}
-                      onChange={xuLyThayDoiYeuCau}
-                    >
-                      <option value="1">1 Tháng</option>
-                      <option value="3">3 Tháng</option>
-                      <option value="6">6 Tháng</option>
-                      <option value="12">12 Tháng</option>
-                    </select>
-                  </div>
-                </div>
-              </section>
-
-              <div className="divider"></div>
-
-              <section className="form-section">
-                <div className="section-header">
-                  <span className="section-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                      <path d="M11.5 15a.5.5 0 0 0 .5-.5V2.707l3.146 3.147a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 1 0 .708.708L11 2.707V14.5a.5.5 0 0 0 .5.5zm-7-14a.5.5 0 0 1 .5.5v11.793l3.146-3.147a.5.5 0 0 1 .708.708l-4 4a.5.5 0 0 1-.708 0l-4-4a.5.5 0 0 1 .708-.708L4 13.293V1.5a.5.5 0 0 1 .5-.5z" />
-                    </svg>
-                  </span>
-                  <h2>Tiêu chí ưu tiên</h2>
-                </div>
-
-                <div className="checkbox-row">
-                  <div className="checkbox-item">
-                    <input
-                      type="checkbox"
-                      id="cb-yentinh"
-                      checked={tieuChiUuTien.yenTinh}
-                      onChange={() => xuLyThayDoiTieuChi('yenTinh')}
-                    />
-                    <label htmlFor="cb-yentinh" className="checkbox-label">
-                      <span className="custom-checkbox-dot"></span>
-                      Yên tĩnh
-                    </label>
-                  </div>
-                  <div className="checkbox-item">
-                    <input
-                      type="checkbox"
-                      id="cb-guixe"
-                      checked={tieuChiUuTien.guiXe}
-                      onChange={() => xuLyThayDoiTieuChi('guiXe')}
-                    />
-                    <label htmlFor="cb-guixe" className="checkbox-label">
-                      <span className="custom-checkbox-dot"></span>
-                      Gửi xe
-                    </label>
-                  </div>
-                  <div className="checkbox-item">
-                    <input
-                      type="checkbox"
-                      id="cb-dieuhoa"
-                      checked={tieuChiUuTien.dieuHoa}
-                      onChange={() => xuLyThayDoiTieuChi('dieuHoa')}
-                    />
-                    <label htmlFor="cb-dieuhoa" className="checkbox-label">
-                      <span className="custom-checkbox-dot"></span>
-                      Điều hòa
-                    </label>
-                  </div>
-                  <div className="checkbox-item">
-                    <input
-                      type="checkbox"
-                      id="cb-wifirieng"
-                      checked={tieuChiUuTien.wifiRieng}
-                      onChange={() => xuLyThayDoiTieuChi('wifiRieng')}
-                    />
-                    <label htmlFor="cb-wifirieng" className="checkbox-label">
-                      <span className="custom-checkbox-dot"></span>
-                      Wifi riêng
-                    </label>
-                  </div>
-                  <div className="checkbox-item">
-                    <input
-                      type="checkbox"
-                      id="cb-giogiactudo"
-                      checked={tieuChiUuTien.gioGiacTuDo}
-                      onChange={() => xuLyThayDoiTieuChi('gioGiacTuDo')}
-                    />
-                    <label htmlFor="cb-giogiactudo" className="checkbox-label">
-                      <span className="custom-checkbox-dot"></span>
-                      Giờ giấc tự do
-                    </label>
-                  </div>
-                </div>
-              </section>
-
-              <button type="submit" className="submit-btn" disabled={dangXuLy}>
-                {dangXuLy ? 'Đang xử lý...' : 'Tra cứu phòng phù hợp'}
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                  <path fillRule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8z" />
-                </svg>
-              </button>
-
-            </form>
-
-            <aside className="sidebar">
-
-              <article className="sidebar-card suggestion-card">
-                <h3 className="suggestion-title">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                    <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z" />
-                    <path d="M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.113.266-.25.09-.656.54-1.134 1.342-1.134.686 0 1.314.343 1.314 1.168 0 .635-.374.927-.965 1.371-.673.489-1.206 1.06-1.168 1.987l.003.217c-.004.133.1.232.23.232h.8c.123 0 .224-.092.238-.214l.003-.122c.038-.667.447-1.042 1.11-1.517.653-.466 1.258-1.077 1.258-2.184 0-1.578-1.377-2.302-2.794-2.302-1.496 0-2.738.755-2.88 2.302zM8 12a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" />
-                  </svg>
-                  Gợi ý nhanh
-                </h3>
-                <p className="suggestion-text">
-                  Dựa trên dữ liệu hệ thống, các khu vực Quận 1 và Bình Thạnh đang có tỷ lệ lấp đầy rất cao (95%).
-                </p>
-                <button className="market-report-link" onClick={() => hienThongBao('success', 'Đang mở Báo cáo thị trường...')}>
-                  Xem báo cáo thị trường
-                </button>
-              </article>
-
-              <section className="sidebar-card stats-card">
-                <h3>Phòng trống khả dụng</h3>
-                <div className="stats-list">
-                  <div className="stats-item">
-                    <div className="stats-item-left">
-                      <span className="status-dot green"></span>
-                      <span>Dorm Nữ - Quận 1</span>
-                    </div>
-                    <span className="stats-count">{String(thongKePhongTrong.dormNuQ1).padStart(2, '0')}</span>
-                  </div>
-                  <div className="stats-item">
-                    <div className="stats-item-left">
-                      <span className="status-dot green"></span>
-                      <span>Phòng đơn - Bình Thạnh</span>
-                    </div>
-                    <span className="stats-count">{String(thongKePhongTrong.phongDonBT).padStart(2, '0')}</span>
-                  </div>
-                  <div className="stats-item">
-                    <div className="stats-item-left">
-                      <span className="status-dot yellow"></span>
-                      <span>Dorm Nam - Quận 3</span>
-                    </div>
-                    <span className="stats-count">{String(thongKePhongTrong.dormNamQ3).padStart(2, '0')}</span>
-                  </div>
-                </div>
-              </section>
-
-              <div className="sidebar-img-container">
-                <img src="/dorm_room.png" alt="Dorm room mockup" className="sidebar-img" />
-              </div>
-
-            </aside>
-
-            {daTraCuu && (
-              <section className="results-section">
-                <div className="results-header">
-                  <h3>Phòng trống phù hợp tìm thấy</h3>
-                  <span className="results-count">Tìm thấy {danhSachPhong.length} kết quả phù hợp</span>
-                </div>
-
-                {danhSachPhong.length > 0 ? (
-                  <div className="rooms-list">
-                    {danhSachPhong.map((item) => (
-                      <article key={`${item.kieu}-${item.maId}`} className="room-card">
-                        <div className="room-header">
-                          <h4 className="room-title">{item.ten}</h4>
-                          <span className={`room-badge ${item.kieu === 'Phong' ? 'badge-phong' : 'badge-giuong'}`}>
-                            {item.kieu === 'Phong' ? 'Nguyên phòng' : 'Giường Dorm'}
-                          </span>
-                        </div>
-                        <div className="room-branch">{item.chiNhanh} • {item.diaChi}</div>
-                        <div className="room-details">
-                          <div className="room-detail-item">
-                            <span className="room-detail-label">Loại phòng</span>
-                            <span className="room-detail-val">{item.loaiPhong}</span>
-                          </div>
-                          <div className="room-detail-item">
-                            <span className="room-detail-label">Sức chứa/Giới tính</span>
-                            <span className="room-detail-val">
-                              {item.kieu === 'Phong' ? `${item.sucChua} người` : `Dành cho ${item.gioiTinh}`}
-                            </span>
-                          </div>
-                          <div className="room-detail-item" style={{ flexDirection: 'column', gap: '4px' }}>
-                            <span className="room-detail-label">Tiện ích bao gồm:</span>
-                            <div className="room-utils-container">
-                              {item.tienIch ? item.tienIch.split(',').map((tag, idx) => (
-                                <span key={idx} className="room-util-tag">{tag.trim()}</span>
-                              )) : <span className="room-util-tag">Cơ bản</span>}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="room-price-row">
-                          <span className="room-price-label">Giá thuê</span>
-                          <span className="room-price-val">{Number(item.giaThue).toLocaleString('vi-VN')} đ/tháng</span>
-                        </div>
-                        <button className="book-btn" onClick={() => xuLyDatPhong(item)}>Đặt phòng ngay</button>
-                      </article>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="no-results">
-                    <p>Không có phòng trống nào khớp hoàn toàn với yêu cầu hiện tại.</p>
-                  </div>
-                )}
-              </section>
-            )}
-          </div>
-        </div>
-      )}
+      <TiepNhanDangKyThuePage
+        trangHienTai={trangHienTai}
+        chuyenTrang={chuyenTrang}
+        xuLyGuiYeuCauNhanVien={xuLyGuiYeuCauNhanVien}
+        xuLyLuuThongTinDangKyThue={xuLyLuuThongTinDangKyThue}
+        formKhachHang={formKhachHang}
+        xuLyThayDoiKhachHang={xuLyThayDoiKhachHang}
+        formYeuCauThue={formYeuCauThue}
+        xuLyChonLoaiPhong={xuLyChonLoaiPhong}
+        xuLyThayDoiYeuCau={xuLyThayDoiYeuCau}
+        tieuChiUuTien={tieuChiUuTien}
+        xuLyThayDoiTieuChi={xuLyThayDoiTieuChi}
+        dangXuLy={dangXuLy}
+        hienThongBao={hienThongBao}
+        thongKePhongTrong={thongKePhongTrong}
+        daTraCuu={daTraCuu}
+        danhSachPhong={danhSachPhong}
+        xuLyDatPhong={xuLyDatPhong}
+        moChiTietPhong={moChiTietPhong}
+        tuyChonTraCuuPhong={tuyChonTraCuuPhong}
+      />
       {trangHienTai === 'review_info' && (
         <div className="deposit-flow-page">
           <div className="deposit-page-header">
@@ -2951,7 +2455,7 @@ export default function App() {
             <>
               <div className="contracts-header-row">
                 <div>
-                  <p className="payment-breadcrumb">Hợp đồng &nbsp;&gt;&nbsp; <span>Danh sách lịch hẹn</span></p>
+                  <p className="payment-breadcrumb">Lịch hẹn &nbsp;&gt;&nbsp; <span>Danh sách lịch hẹn</span></p>
                   <h1 className="page-title" style={{ margin: 0 }}>Lịch hẹn xem phòng</h1>
                   <p className="page-subtitle" style={{ margin: '4px 0 0 0' }}>
                     Quản lý và cập nhật trạng thái khách hàng đi xem phòng thực tế.
@@ -2972,7 +2476,7 @@ export default function App() {
                   <button
                     type="button"
                     className="btn-add-appointment"
-                    onClick={() => hienThongBao('info', 'Chức năng Tạo lịch hẹn mới ngay tại bảng đang được phát triển.')}
+                    onClick={() => chuyenTrang('staff_booking')}
                   >
                     + Thêm lịch hẹn
                   </button>
@@ -2981,34 +2485,40 @@ export default function App() {
 
               <div className="payment-subtabs" style={{ marginBottom: '16px' }}>
                 <button type="button" className={`payment-subtab ${tabHopDongNhanVien === 'danh-sach-hen' ? 'active' : ''}`} onClick={() => setTabHopDongNhanVien('danh-sach-hen')}>Danh sách lịch hẹn</button>
-                <button type="button" className={`payment-subtab ${tabHopDongNhanVien === 'phe-duyet' ? 'active' : ''}`} onClick={() => setTabHopDongNhanVien('phe-duyet')}>Phê duyệt cọc</button>
+                {vaiTroNhanVien !== 'sale' && (
+                  <button type="button" className={`payment-subtab ${tabHopDongNhanVien === 'phe-duyet' ? 'active' : ''}`} onClick={() => setTabHopDongNhanVien('phe-duyet')}>Phê duyệt cọc</button>
+                )}
               </div>
 
               <div className="subtabs-filters-bar">
-                <button type="button" className="subtab-filter-btn active" onClick={() => setBoLocLichHen('tat-ca')}>Tất cả</button>
-                <button type="button" className="subtab-filter-btn" onClick={() => setBoLocLichHen('hom-nay')}>Hôm nay</button>
-                <button type="button" className="subtab-filter-btn" onClick={() => setBoLocLichHen('tuan-nay')}>Tuần này</button>
-                <button type="button" className="subtab-filter-btn" onClick={() => setBoLocLichHen('cho-xem')}>Chờ xem</button>
-                <button type="button" className="subtab-filter-btn" onClick={() => setBoLocLichHen('da-xem')}>Đã xem</button>
+                <button type="button" className={`subtab-filter-btn ${boLocLichHen === 'tat-ca' ? 'active' : ''}`} onClick={() => setBoLocLichHen('tat-ca')}>Tất cả</button>
+                <button type="button" className={`subtab-filter-btn ${boLocLichHen === 'hom-nay' ? 'active' : ''}`} onClick={() => setBoLocLichHen('hom-nay')}>Hôm nay</button>
+                <button type="button" className={`subtab-filter-btn ${boLocLichHen === 'tuan-nay' ? 'active' : ''}`} onClick={() => setBoLocLichHen('tuan-nay')}>Tuần này</button>
+                <button type="button" className={`subtab-filter-btn ${boLocLichHen === 'cho-xem' ? 'active' : ''}`} onClick={() => setBoLocLichHen('cho-xem')}>Chưa xem</button>
+                <button type="button" className={`subtab-filter-btn ${boLocLichHen === 'da-xem' ? 'active' : ''}`} onClick={() => setBoLocLichHen('da-xem')}>Đã xem</button>
               </div>
 
               {/* Overview Counts Grid */}
               <div className="overview-counts-grid">
                 <div className="count-card">
                   <span className="count-title">TỔNG LỊCH HẸN</span>
-                  <strong className="count-num">128</strong>
+                  <strong className="count-num">{layDanhSachLichHenGop().length}</strong>
                 </div>
                 <div className="count-card count-blue">
-                  <span className="count-title">CHỜ XEM HÔM NAY</span>
-                  <strong className="count-num">12</strong>
+                  <span className="count-title">CHƯA XEM</span>
+                  <strong className="count-num">{layDanhSachLichHenGop().filter(item => item.KetQua === 'Chưa xem').length}</strong>
                 </div>
                 <div className="count-card count-orange">
-                  <span className="count-title">HẸN THÊM</span>
-                  <strong className="count-num">05</strong>
+                  <span className="count-title">ĐÃ XEM</span>
+                  <strong className="count-num">{layDanhSachLichHenGop().filter(item => item.KetQua === 'Đã xem').length}</strong>
                 </div>
                 <div className="count-card count-green">
-                  <span className="count-title">ĐÃ CHỐT (CỌC)</span>
-                  <strong className="count-num">42</strong>
+                  <span className="count-title">HẸN HÔM NAY</span>
+                  <strong className="count-num">{layDanhSachLichHenGop().filter(item => {
+                    const d = new Date(item.NgayGioHen);
+                    const today = new Date();
+                    return d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+                  }).length}</strong>
                 </div>
               </div>
 
@@ -3023,6 +2533,7 @@ export default function App() {
                         <th>Phòng hẹn</th>
                         <th>Ngày giờ</th>
                         <th>Trạng thái</th>
+                        <th>Ghi chú</th>
                         <th style={{ textAlign: 'right' }}>Thao tác</th>
                       </tr>
                     </thead>
@@ -3047,10 +2558,10 @@ export default function App() {
                             return diffDays <= 7;
                           }
                           if (boLocLichHen === 'cho-xem') {
-                            return item.KetQua === 'Chờ xem';
+                            return item.KetQua === 'Chưa xem';
                           }
                           if (boLocLichHen === 'da-xem') {
-                            return item.KetQua !== 'Chờ xem';
+                            return item.KetQua === 'Đã xem';
                           }
                           return true;
                         });
@@ -3058,7 +2569,7 @@ export default function App() {
                         if (filtered.length === 0) {
                           return (
                             <tr>
-                              <td colSpan="6" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
+                              <td colSpan="7" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
                                 Không tìm thấy lịch hẹn nào khớp với bộ lọc hiện tại.
                               </td>
                             </tr>
@@ -3090,37 +2601,17 @@ export default function App() {
                               </span>
                             </td>
                             <td>
-                              <span className={`status-badge-pill status-${item.KetQua === 'Chờ xem' ? 'cho-xem' :
-                                item.KetQua === 'Đặt cọc' ? 'dat-coc' :
-                                  item.KetQua === 'Hẹn thêm' ? 'hen-them' : 'khong-thue'
-                                }`}>
-                                {item.KetQua === 'Chờ xem' && '• Chờ xem'}
-                                {item.KetQua === 'Đặt cọc' && '• Đặt cọc'}
-                                {item.KetQua === 'Hẹn thêm' && '• Hẹn thêm'}
-                                {item.KetQua === 'Không thuê' && '• Không thuê'}
+                              <span className={`status-badge-pill status-${item.KetQua === 'Đã xem' ? 'da-xem' : 'cho-xem'}`}>
+                                {item.KetQua === 'Đã xem' ? '• Đã xem' : '• Chưa xem'}
                               </span>
                             </td>
+                            <td>
+                              <span className="appointment-note-cell">{item.GhiChu || '—'}</span>
+                            </td>
                             <td style={{ textAlign: 'right' }}>
-                              {item.KetQua === 'Chờ xem' || item.KetQua === 'Hẹn thêm' ? (
-                                <div className="table-select-wrapper">
-                                  <select
-                                    value=""
-                                    onChange={(e) => capNhatTrangThaiLichHen(item.MaLich, e.target.value)}
-                                    className="select-action-table"
-                                  >
-                                    <option value="" disabled>Cập nhật kết quả</option>
-                                    <option value="Đặt cọc">Đặt cọc</option>
-                                    <option value="Hẹn thêm">Hẹn thêm</option>
-                                    <option value="Không thuê">Không thuê</option>
-                                  </select>
-                                </div>
-                              ) : item.KetQua === 'Đặt cọc' ? (
-                                <a href="#" className="table-action-link" onClick={(e) => { e.preventDefault(); hienThongBao('info', 'Đang tải hợp đồng đặt cọc...'); }}>
-                                  Xem hợp đồng cọc
-                                </a>
-                              ) : (
-                                <span className="table-reason-text">Lý do: {item.GhiChu || 'Tài chính không đủ'}</span>
-                              )}
+                              <button type="button" className="btn-detail-outline btn-table-edit" onClick={() => moPopupChinhSuaLichHen(item)}>
+                                Chỉnh sửa
+                              </button>
                             </td>
                           </tr>
                         ));
@@ -3129,18 +2620,11 @@ export default function App() {
                   </table>
                 </div>
 
-                {/* Table Footer / Pagination */}
+                {/* Table Footer */}
                 <div className="table-footer-row">
                   <span className="footer-entries-info">
-                    Hiển thị 4 trên 128 lịch hẹn
+                    Hiển thị {layDanhSachLichHenGop().length} lịch hẹn
                   </span>
-                  <div className="table-pagination">
-                    <button type="button" className="pag-btn" onClick={() => hienThongBao('info', 'Trang trước')}>&lt;</button>
-                    <button type="button" className="pag-btn active">1</button>
-                    <button type="button" className="pag-btn" onClick={() => hienThongBao('info', 'Đến trang 2')}>2</button>
-                    <button type="button" className="pag-btn" onClick={() => hienThongBao('info', 'Đến trang 3')}>3</button>
-                    <button type="button" className="pag-btn" onClick={() => hienThongBao('info', 'Trang sau')}>&gt;</button>
-                  </div>
                 </div>
 
               </div>
@@ -3633,6 +3117,51 @@ export default function App() {
       {/* ===========================================================
            2.5 PHÊ DUYỆT YÊU CẦU ĐẶT CỌC (QUẢN LÝ)
       =========================================================== */}
+      {lichHenDangSua && (
+        <div className="modal-backdrop" onClick={() => setLichHenDangSua(null)}>
+          <div className="modal-content appointment-edit-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>Chỉnh sửa lịch hẹn</h3>
+              <button className="close-modal-btn" onClick={() => setLichHenDangSua(null)} aria-label="Đóng">×</button>
+            </div>
+            <form onSubmit={luuChinhSuaLichHen}>
+              <div className="modal-body">
+                <div className="appointment-edit-summary">
+                  <strong>{lichHenDangSua.TenKhach}</strong>
+                  <span>{lichHenDangSua.TenPhongGiuong} • {dinhDangNgayGio(lichHenDangSua.NgayGioHen)}</span>
+                </div>
+                <div className="input-group">
+                  <label htmlFor="trangThaiLichHen">Trạng thái</label>
+                  <select
+                    id="trangThaiLichHen"
+                    value={formSuaLichHen.ketQua}
+                    onChange={(e) => setFormSuaLichHen(prev => ({ ...prev, ketQua: e.target.value }))}
+                  >
+                    <option value="Chưa xem">Chưa xem</option>
+                    <option value="Đã xem">Đã xem</option>
+                  </select>
+                </div>
+                <div className="input-group">
+                  <label htmlFor="ghiChuSuaLichHen">Ghi chú</label>
+                  <textarea
+                    id="ghiChuSuaLichHen"
+                    rows="4"
+                    value={formSuaLichHen.ghiChu}
+                    onChange={(e) => setFormSuaLichHen(prev => ({ ...prev, ghiChu: e.target.value }))}
+                    placeholder="Nhập ghi chú cho lịch hẹn..."
+                    className="booking-note-input"
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-detail-outline" onClick={() => setLichHenDangSua(null)}>Hủy</button>
+                <button type="submit" className="btn-book-filled">Lưu chỉnh sửa</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* MODAL HỎI ĐIỀU HƯỚNG SAU KHI ĐẶT LỊCH HẸN THÀNH CÔNG */}
       {bookingSuccessModal && (
         <div className="modal-backdrop">
@@ -3642,7 +3171,7 @@ export default function App() {
             </div>
             <div className="modal-body" style={{ padding: '12px 0 0 0', textAlign: 'center' }}>
               <p style={{ fontSize: '14.5px', color: '#475569', lineHeight: '1.6', margin: '0 0 20px 0' }}>
-                Hệ thống đã lưu thông tin lịch hẹn và gửi thông báo xác nhận đến khách hàng. Bạn muốn đi đến đâu tiếp theo?
+                Hệ thống đã lưu thông tin lịch hẹn xem phòng. Bạn muốn đi đến đâu tiếp theo?
               </p>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -3653,8 +3182,7 @@ export default function App() {
                   onClick={() => {
                     setBookingSuccessModal(false);
                     setCheDoNhanVien(true);
-                    setVaiTroNhanVien('sale');
-                    chuyenTrang('staff_contracts');
+                    navigate(ROUTES.lichHen);
                   }}
                 >
                   Đến Danh sách lịch hẹn 📅
@@ -3666,11 +3194,8 @@ export default function App() {
                   style={{ width: '100%', padding: '12px', borderRadius: '10px', color: 'var(--primary-color)', borderColor: 'var(--primary-color)', fontWeight: '700' }}
                   onClick={() => {
                     setBookingSuccessModal(false);
-                    navigate(ROUTES.dashboard);
-                    hienThongBao('info', 'Trang Dashboard đang được phát triển. Bạn sẽ được chuyển hướng sau.');
                     setCheDoNhanVien(true);
-                    setVaiTroNhanVien('sale');
-                    chuyenTrang('staff_reception');
+                    navigate(ROUTES.dashboard);
                   }}
                 >
                   Đi đến Dashboard 📊
@@ -3683,8 +3208,7 @@ export default function App() {
                   onClick={() => {
                     setBookingSuccessModal(false);
                     setCheDoNhanVien(true);
-                    setVaiTroNhanVien('sale');
-                    chuyenTrang('staff_reception');
+                    navigate(ROUTES.tiepNhanDangKyThue);
                   }}
                 >
                   Quay lại Tiếp nhận thông tin

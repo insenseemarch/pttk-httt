@@ -286,6 +286,12 @@ h1.page-title {
   letter-spacing: 0.05em;
 }
 
+.optional-label {
+  color: #94a3b8;
+  font-weight: 600;
+  text-transform: none;
+}
+
 .input-group input,
 .input-group select {
   height: 46px;
@@ -375,15 +381,14 @@ h1.page-title {
 
 /* Checklist / Checkboxes */
 .checkbox-row {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
 }
 
 .checkbox-item {
   position: relative;
-  flex: 1 1 0;
-  min-width: 100px;
+  min-width: 0;
 }
 
 .checkbox-item input[type="checkbox"] {
@@ -397,9 +402,9 @@ h1.page-title {
 .checkbox-label {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 8px;
-  height: 46px;
+  min-height: 48px;
   border: 1px solid var(--border-color);
   border-radius: 10px;
   background-color: #ffffff;
@@ -409,8 +414,9 @@ h1.page-title {
   color: var(--text-main);
   transition: all 0.2s ease;
   user-select: none;
-  text-align: center;
-  padding: 0 8px;
+  text-align: left;
+  line-height: 1.25;
+  padding: 0 14px;
 }
 
 .checkbox-item input[type="checkbox"]:checked ~ .checkbox-label {
@@ -433,6 +439,7 @@ h1.page-title {
 .custom-checkbox-dot {
   width: 14px;
   height: 14px;
+  flex: 0 0 14px;
   border: 1.5px solid var(--border-color);
   border-radius: 3px;
   display: inline-flex;
@@ -453,6 +460,23 @@ h1.page-title {
   border-left: 1.5px solid white;
   border-bottom: 1.5px solid white;
   transform: rotate(-45deg) translate(0px, -1px);
+}
+
+.checkbox-label .util-icon {
+  flex: 0 0 auto;
+  font-size: 18px;
+}
+
+@media (max-width: 760px) {
+  .checkbox-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .checkbox-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Divider */
@@ -783,7 +807,7 @@ h1.page-title {
 .room-utils-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 6px;
   margin-top: 4px;
 }
 
@@ -793,6 +817,10 @@ h1.page-title {
   font-size: 10px;
   padding: 2px 6px;
   border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  line-height: 1.2;
 }
 
 .room-price-row {
@@ -1616,6 +1644,7 @@ h1.page-title {
 
 .card-utils-mini {
   display: flex;
+  flex-wrap: wrap;
   gap: 4px;
 }
 
@@ -1625,6 +1654,18 @@ h1.page-title {
   font-size: 10px;
   padding: 2px 6px;
   border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  line-height: 1.2;
+}
+
+.util-icon {
+  color: #2563eb;
+  font-size: 15px;
+  line-height: 1;
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
 }
 
 .vacancy-card-actions {
@@ -2283,6 +2324,10 @@ h1.page-title {
   gap: 6px;
 }
 
+.detail-util-tag .util-icon {
+  font-size: 20px;
+}
+
 /* Action Buttons */
 .detail-action-buttons {
   display: flex;
@@ -2474,26 +2519,115 @@ h1.page-title {
    TRANG ĐẶT LỊCH HẸN NHÂN VIÊN (STAFF BOOKING)
    ========================================== */
 .staff-booking-page {
-  max-width: 800px;
-  margin: 32px auto;
+  max-width: 640px;
+  margin: 28px 0 40px 0;
   padding: 0 24px;
 }
 
 .booking-card {
   background-color: #ffffff;
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  padding: 32px;
+  border: 1px solid #fed7aa;
+  border-radius: 10px;
+  padding: 28px;
   box-shadow: var(--shadow-sm);
   margin-top: 24px;
 }
 
 .booking-guest-box {
-  background-color: #f8fafc;
-  border-radius: 12px;
-  padding: 20px;
-  border: 1px dashed #cbd5e1;
+  background-color: #f1f5f9;
+  border-radius: 8px;
+  padding: 18px;
+  border: 1px solid #e2e8f0;
   margin-bottom: 28px;
+}
+
+.booking-customer-picker {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.booking-customer-picker label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.booking-customer-picker input,
+.booking-note-input {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 11px 13px;
+  font-family: inherit;
+  font-size: 14px;
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.booking-note-input {
+  resize: vertical;
+  min-height: 86px;
+}
+
+.customer-search-hint {
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.customer-suggestion-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 100%;
+  z-index: 20;
+  margin-top: 6px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.14);
+  overflow: hidden;
+}
+
+.customer-suggestion-item {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #f1f5f9;
+  background: #ffffff;
+  padding: 10px 12px;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.customer-suggestion-item:hover {
+  background: #fff7ed;
+}
+
+.customer-suggestion-item strong {
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.customer-suggestion-item span {
+  color: #64748b;
+  font-size: 12.5px;
+}
+
+.btn-new-customer-inline {
+  align-self: flex-start;
+  border: 1px dashed var(--primary-color);
+  background: #fff7ed;
+  color: var(--primary-color);
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .guest-box-header {
@@ -2575,19 +2709,19 @@ h1.page-title {
   gap: 10px;
   align-items: center;
   border: 1px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 16px;
-  background-color: #f8fafc;
+  background-color: #ffffff;
 }
 
 .room-tag-badge {
   background-color: #e2e8f0;
   border: 1px solid #cbd5e1;
-  color: #334155;
+  color: #475569;
   font-size: 13px;
   font-weight: 600;
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: 999px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -2616,7 +2750,7 @@ h1.page-title {
   font-size: 12.5px;
   font-weight: 700;
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: 999px;
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -2676,7 +2810,7 @@ h1.page-title {
   justify-content: flex-end;
   gap: 16px;
   margin-top: 32px;
-  border-top: 1px solid var(--border-color);
+  border-top: none;
   padding-top: 24px;
 }
 
@@ -2712,6 +2846,18 @@ h1.page-title {
 
 .btn-submit-booking:hover {
   background-color: var(--primary-hover);
+}
+
+.room-card-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.room-card-actions .book-btn,
+.room-card-actions .btn-detail-outline {
+  flex: 1;
+  justify-content: center;
 }
 
 /* ==========================================
@@ -2945,6 +3091,47 @@ h1.page-title {
   color: #475569;
 }
 
+.appointment-note-cell {
+  display: inline-block;
+  max-width: 260px;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn-table-edit {
+  padding: 7px 12px;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.appointment-edit-modal {
+  max-width: 520px;
+}
+
+.appointment-edit-summary {
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.appointment-edit-summary strong {
+  color: #0f172a;
+}
+
+.appointment-edit-summary span {
+  color: #64748b;
+  font-size: 13px;
+}
+
 .status-badge-pill {
   display: inline-flex;
   align-items: center;
@@ -2958,6 +3145,11 @@ h1.page-title {
 .status-cho-xem {
   background-color: #eff6ff;
   color: #1d4ed8;
+}
+
+.status-da-xem {
+  background-color: #ecfdf5;
+  color: #047857;
 }
 
 .status-dat-coc {
@@ -7084,11 +7276,6 @@ textarea.form-control {
   padding: 16px 24px 0;
   background: #fff;
   border-bottom: 1px solid #e2e8f0;
-}
-
-.staff-room-subtabs {
-  margin-top: 12px;
-  margin-bottom: 0;
 }
 
 .payment-subtabs {

@@ -56,6 +56,19 @@
   font-size: 15px;
 }
 
+.qt-page-header .qt-sync-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  color: #047857;
+  font-weight: 700;
+}
+
+.qt-sync-note .material-symbols-outlined {
+  font-size: 18px;
+}
+
 .qt-btn-primary {
   background: #f97316;
   color: #fff;
@@ -375,6 +388,133 @@
   min-height: 220px;
   color: #9d4300;
   cursor: pointer;
+}
+
+.qt-room-detail-modal {
+  width: min(680px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 18px;
+  padding: 28px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+}
+
+.qt-room-detail-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.qt-room-detail-head h2 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  color: #111827;
+}
+
+.qt-room-detail-head p {
+  margin: 0;
+  color: #64748b;
+  font-size: 16px;
+}
+
+.qt-room-detail-close {
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.qt-room-detail-close:hover {
+  background: #e2e8f0;
+}
+
+.qt-room-detail-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+  padding: 24px;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.qt-room-detail-summary span {
+  display: block;
+  margin-bottom: 8px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.qt-room-detail-summary strong {
+  color: #111827;
+  font-size: 17px;
+}
+
+.qt-room-state--green { color: #16a34a !important; }
+.qt-room-state--orange { color: #ea580c !important; }
+.qt-room-state--red { color: #dc2626 !important; }
+.qt-room-state--gray { color: #64748b !important; }
+
+.qt-room-detail-section {
+  margin-top: 24px;
+}
+
+.qt-room-detail-section h3 {
+  margin: 0 0 14px;
+  color: #475569;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.qt-room-detail-section p {
+  margin: 0;
+  color: #584237;
+}
+
+.qt-bed-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.qt-bed-summary span {
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.qt-room-detail-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid #e5e7eb;
+}
+
+@media (max-width: 640px) {
+  .qt-room-detail-modal {
+    padding: 20px;
+  }
+
+  .qt-room-detail-summary {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Drawer */

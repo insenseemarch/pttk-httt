@@ -7,7 +7,23 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
   const rawRole = (nguoiDung?.vaiTro || '').toLowerCase();
   
   let menu = [];
-  if (rawRole.includes('kế toán') || rawRole.includes('ke toan') || rawRole === 'ketoan') {
+  if (rawRole.includes('sale') || rawRole.includes('kinh doanh')) {
+    menu = [
+      { key: 'dashboard', label: 'Tổng quan', path: ROUTES.dashboard },
+      { key: 'tiepNhanDangKyThue', label: 'Tiếp nhận thuê', path: ROUTES.tiepNhanDangKyThue },
+      { key: 'phongGiuong', label: 'Tra cứu phòng/giường', path: ROUTES.phongGiuong },
+      { key: 'soDoPhong', label: 'Sơ đồ phòng', path: ROUTES.soDoPhong },
+      { key: 'lichHen', label: 'Lịch hẹn', path: ROUTES.lichHen },
+      { key: 'thongBao', label: 'Thông báo', path: ROUTES.thongBao },
+    ];
+  } else if (rawRole.includes('quản lý') || rawRole.includes('quan ly') || rawRole === 'quanly') {
+    menu = [
+      { key: 'dashboard', label: 'Tổng quan', path: ROUTES.dashboard },
+      { key: 'phongGiuong', label: 'Tra cứu phòng/giường', path: ROUTES.phongGiuong },
+      { key: 'soDoPhong', label: 'Sơ đồ phòng', path: ROUTES.soDoPhong },
+      { key: 'thongBao', label: 'Thông báo', path: ROUTES.thongBao },
+    ];
+  } else if (rawRole.includes('kế toán') || rawRole.includes('ke toan') || rawRole === 'ketoan') {
     menu = [
       { key: 'dashboard', label: 'Tổng quan', path: ROUTES.dashboard },
       { key: 'phongGiuong', label: 'Phòng', path: ROUTES.phongGiuong },

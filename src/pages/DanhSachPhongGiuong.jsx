@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import KhungNhanVien from '../components/KhungNhanVien';
-import { ROUTES } from '../config/routes';
 
 function layChipTrangThai(trangThai) {
   const map = {
@@ -20,6 +18,7 @@ export default function DanhSachPhongGiuong({ nguoiDung, dangXuat }) {
   const [dangTai, setDangTai] = useState(true);
   const [boLoc, setBoLoc] = useState({ maCN: '', trangThai: '', loaiPhong: '', timKiem: '', page: 1 });
   const [tong, setTong] = useState(0);
+  const [phongDangXem, setPhongDangXem] = useState(null);
 
   useEffect(() => {
     taiChiNhanh();
@@ -66,11 +65,11 @@ export default function DanhSachPhongGiuong({ nguoiDung, dangXuat }) {
         <div>
           <h1>Quản lý Phòng &amp; Giường</h1>
           <p>Theo dõi hiện trạng, đặt cọc và lập hợp đồng theo từng phòng.</p>
+          <p className="qt-sync-note">
+            <span className="material-symbols-outlined">sync</span>
+            Trạng thái được hệ thống tự động đồng bộ từ đặt cọc và hợp đồng.
+          </p>
         </div>
-        <button type="button" className="qt-btn-primary">
-          <span className="material-symbols-outlined" style={{ fontSize: 18 }}>add</span>
-          Thêm phòng mới
-        </button>
       </div>
 
       <div className="qt-stats">
@@ -146,19 +145,12 @@ export default function DanhSachPhongGiuong({ nguoiDung, dangXuat }) {
                 </div>
               </div>
               <div className="qt-room-actions">
-                <button type="button" className="qt-btn-outline">Chi tiết</button>
-                {p.trangThai === 'Trống' && <button type="button" className="qt-btn-primary">Đặt phòng</button>}
-                {p.trangThai === 'Đã đặt cọc' && (
-                  <Link to={ROUTES.hopDong} className="qt-btn-primary" style={{ textAlign: 'center', textDecoration: 'none' }}>Lập HĐ</Link>
-                )}
-                {p.trangThai === 'Đang thuê' && <button type="button" className="qt-btn-primary">Quản lý</button>}
+                <button type="button" className="qt-btn-outline" onClick={() => setPhongDangXem(p)}>
+                  Chi tiết
+                </button>
               </div>
             </div>
           ))}
-          <button type="button" className="qt-room-card qt-room-card--add">
-            <span className="material-symbols-outlined" style={{ fontSize: 32 }}>add_circle</span>
-            <span>Thêm phòng mới</span>
-          </button>
         </div>
       )}
 
@@ -168,6 +160,60 @@ export default function DanhSachPhongGiuong({ nguoiDung, dangXuat }) {
           <div className="qt-pagination-btns">
             <button type="button" disabled={boLoc.page <= 1} onClick={() => setBoLoc((p) => ({ ...p, page: p.page - 1 }))}>Trước</button>
             <button type="button" onClick={() => setBoLoc((p) => ({ ...p, page: p.page + 1 }))}>Sau</button>
+          </div>
+        </div>
+      )}
+
+      {phongDangXem && (
+        <div className="qt-modal-overlay" onClick={() => setPhongDangXem(null)}>
+          <div className="qt-room-detail-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="qt-room-detail-head">
+              <div>
+                <h2>Phòng P.{phongDangXem.maPhong}</h2>
+                <p>{phongDangXem.chiNhanh} · Phòng · {phongDangXem.loaiPhong}</p>
+              </div>
+              <button type="button" className="qt-room-detail-close" onClick={() => setPhongDangXem(null)} aria-label="Đóng">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="qt-room-detail-summary">
+              <div>
+                <span>Tình trạng phòng</span>
+                <strong className={`qt-room-state qt-room-state--${layChipTrangThai(phongDangXem.trangThai)}`}>
+                  {phongDangXem.trangThai}
+                </strong>
+              </div>
+              <div>
+                <span>Giá thuê gốc</span>
+                <strong>{phongDangXem.giaThue}{phongDangXem.loaiPhong?.includes('Giường') ? '/giường/tháng' : '/tháng'}</strong>
+              </div>
+              <div>
+                <span>Hiện trạng chỗ</span>
+                <strong>{phongDangXem.hienTrang} (Giường)</strong>
+              </div>
+              <div>
+                <span>Tỷ lệ lấp đầy</span>
+                <strong>{phongDangXem.tyLe}%</strong>
+              </div>
+            </div>
+
+            <div className="qt-room-detail-section">
+              <h3>Chi tiết danh sách giường</h3>
+              {Number(phongDangXem.soGiuong || 0) > 0 ? (
+                <div className="qt-bed-summary">
+                  <span>Tổng giường: {phongDangXem.soGiuong}</span>
+                  <span>Giường trống: {phongDangXem.soGiuongTrong}</span>
+                  {phongDangXem.hetHanCoc && <span>Hết hạn cọc: {phongDangXem.hetHanCoc}</span>}
+                </div>
+              ) : (
+                <p>Phòng này chưa có dữ liệu giường.</p>
+              )}
+            </div>
+
+            <div className="qt-room-detail-footer">
+              <button type="button" className="qt-btn-primary" onClick={() => setPhongDangXem(null)}>Đóng lại</button>
+            </div>
           </div>
         </div>
       )}
