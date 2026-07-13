@@ -13,6 +13,7 @@ import datCocRoutes, { huyDatCocQuaHan } from './routes/datCoc.routes.js';
 import { ganRouteAuthDashboard } from './routes/authDashboard.js';
 import { ganRouteQuanTri } from './routes/quanTri.js';
 import { syncPhongGiuong } from './syncPhongGiuong.js';
+import { dinhDangCCCD } from './utils/dinhDang.js';
 import {
   layMaDatCocTuPds,
   mapDatCocRaDTO,
@@ -57,7 +58,9 @@ async function luuThongTinKhachHang(kh) {
     .select();
 
   if (error) throw error;
-  return data && data.length > 0 ? data[0] : null;
+  return data && data.length > 0
+    ? { ...data[0], CCCD: dinhDangCCCD(data[0].CCCD) }
+    : null;
 }
 
 async function taoYeuCauThue(yc, cccd, maNV = 101) {
@@ -82,7 +85,9 @@ async function taoYeuCauThue(yc, cccd, maNV = 101) {
     .select();
 
   if (error) throw error;
-  return data && data.length > 0 ? data[0] : null;
+  return data && data.length > 0
+    ? { ...data[0], CCCD: dinhDangCCCD(data[0].CCCD) }
+    : null;
 }
 
 async function layThongKePhongTrong() {

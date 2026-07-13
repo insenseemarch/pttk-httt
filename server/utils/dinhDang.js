@@ -2,6 +2,12 @@ export function dinhDangTien(soTien) {
   return `${Number(soTien || 0).toLocaleString('vi-VN')}đ`;
 }
 
+export function dinhDangCCCD(value) {
+  const digits = String(value ?? '').replace(/\D/g, '');
+  if (!digits) return '';
+  return digits.length < 12 ? digits.padStart(12, '0') : digits;
+}
+
 export function dinhDangNgay(dateStr) {
   if (!dateStr) return '';
   const d = new Date(dateStr);

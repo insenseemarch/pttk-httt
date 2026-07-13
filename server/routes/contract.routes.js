@@ -1,5 +1,6 @@
 import express from 'express';
 import { supabase } from '../config/supabase.js';
+import { dinhDangCCCD } from '../utils/dinhDang.js';
 
 const router = express.Router();
 
@@ -29,9 +30,9 @@ router.get('/pre-fill/:maHoSo', async (req, res) => {
     const data = {
       maHoSo: maHoSo,
       khachHang: {
-        maKH: hoSo?.KhachHang?.CCCD || 'KH-2023-8821',
+        maKH: dinhDangCCCD(hoSo?.KhachHang?.CCCD) || 'KH-2023-8821',
         hoTen: hoSo?.KhachHang?.HoTen || 'Nguyễn Văn An',
-        cccd: hoSo?.KhachHang?.CCCD || '001092003841'
+        cccd: dinhDangCCCD(hoSo?.KhachHang?.CCCD) || '001092003841'
       },
       thongTinThue: {
         phongGiuong: hoSo?.Phong?.LoaiPhong || 'Phòng 402 - Giường A',

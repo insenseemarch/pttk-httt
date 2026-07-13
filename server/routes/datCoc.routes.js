@@ -1,6 +1,7 @@
 import express from 'express';
 import { supabase } from '../config/supabase.js';
 import { getIO } from '../config/ketNoiSocket.js';
+import { dinhDangCCCD } from '../utils/dinhDang.js';
 
 const router = express.Router();
 
@@ -118,6 +119,10 @@ async function layPhieu(maDatCoc) {
     : { data: null };
   return {
     ...data,
+    CCCD: dinhDangCCCD(data.CCCD),
+    KhachHang: data.KhachHang
+      ? { ...data.KhachHang, CCCD: dinhDangCCCD(data.KhachHang.CCCD ?? data.CCCD) }
+      : data.KhachHang,
     ChiNhanh: chiNhanh || null,
     NhanVienSale: nhanVienSale || null,
   };
@@ -311,7 +316,15 @@ router.get('/phieu', async (req, res) => {
       : { data: [] };
     if (branches.error) throw branches.error;
     const branchMap = new Map((branches.data || []).map((item) => [item.MaCN, item]));
-    res.json({ ok: true, data: (data || []).map((item) => ({ ...item, ChiNhanh: branchMap.get(item.MaCN) || null })), total: count || 0 });
+    res.json({
+      ok: true,
+      data: (data || []).map((item) => ({
+        ...item,
+        CCCD: dinhDangCCCD(item.CCCD),
+        ChiNhanh: branchMap.get(item.MaCN) || null,
+      })),
+      total: count || 0,
+    });
   } catch (error) {
     loi(res, 500, error.message);
   }
@@ -445,7 +458,7 @@ router.post('/phieu', async (req, res) => {
     const { error: bedError } = await supabase.from('GiuongDatCoc').insert(rows);
     if (bedError) throw bedError;
     await ghiLichSu({ ...data, TrangThai: null }, TRANG_THAI_COC.MOI, user, null);
-    res.status(201).json({ ok: true, data });
+    res.status(201).json({ ok: true, data: { ...data, CCCD: dinhDangCCCD(data.CCCD) } });
   } catch (error) {
     loi(res, 400, thongBaoLoiDuLieu(error));
   }
@@ -548,7 +561,7 @@ router.patch('/phieu/:id/khach-hang', async (req, res) => {
       savedData = updatedCustomer;
     }
 
-    res.json({ ok: true, data: savedData });
+    res.json({ ok: true, data: { ...savedData, CCCD: dinhDangCCCD(savedData.CCCD) } });
   } catch (error) {
     loi(res, error.status || 400, thongBaoLoiDuLieu(error));
   }

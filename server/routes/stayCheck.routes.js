@@ -1,6 +1,6 @@
 import express from 'express';
 import { supabase } from '../config/supabase.js';
-import { dinhDangNgay } from '../utils/dinhDang.js';
+import { dinhDangCCCD, dinhDangNgay } from '../utils/dinhDang.js';
 
 const router = express.Router();
 
@@ -124,7 +124,7 @@ router.get('/:maHoSo', async (req, res) => {
       if (members) {
         danhSachThanhVien = members.map((m, index) => ({
           id: String(index + 1).padStart(2, '0'),
-          cccd: String(m.CCCD),
+          cccd: dinhDangCCCD(m.CCCD),
           hoTen: m.KhachHang?.HoTen || 'Không rõ',
           gioiTinh: m.KhachHang?.GioiTinh || 'Không rõ',
           truongNhom: String(m.CCCD) === String(datCoc.CCCD),
@@ -137,7 +137,7 @@ router.get('/:maHoSo', async (req, res) => {
       // Thuê cá nhân: Thành viên duy nhất chính là người đặt cọc
       danhSachThanhVien = [{
         id: '01',
-        cccd: String(datCoc.CCCD),
+        cccd: dinhDangCCCD(datCoc.CCCD),
         hoTen: datCoc.KhachHang?.HoTen || 'Không rõ',
         gioiTinh: datCoc.KhachHang?.GioiTinh || 'Không rõ',
         truongNhom: true,

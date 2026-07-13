@@ -131,6 +131,35 @@
 .deposit-notification-popover > button { width: 100%; display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border: 0; border-bottom: 1px solid #edf0f3; background: #fff; text-align: left; cursor: pointer; }
 .deposit-notification-popover > button.unread { background: #fff8f3; box-shadow: inset 3px 0 #f26a21; }
 .deposit-notification-popover small { color: #64748b; }
+.deposit-notification-tooltip { position: relative; }
+.deposit-notification-tooltip::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  padding: 5px 8px;
+  border: 1px solid #dbe4ee;
+  border-radius: 6px;
+  background: #fff;
+  color: #475569;
+  box-shadow: 0 3px 10px rgb(15 23 42 / .1);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate(-50%, -45%);
+  transition: opacity .15s ease, transform .15s ease, visibility .15s ease;
+}
+.deposit-notification-tooltip:hover::after,
+.deposit-notification-tooltip:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(-50%, -50%);
+}
 @media (max-width: 1000px) { .deposit-layout { grid-template-columns: 1fr; } .deposit-detail { min-height: 360px; } .deposit-notification-popover { right: 20px; } }
 @media (max-width: 680px) { .deposit-header { align-items: start; flex-direction: column; } .deposit-layout { display: block; } .deposit-detail { margin-top: 14px; padding: 16px; } .deposit-row { grid-template-columns: 8px 1fr; } .deposit-row-side { grid-column: 2; align-items: start; } .deposit-info-grid, .deposit-bed-picker, .deposit-customer-form { grid-template-columns: 1fr 1fr; } .deposit-bed-summary { grid-template-columns: 1fr; } .deposit-bed-details { overflow-x: auto; } .deposit-bed-details table { min-width: 520px; } .deposit-countdown div { align-items: start; flex-direction: column; } }
 

@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabase.js';
-import { dinhDangNgay, dinhDangTien } from '../utils/dinhDang.js';
+import { dinhDangCCCD, dinhDangNgay, dinhDangTien } from '../utils/dinhDang.js';
 
 function layPhongTuChiTiet(chiTiets) {
   const ct = chiTiets?.[0];
@@ -136,7 +136,7 @@ export async function layDanhSachHopDong(boLoc = {}) {
       hoTen: hd.KhachHang?.HoTen || '—',
       sdt: hd.KhachHang?.SDT || '',
       email: hd.KhachHang?.Email || '',
-      cccd: hd.KhachHang?.CCCD || '',
+      cccd: dinhDangCCCD(hd.KhachHang?.CCCD),
       phong: phongStr,
       maCN: maCNHop,
       tenCN,
@@ -272,7 +272,7 @@ export async function layChiTietHopDong(maHopDong) {
     hoTen: data.KhachHang?.HoTen,
     sdt: data.KhachHang?.SDT,
     email: data.KhachHang?.Email,
-    cccd: data.KhachHang?.CCCD,
+    cccd: dinhDangCCCD(data.KhachHang?.CCCD),
     phong: layPhongTuChiTiet(data.ChiTiet),
     tenCN: data.ChiTiet?.[0]?.Giuong?.Phong?.ChiNhanh?.TenCN || '—',
     loaiPhong: data.ChiTiet?.[0]?.Giuong?.Phong?.LoaiPhong || '—',
