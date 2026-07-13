@@ -1,41 +1,163 @@
 import express from 'express';
 import { supabase } from '../config/supabase.js';
-import { dinhDangNgay } from '../utils/dinhDang.js';
+import { dinhDangNgay, dinhDangTien } from '../utils/dinhDang.js';
 
 const router = express.Router();
 
-// GET /api/kiem-tra-luu-tru/danh-sach
-// Lấy danh sách các hồ sơ đặt cọc đang ở trạng thái 'Đã thanh toán'
-router.get('/danh-sach', async (req, res) => {
+const TRANG_THAI_CHO_KIEM_TRA = 'Chờ kiểm tra';
+
+function parseMaDatCoc(maHoSo) {
+  if (!maHoSo) return null;
+  const raw = String(maHoSo).trim();
+  if (raw.startsWith('PC-')) return Number(raw.replace('PC-', ''));
+  if (/^\d+$/.test(raw)) return Number(raw);
+  return null;
+}
+
+async function layHoSoKiemTra(maDatCoc) {
+  const { data: dc, error } = await supabase
+    .from('DatCoc')
+    .select(`
+      *,
+      KhachHang ( CCCD, HoTen, GioiTinh ),
+      Phong ( MaPhong, LoaiPhong, GioiTinhYeuCau, SucChuaToiDa ),
+      NhomThue (
+        MaNhom, CCCD, SoThanhVienDangKy, SoThanhVienDuDieuKien,
+        ThanhVienNhom (
+          CCCD, ThoaDieuKien, TrangThai,
+          KhachHang ( CCCD, HoTen, GioiTinh )
+        )
+      )
+    `)
+    .eq('MaDatCoc', maDatCoc)
+    .maybeSingle();
+
+  if (error) throw error;
+  return dc;
+}
+
+function laThueNhom(dc) {
+  return Boolean(dc.MaNhom) || (dc.SoGiuongThue || 1) > 1 || dc.LoaiThue === 'Thuê nguyên phòng';
+}
+
+function tinhGioiHanNguoi(dc) {
+  if (dc.LoaiThue === 'Thuê nguyên phòng') {
+    return dc.Phong?.SucChuaToiDa || dc.SoGiuongThue || 1;
+  }
+  return dc.SoGiuongThue || 1;
+}
+
+async function ghiNhanKetQuaThanhVien(dc, ketQua) {
+  if (!dc.MaNhom) return;
+  for (const tv of ketQua) {
+    if (!tv.cccd) continue;
+    await supabase
+      .from('ThanhVienNhom')
+      .update({
+        ThoaDieuKien: Boolean(tv.dieuKien),
+        LyDoKhongDat: tv.dieuKien ? null : (tv.lyDo || 'Không đáp ứng điều kiện lưu trú'),
+        TrangThai: tv.dieuKien ? 'Đạt điều kiện' : 'Không đạt điều kiện',
+      })
+      .eq('MaNhom', dc.MaNhom)
+      .eq('CCCD', Number(tv.cccd));
+  }
+}
+
+async function capNhatSoThanhVienDuDieuKien(dc, soDat) {
+  if (!dc.MaNhom) return;
+  await supabase
+    .from('NhomThue')
+    .update({ SoThanhVienDuDieuKien: soDat })
+    .eq('MaNhom', dc.MaNhom);
+}
+
+async function chuyenTrangThaiDatCoc(dc, trangThaiMoi, nguoiThucHien, ghiChu) {
+  await supabase
+    .from('DatCoc')
+    .update({ TrangThai: trangThaiMoi, CapNhatLuc: new Date().toISOString() })
+    .eq('MaDatCoc', dc.MaDatCoc);
+
+  await supabase.from('LichSuDatCoc').insert({
+    MaDatCoc: dc.MaDatCoc,
+    TrangThaiCu: dc.TrangThai,
+    TrangThaiMoi: trangThaiMoi,
+    NguoiThucHien: nguoiThucHien || null,
+    VaiTroThucHien: 'Quản lý',
+    GhiChu: ghiChu,
+  });
+}
+
+function mapThanhVienKiemTra(dc, idx, kh, extra = {}) {
+  return {
+    id: String(idx + 1).padStart(2, '0'),
+    hoTen: kh?.HoTen || '',
+    truongNhom: String(kh?.CCCD) === String(dc.NhomThue?.CCCD || dc.CCCD),
+    cccd: String(kh?.CCCD || ''),
+    gioiTinh: kh?.GioiTinh || '—',
+    daDoiChieuCCCD: extra.trangThai === 'Đã đối chiếu CCCD',
+    ...extra,
+  };
+}
+
+// GET /api/kiem-tra-luu-tru — danh sách hồ sơ chờ Quản lý kiểm tra ĐK lưu trú
+router.get('/', async (req, res) => {
   try {
-    const { data: list, error } = await supabase
+    const { timKiem = '', maCN = '' } = req.query;
+
+    let query = supabase
       .from('DatCoc')
       .select(`
-        MaDatCoc,
-        SoTienCoc,
-        ThoiDiemTao,
-        CCCD,
-        KhachHang (
-          HoTen
-        )
-      `)
-      .eq('TrangThai', 'Đã thanh toán')
-      .order('MaDatCoc', { ascending: false });
+        MaDatCoc, ThoiDiemTao, DatCocThanhCong, CapNhatLuc, SoTienCoc, TrangThai,
+        LoaiThue, SoGiuongThue, MaCN, CCCD, MaNhom,
+        KhachHang ( CCCD, HoTen, SDT ),
+        Phong ( MaPhong, LoaiPhong, ChiNhanh ( TenCN ) ),
+        ChiNhanh ( TenCN ),
+        GiuongDatCoc ( MaGiuong, Giuong ( Phong ( MaPhong, LoaiPhong, ChiNhanh ( TenCN ) ) ) )
+      `, { count: 'exact' })
+      .eq('TrangThai', TRANG_THAI_CHO_KIEM_TRA)
+      .order('CapNhatLuc', { ascending: false, nullsFirst: false });
 
-    if (error) {
-      throw error;
+    if (maCN) query = query.eq('MaCN', Number(maCN));
+
+    const { data, error, count } = await query;
+    if (error) throw error;
+
+    let ketQua = (data || []).map((dc) => {
+      const phongTrucTiep = dc.Phong;
+      const phongTuGiuong = dc.GiuongDatCoc?.[0]?.Giuong?.Phong;
+      const phong = phongTrucTiep || phongTuGiuong;
+      const tenCN = phong?.ChiNhanh?.TenCN || dc.ChiNhanh?.TenCN || '—';
+      return {
+        maDatCoc: dc.MaDatCoc,
+        maPhieu: `PC-${dc.MaDatCoc}`,
+        hoTen: dc.KhachHang?.HoTen || '—',
+        sdt: dc.KhachHang?.SDT || '—',
+        cccd: dc.CCCD ? String(dc.CCCD) : '—',
+        phong: phong ? `P.${phong.MaPhong} — ${phong.LoaiPhong}` : 'Chưa xác định',
+        chiNhanh: tenCN,
+        soGiuongThue: dc.SoGiuongThue || 1,
+        loaiThue: dc.LoaiThue || 'Thuê giường lẻ',
+        soTienCocFmt: dinhDangTien(dc.SoTienCoc),
+        trangThai: dc.TrangThai,
+        ngayChuyenKiemTra: dinhDangNgay(dc.CapNhatLuc || dc.DatCocThanhCong || dc.ThoiDiemTao),
+        laThuNhom: Boolean(dc.MaNhom) || (dc.SoGiuongThue || 1) > 1 || dc.LoaiThue === 'Thuê nguyên phòng',
+      };
+    });
+
+    if (timKiem.trim()) {
+      const q = timKiem.trim().toLowerCase();
+      ketQua = ketQua.filter((item) =>
+        item.hoTen.toLowerCase().includes(q)
+        || item.sdt.includes(q)
+        || item.cccd.includes(q)
+        || item.maPhieu.toLowerCase().includes(q)
+        || item.phong.toLowerCase().includes(q),
+      );
     }
 
-    const data = list.map(item => ({
-      maHoSo: String(item.MaDatCoc),
-      hoTenKhach: item.KhachHang?.HoTen || 'Khách hàng',
-      soTienCoc: item.SoTienCoc,
-      ngayTao: item.ThoiDiemTao ? dinhDangNgay(item.ThoiDiemTao) : '—'
-    }));
-
-    res.json({ ok: true, data });
+    res.json({ ok: true, danhSach: ketQua, tong: count || ketQua.length });
   } catch (error) {
-    console.error('Lỗi khi lấy danh sách hồ sơ đặt cọc:', error);
+    console.error('Lỗi khi lấy danh sách kiểm tra lưu trú:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 });
@@ -43,122 +165,48 @@ router.get('/danh-sach', async (req, res) => {
 // GET /api/kiem-tra-luu-tru/:maHoSo
 router.get('/:maHoSo', async (req, res) => {
   try {
-    const { maHoSo } = req.params;
-    if (!maHoSo) {
-      return res.status(400).json({ ok: false, error: 'Thiếu mã hồ sơ đặt cọc' });
+    const maDatCoc = parseMaDatCoc(req.params.maHoSo);
+    if (!maDatCoc) {
+      return res.status(400).json({ ok: false, error: 'Mã hồ sơ không hợp lệ (dùng PC-{maDatCoc})' });
     }
 
-    const idDatCoc = parseInt(maHoSo);
-    if (isNaN(idDatCoc)) {
-      return res.status(400).json({ ok: false, error: 'Mã hồ sơ đặt cọc không hợp lệ' });
-    }
-    
-    // 1. Lấy thông tin hồ sơ đặt cọc
-    const { data: datCoc, error: datCocErr } = await supabase
-      .from('DatCoc')
-      .select(`
-        *,
-        KhachHang (
-          CCCD,
-          HoTen,
-          SDT,
-          Email,
-          DiaChi
-        )
-      `)
-      .eq('MaDatCoc', idDatCoc)
-      .single();
-
-    if (datCocErr) {
-      throw datCocErr;
+    const hoSo = await layHoSoKiemTra(maDatCoc);
+    if (!hoSo) {
+      return res.status(404).json({ ok: false, error: 'Không tìm thấy hồ sơ đặt cọc' });
     }
 
-    // 2. Lấy thông tin phòng dự kiến thông qua GiuongDatCoc -> Giuong -> Phong
-    const { data: giuongCocs } = await supabase
-      .from('GiuongDatCoc')
-      .select(`
-        MaGiuong,
-        Giuong (
-          MaGiuong,
-          Phong (
-            MaPhong,
-            LoaiPhong
-          )
-        )
-      `)
-      .eq('MaDatCoc', idDatCoc);
-
-    let phongDuKien = '—';
-    if (giuongCocs && giuongCocs.length > 0) {
-      const p = giuongCocs[0].Giuong?.Phong;
-      if (p) {
-        phongDuKien = `P.${p.MaPhong} - ${p.LoaiPhong}`;
-      }
-    }
-
-    // 3. Lấy danh sách thành viên lưu trú
     let danhSachThanhVien = [];
-    if (datCoc.MaNhom) {
-      const { data: members, error: membersErr } = await supabase
-        .from('ThanhVienNhom')
-        .select(`
-          CCCD,
-          ThoaDieuKien,
-          LyDoKhongDat,
-          TrangThai,
-          KhachHang (
-            CCCD,
-            HoTen,
-            GioiTinh,
-            SDT,
-            Email,
-            DiaChi
-          )
-        `)
-        .eq('MaNhom', datCoc.MaNhom);
+    const nhom = hoSo.NhomThue;
 
-      if (membersErr) {
-        throw membersErr;
-      }
-
-      if (members) {
-        danhSachThanhVien = members.map((m, index) => ({
-          id: String(index + 1).padStart(2, '0'),
-          cccd: String(m.CCCD),
-          hoTen: m.KhachHang?.HoTen || 'Không rõ',
-          gioiTinh: m.KhachHang?.GioiTinh || 'Không rõ',
-          truongNhom: String(m.CCCD) === String(datCoc.CCCD),
-          dieuKien: m.ThoaDieuKien !== false, // Mặc định là true nếu null
-          trangThai: m.ThoaDieuKien === false ? 'Không đạt' : 'Đạt',
-          lyDoKhongDat: m.LyDoKhongDat || ''
-        }));
-      }
-    } else {
-      // Thuê cá nhân: Thành viên duy nhất chính là người đặt cọc
-      danhSachThanhVien = [{
-        id: '01',
-        cccd: String(datCoc.CCCD),
-        hoTen: datCoc.KhachHang?.HoTen || 'Không rõ',
-        gioiTinh: datCoc.KhachHang?.GioiTinh || 'Không rõ',
-        truongNhom: true,
-        dieuKien: true,
-        trangThai: 'Đạt',
-        lyDoKhongDat: ''
-      }];
+    if (nhom?.ThanhVienNhom?.length) {
+      danhSachThanhVien = nhom.ThanhVienNhom.map((tv, idx) =>
+        mapThanhVienKiemTra(hoSo, idx, tv.KhachHang, { trangThai: tv.TrangThai }),
+      );
+    } else if (hoSo.KhachHang) {
+      danhSachThanhVien = [
+        mapThanhVienKiemTra(hoSo, 0, hoSo.KhachHang, {
+          trangThai: String(hoSo.LyDoXuLy || '').includes('[CCCD_OK]') ? 'Đã đối chiếu CCCD' : 'Đã ghi nhận',
+        }),
+      ];
     }
 
     const data = {
       thongTinDatCoc: {
-        maHoSo: String(datCoc.MaDatCoc),
-        trangThai: datCoc.TrangThai || 'Đã duyệt',
-        ngayNhanPhong: datCoc.ThoiDiemTao ? dinhDangNgay(datCoc.ThoiDiemTao) : '—',
-        thoiHanThue: datCoc.ThoiHanThue || 6,
-        phongDuKien: phongDuKien,
-        soTienDaCoc: datCoc.SoTienCoc || 0,
+        maHoSo: `PC-${maDatCoc}`,
+        maDatCoc,
+        trangThai: hoSo.TrangThai || 'Chờ kiểm tra',
+        ngayNhanPhong: dinhDangNgay(hoSo.DatCocThanhCong || hoSo.ThoiDiemTao),
+        thoiHanThue: hoSo.ThoiHanThue || 6,
+        phongDuKien: hoSo.Phong
+          ? `P.${hoSo.Phong.MaPhong} - ${hoSo.Phong.LoaiPhong}`
+          : 'Chưa xác định',
+        soTienDaCoc: Number(hoSo.SoTienCoc || 0),
         donViTien: 'VNĐ',
-        ghiChuSales: datCoc.MaNhom ? 'Khách thuê theo nhóm. Đối chiếu CCCD tất cả thành viên.' : 'Khách thuê cá nhân.'
+        ghiChuSales: hoSo.LyDoXuLy || 'Không có ghi chú.',
+        soGiuongThue: hoSo.SoGiuongThue || 1,
+        gioiTinhYeuCau: hoSo.Phong?.GioiTinhYeuCau || null,
       },
-      danhSachThanhVien
+      danhSachThanhVien,
     };
 
     res.json({ ok: true, data });
@@ -168,79 +216,149 @@ router.get('/:maHoSo', async (req, res) => {
   }
 });
 
+const TRANG_THAI_DAT_KIEM_TRA = 'Chờ thanh toán';
+const TRANG_THAI_DUNG_THUE = 'Chờ hoàn cọc';
+
 // POST /api/kiem-tra-luu-tru/xac-nhan
+// Bước 1 (không có luaChon): đánh giá kết quả kiểm tra.
+// Bước 2 (có luaChon): áp dụng quyết định của nhóm.
 router.post('/xac-nhan', async (req, res) => {
   try {
-    const { maHoSo, ketQua } = req.body;
-    if (!maHoSo || !Array.isArray(ketQua)) {
+    const { maHoSo, ketQua, luaChon = null, nguoiThucHien = null } = req.body;
+    const maDatCoc = parseMaDatCoc(maHoSo);
+    if (!maDatCoc || !Array.isArray(ketQua)) {
       return res.status(400).json({ ok: false, error: 'Thiếu mã hồ sơ hoặc danh sách kết quả kiểm tra' });
     }
 
-    const idDatCoc = parseInt(maHoSo);
-    if (isNaN(idDatCoc)) {
-      return res.status(400).json({ ok: false, error: 'Mã hồ sơ đặt cọc không hợp lệ' });
+    const dc = await layHoSoKiemTra(maDatCoc);
+    if (!dc) {
+      return res.status(404).json({ ok: false, error: 'Không tìm thấy hồ sơ đặt cọc' });
+    }
+    if (dc.TrangThai !== TRANG_THAI_CHO_KIEM_TRA) {
+      return res.status(400).json({ ok: false, error: `Hồ sơ không ở trạng thái "${TRANG_THAI_CHO_KIEM_TRA}" (hiện: ${dc.TrangThai}).` });
     }
 
-    // 1. Lấy thông tin cọc để tìm MaNhom
-    const { data: datCoc, error: datCocErr } = await supabase
-      .from('DatCoc')
-      .select('MaNhom')
-      .eq('MaDatCoc', idDatCoc)
-      .single();
+    const laNhom = laThueNhom(dc);
+    const gioiHan = tinhGioiHanNguoi(dc);
+    const dsKhongDat = ketQua.filter((tv) => !tv.dieuKien);
+    const dsDat = ketQua.filter((tv) => tv.dieuKien);
 
-    if (datCocErr) {
-      throw datCocErr;
-    }
-
-    // 2. Cập nhật kết quả kiểm tra cho từng thành viên trong DB
-    if (datCoc?.MaNhom) {
-      for (const item of ketQua) {
-        const cccdNum = parseFloat(item.cccd);
-        if (!isNaN(cccdNum)) {
-          const { error: updateErr } = await supabase
-            .from('ThanhVienNhom')
-            .update({
-              ThoaDieuKien: item.dieuKien,
-              TrangThai: 'Đã xác nhận',
-              LyDoKhongDat: item.dieuKien ? null : 'Không đáp ứng điều kiện lưu trú ký túc xá'
-            })
-            .eq('MaNhom', datCoc.MaNhom)
-            .eq('CCCD', cccdNum);
-
-          if (updateErr) {
-            console.error(`Lỗi cập nhật thành viên CCCD ${item.cccd}:`, updateErr.message);
-          }
-        }
+    // ─── Bước 2: áp dụng quyết định ───
+    if (luaChon === 'CONTINUE_PARTIAL') {
+      if (!laNhom) {
+        return res.status(400).json({ ok: false, error: 'Chỉ áp dụng cho hồ sơ thuê nhóm.' });
       }
-    }
+      if (dsDat.length < 1) {
+        return res.status(400).json({ ok: false, error: 'Không còn thành viên nào đủ điều kiện để tiếp tục.' });
+      }
+      if (dsDat.length > gioiHan) {
+        return res.status(400).json({ ok: false, error: `Số người còn lại (${dsDat.length}) vẫn vượt số giường/phòng đã đặt (${gioiHan}).` });
+      }
 
-    // 3. Trả về kết quả nghiệp vụ theo danh sách
-    const thanhVienKhongDat = ketQua.filter(tv => !tv.dieuKien);
+      await ghiNhanKetQuaThanhVien(dc, ketQua);
+      await capNhatSoThanhVienDuDieuKien(dc, dsDat.length);
+      await chuyenTrangThaiDatCoc(
+        dc,
+        TRANG_THAI_DAT_KIEM_TRA,
+        nguoiThucHien,
+        `Kiểm tra ĐK lưu trú: loại ${dsKhongDat.length} thành viên không đạt, tiếp tục ký HĐ với ${dsDat.length} thành viên còn lại.`,
+      );
 
-    if (thanhVienKhongDat.length > 0) {
       return res.json({
         ok: true,
         data: {
-          trangThai: 'COMPLIANCE_EXCEPTION',
-          message: 'Một số thành viên chưa đáp ứng điều kiện lưu trú.',
-          thanhVienKhongDat: thanhVienKhongDat.map(tv => tv.hoTen),
-          soThanhVienConLai: ketQua.length - thanhVienKhongDat.length,
-          luaChonXuLy: [
-            { loai: 'CONTINUE_PARTIAL', nhan: 'Tiếp tục ký HĐ với các thành viên còn lại' },
-            { loai: 'TERMINATE_REFUND', nhan: 'Dừng thủ tục thuê — Hoàn cọc 80%' }
-          ]
-        }
+          trangThai: 'CONTINUE_PARTIAL',
+          message: `Đã ghi nhận. Tiếp tục lập hợp đồng với ${dsDat.length} thành viên đủ điều kiện.`,
+          buocTiepTheo: '/hop-dong',
+          maDatCoc,
+        },
       });
     }
 
-    res.json({
+    if (luaChon === 'TERMINATE_REFUND') {
+      await ghiNhanKetQuaThanhVien(dc, ketQua);
+      await capNhatSoThanhVienDuDieuKien(dc, dsDat.length);
+      await chuyenTrangThaiDatCoc(
+        dc,
+        TRANG_THAI_DUNG_THUE,
+        nguoiThucHien,
+        laNhom
+          ? `Kiểm tra ĐK lưu trú: nhóm dừng thủ tục thuê do ${dsKhongDat.length} thành viên không đạt — chuyển hoàn cọc 80%.`
+          : 'Kiểm tra ĐK lưu trú: khách không đạt điều kiện — từ chối ký hợp đồng, chuyển hoàn cọc 80%.',
+      );
+
+      return res.json({
+        ok: true,
+        data: {
+          trangThai: 'TERMINATED',
+          message: 'Đã dừng thủ tục thuê. Hồ sơ chuyển sang hoàn cọc (80%).',
+          buocTiepTheo: '/nhan-phong',
+          maDatCoc,
+        },
+      });
+    }
+
+    // ─── Bước 1: đánh giá ───
+    if (dsKhongDat.length === 0) {
+      await ghiNhanKetQuaThanhVien(dc, ketQua);
+      await capNhatSoThanhVienDuDieuKien(dc, dsDat.length);
+      await chuyenTrangThaiDatCoc(
+        dc,
+        TRANG_THAI_DAT_KIEM_TRA,
+        nguoiThucHien,
+        'Kiểm tra ĐK lưu trú: tất cả thành viên đạt — chuyển lập hợp đồng.',
+      );
+
+      return res.json({
+        ok: true,
+        data: {
+          trangThai: 'SUCCESS',
+          message: 'Tất cả thành viên đã đạt điều kiện. Chuyển sang lập hợp đồng.',
+          buocTiepTheo: '/hop-dong',
+          maDatCoc,
+        },
+      });
+    }
+
+    // Có thành viên không đạt
+    if (!laNhom) {
+      // Thuê cá nhân → từ chối ký hợp đồng
+      return res.json({
+        ok: true,
+        data: {
+          trangThai: 'INDIVIDUAL_REJECT',
+          message: 'Khách thuê cá nhân không đáp ứng điều kiện lưu trú. Quản lý từ chối ký hợp đồng.',
+          thanhVienKhongDat: dsKhongDat.map((tv) => tv.hoTen),
+          luaChonXuLy: [
+            { loai: 'TERMINATE_REFUND', nhan: 'Dừng thủ tục thuê — Hoàn cọc 80%' },
+          ],
+        },
+      });
+    }
+
+    // Thuê nhóm → cho nhóm chọn hướng xử lý
+    const choPhepTiepTuc = dsDat.length >= 1 && dsDat.length <= gioiHan;
+    return res.json({
       ok: true,
       data: {
-        trangThai: 'SUCCESS',
-        message: 'Tất cả thành viên đã đạt điều kiện. Chuyển sang lập hợp đồng.',
-        buocTiepTheo: '/contract/draft',
-        maHopDong: `CON-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`
-      }
+        trangThai: 'COMPLIANCE_EXCEPTION',
+        message: 'Một số thành viên chưa đáp ứng điều kiện lưu trú.',
+        thanhVienKhongDat: dsKhongDat.map((tv) => tv.hoTen),
+        soThanhVienConLai: dsDat.length,
+        soGiuongThue: gioiHan,
+        choPhepTiepTuc,
+        lyDoKhongChoTiepTuc: choPhepTiepTuc
+          ? null
+          : (dsDat.length < 1
+            ? 'Không còn thành viên nào đủ điều kiện.'
+            : `Số người còn lại (${dsDat.length}) vẫn vượt số giường/phòng đã đặt (${gioiHan}).`),
+        luaChonXuLy: [
+          ...(choPhepTiepTuc
+            ? [{ loai: 'CONTINUE_PARTIAL', nhan: `Tiếp tục ký HĐ với ${dsDat.length} thành viên còn lại` }]
+            : []),
+          { loai: 'TERMINATE_REFUND', nhan: 'Dừng thủ tục thuê — Hoàn cọc 80%' },
+        ],
+      },
     });
   } catch (error) {
     console.error('Lỗi khi xác nhận kiểm tra lưu trú:', error);

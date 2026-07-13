@@ -1,58 +1,32 @@
 import { useState, useEffect } from 'react';
 
 // Trang KIỂM TRA ĐIỀU KIỆN LƯU TRÚ (STAY CHECK)
-// Quản lý đối chiếu định danh và kiểm tra điều kiện lưu trú trước khi lập hợp đồng.
-export default function StayConditionsCheck({ maHoSo: propMaHoSo, hienThongBao, onQuayLai, onXacNhanThanhCong }) {
-  const [danhSachHoSo, setDanhSachHoSo] = useState([]);
-  const [selectedHoSo, setSelectedHoSo] = useState('');
+// Nhân viên đối chiếu định danh và kiểm tra điều kiện lưu trú trước khi lập hợp đồng.
+export default function StayConditionsCheck({ maHoSo = null, hienThongBao, onQuayLai, onXacNhanThanhCong }) {
   const [thongTinDatCoc, setThongTinDatCoc] = useState(null);
   const [danhSachThanhVienLuuTru, setDanhSachThanhVienLuuTru] = useState([]);
   const [dangTaiLuuTru, setDangTaiLuuTru] = useState(false);
-  const [dangTaiDanhSach, setDangTaiDanhSach] = useState(false);
   const [dangXuLy, setDangXuLy] = useState(false);
-  
-  // State xử lý ngoại lệ khi có thành viên không đạt
-  const [exceptionData, setExceptionData] = useState(null);
+  const [ngoaiLe, setNgoaiLe] = useState(null);
 
-  // 1. Tải danh sách hồ sơ đặt cọc đang chờ kiểm tra (Đã thanh toán)
-  const taiDanhSachHoSo = async () => {
-    setDangTaiDanhSach(true);
-    try {
-      const res = await fetch('/api/kiem-tra-luu-tru/danh-sach');
-      const json = await res.json();
-      if (json.ok) {
-        setDanhSachHoSo(json.data);
-        if (json.data.length > 0) {
-          // Mặc định chọn hồ sơ đầu tiên hoặc hồ sơ truyền từ prop
-          const defaultHoSo = propMaHoSo && json.data.some(h => h.maHoSo === propMaHoSo)
-            ? propMaHoSo
-            : json.data[0].maHoSo;
-          setSelectedHoSo(defaultHoSo);
-        } else {
-          hienThongBao('info', 'Không có hồ sơ đặt cọc nào đang ở trạng thái Chờ kiểm tra lưu trú.');
-        }
-      } else {
-        hienThongBao('error', json.error || 'Không tải được danh sách hồ sơ');
-      }
-    } catch (err) {
-      console.error('Lỗi khi tải danh sách cọc:', err);
-      hienThongBao('error', 'Lỗi kết nối máy chủ');
-    } finally {
-      setDangTaiDanhSach(false);
+  const taiDuLieuKiemTraLuuTru = async (maHoSoCanTai = maHoSo) => {
+    if (!maHoSoCanTai) {
+      hienThongBao('error', 'Thiếu mã hồ sơ cần kiểm tra. Vui lòng chọn hồ sơ từ danh sách.');
+      return;
     }
-  };
-
-  // 2. Tải dữ liệu chi tiết của hồ sơ đang chọn
-  const taiDuLieuKiemTraLuuTru = async (maHoSoCanTai) => {
-    if (!maHoSoCanTai) return;
     setDangTaiLuuTru(true);
-    setExceptionData(null); // Reset exception state
     try {
       const res = await fetch(`/api/kiem-tra-luu-tru/${encodeURIComponent(maHoSoCanTai)}`);
       const json = await res.json();
       if (json.ok) {
         setThongTinDatCoc(json.data.thongTinDatCoc);
-        setDanhSachThanhVienLuuTru(json.data.danhSachThanhVien);
+        setDanhSachThanhVienLuuTru(
+          json.data.danhSachThanhVien.map(tv => ({
+            ...tv,
+            dieuKien: true,
+            trangThai: 'Đạt'
+          }))
+        );
       } else {
         hienThongBao('error', json.error || 'Không tải được dữ liệu kiểm tra lưu trú');
       }
@@ -65,16 +39,9 @@ export default function StayConditionsCheck({ maHoSo: propMaHoSo, hienThongBao, 
   };
 
   useEffect(() => {
-    taiDanhSachHoSo();
+    if (maHoSo) taiDuLieuKiemTraLuuTru();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [propMaHoSo]);
-
-  useEffect(() => {
-    if (selectedHoSo) {
-      taiDuLieuKiemTraLuuTru(selectedHoSo);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedHoSo]);
+  }, [maHoSo]);
 
   const capNhatDieuKienThanhVien = (id) => {
     setDanhSachThanhVienLuuTru(prev => prev.map(tv => {
@@ -86,7 +53,7 @@ export default function StayConditionsCheck({ maHoSo: propMaHoSo, hienThongBao, 
     }));
   };
 
-  const xacNhanKiemTraLuuTru = async () => {
+  const guiKetQuaKiemTra = async (luaChon = null) => {
     if (danhSachThanhVienLuuTru.length === 0) {
       hienThongBao('error', 'Chưa có thành viên nào để kiểm tra!');
       return;
@@ -97,27 +64,40 @@ export default function StayConditionsCheck({ maHoSo: propMaHoSo, hienThongBao, 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          maHoSo: selectedHoSo,
+          maHoSo: maHoSo,
+          luaChon,
           ketQua: danhSachThanhVienLuuTru.map(tv => ({
             id: tv.id,
             cccd: tv.cccd,
             hoTen: tv.hoTen,
-            dieuKien: tv.dieuKien
-          }))
-        })
+            dieuKien: tv.dieuKien,
+          })),
+        }),
       });
       const json = await res.json();
-      if (json.ok && json.data.trangThai === 'SUCCESS') {
-        hienThongBao('success', `${json.data.message} (Mã tạm tính HĐ: ${json.data.maHopDong})`);
-        if (onXacNhanThanhCong) {
-          onXacNhanThanhCong(json.data);
-        }
-      } else if (json.ok && json.data.trangThai === 'COMPLIANCE_EXCEPTION') {
-        hienThongBao('error', `${json.data.message}`);
-        // Lưu thông tin ngoại lệ để hiển thị các tùy chọn xử lý
-        setExceptionData(json.data);
-      } else {
+      if (!json.ok) {
         throw new Error(json.error || 'Lỗi hệ thống');
+      }
+
+      const d = json.data;
+      switch (d.trangThai) {
+        case 'SUCCESS':
+        case 'CONTINUE_PARTIAL':
+          setNgoaiLe(null);
+          hienThongBao('success', d.message);
+          if (onXacNhanThanhCong) onXacNhanThanhCong(d);
+          break;
+        case 'TERMINATED':
+          setNgoaiLe(null);
+          hienThongBao('success', d.message);
+          if (onQuayLai) setTimeout(() => onQuayLai(), 1500);
+          break;
+        case 'COMPLIANCE_EXCEPTION':
+        case 'INDIVIDUAL_REJECT':
+          setNgoaiLe(d);
+          break;
+        default:
+          hienThongBao('error', d.message || 'Kết quả kiểm tra không xác định.');
       }
     } catch (err) {
       console.error('Lỗi khi xác nhận kiểm tra lưu trú:', err);
@@ -127,65 +107,21 @@ export default function StayConditionsCheck({ maHoSo: propMaHoSo, hienThongBao, 
     }
   };
 
-  // Hàm xử lý quyết định khi có thành viên không đạt
-  const xuLyNgoaiLeThanhVien = (loaiQuyetDinh) => {
-    if (loaiQuyetDinh === 'CONTINUE_PARTIAL') {
-      hienThongBao('success', 'Đã ghi nhận tiếp tục thuê. Tiến hành loại bỏ thành viên không đạt khỏi danh sách hợp đồng...');
-      if (onXacNhanThanhCong) {
-        onXacNhanThanhCong({
-          trangThai: 'SUCCESS',
-          maHopDong: `CON-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`
-        });
-      }
-    } else if (loaiQuyetDinh === 'TERMINATE_REFUND') {
-      hienThongBao('info', 'Đã dừng thủ tục thuê phòng và chuyển hồ sơ hoàn trả cọc (hoàn 80%).');
-      // Quay lại danh sách cọc hoặc tải lại
-      taiDanhSachHoSo();
-    }
-  };
+  const xacNhanKiemTraLuuTru = () => guiKetQuaKiemTra(null);
 
   return (
     <div className="stay-check-page">
+
       <div className="stay-check-header">
-        <h1 className="page-title" style={{ margin: 0 }}>Đối chiếu định danh &amp; Kiểm tra điều kiện lưu trú</h1>
+        <h1 className="page-title" style={{ margin: 0 }}>Khách hàng đến nhận phòng — Kiểm tra điều kiện lưu trú</h1>
         <p className="page-subtitle" style={{ margin: '4px 0 0 0' }}>
-          Vai trò: Quản lý chi nhánh — Đối chiếu thông tin CCCD thực tế và xét duyệt các thành viên lưu trú.
+          Vui lòng đối chiếu thông tin định danh và kiểm tra các điều kiện lưu trú bắt buộc trước khi lập hợp đồng.
         </p>
       </div>
 
-      {/* THANH CHỌN HỒ SƠ ĐẶT CỌC */}
-      <div className="stay-check-selector-card" style={{ background: 'white', padding: '16px', borderRadius: '12px', marginBottom: '20px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '16px' }}>
-        <label htmlFor="hoso-select" style={{ fontWeight: '700', color: '#1e293b', whiteSpace: 'nowrap' }}>Chọn hồ sơ đặt cọc cần duyệt:</label>
-        {dangTaiDanhSach ? (
-          <span style={{ fontSize: '14px', color: '#64748b' }}>Đang tải danh sách hồ sơ...</span>
-        ) : (
-          <select
-            id="hoso-select"
-            value={selectedHoSo}
-            onChange={(e) => setSelectedHoSo(e.target.value)}
-            style={{ padding: '8px 12px', borderRadius: '8px', border: '1.5px solid #cbd5e1', outline: 'none', background: 'white', cursor: 'pointer', fontSize: '14.5px', color: '#0f172a', flex: 1 }}
-          >
-            {danhSachHoSo.map(h => (
-              <option key={h.maHoSo} value={h.maHoSo}>
-                Hồ sơ #{h.maHoSo} — Khách đại diện: {h.hoTenKhach} ({Number(h.soTienCoc).toLocaleString('vi-VN')} VNĐ cọc)
-              </option>
-            ))}
-          </select>
-        )}
-        <button
-          type="button"
-          onClick={taiDanhSachHoSo}
-          style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #cbd5e1', background: '#f8fafc', fontWeight: '700', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
-        >
-          🔄 Làm mới
-        </button>
-      </div>
-
       {dangTaiLuuTru ? (
-        <div className="stay-check-loading" style={{ textAlign: 'center', padding: '40px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#64748b' }}>
-          Đang tải dữ liệu hồ sơ từ cơ sở dữ liệu...
-        </div>
-      ) : thongTinDatCoc ? (
+        <div className="stay-check-loading">Đang tải dữ liệu hồ sơ đặt cọc...</div>
+      ) : (
         <div className="stay-check-grid">
 
           {/* CỘT TRÁI: THÔNG TIN ĐẶT CỌC */}
@@ -194,29 +130,29 @@ export default function StayConditionsCheck({ maHoSo: propMaHoSo, hienThongBao, 
               <div className="stay-check-card-head">
                 <h2 className="stay-check-card-title">Thông tin đặt cọc</h2>
                 <span className="status-badge-pill status-dat-coc">
-                  {thongTinDatCoc?.trangThai?.toUpperCase() || 'ĐÃ THANH TOÁN'}
+                  {thongTinDatCoc?.trangThai?.toUpperCase() || 'ĐÃ DUYỆT'}
                 </span>
               </div>
 
               <div className="stay-check-info-list">
                 <div className="stay-check-info-block">
-                  <span className="stay-check-label">Mã hồ sơ (Mã cọc)</span>
-                  <strong className="stay-check-value">#{thongTinDatCoc?.maHoSo}</strong>
+                  <span className="stay-check-label">Mã hồ sơ</span>
+                  <strong className="stay-check-value">{thongTinDatCoc?.maHoSo || maHoSo}</strong>
                 </div>
 
                 <div className="stay-check-info-pair">
                   <div className="stay-check-info-block">
-                    <span className="stay-check-label">Ngày nhận cọc</span>
+                    <span className="stay-check-label">Ngày nhận phòng</span>
                     <span className="stay-check-value-sm">{thongTinDatCoc?.ngayNhanPhong || '—'}</span>
                   </div>
                   <div className="stay-check-info-block">
-                    <span className="stay-check-label">Thời hạn thuê</span>
-                    <span className="stay-check-value-sm">{thongTinDatCoc?.thoiHanThue || 6} Tháng</span>
+                    <span className="stay-check-label">Thời gian thuê</span>
+                    <span className="stay-check-value-sm">{thongTinDatCoc?.thoiHanThue || 0} Tháng</span>
                   </div>
                 </div>
 
                 <div className="stay-check-info-block stay-check-divider">
-                  <span className="stay-check-label">Phòng/Giường dự kiến</span>
+                  <span className="stay-check-label">Phòng dự kiến</span>
                   <span className="stay-check-room">{thongTinDatCoc?.phongDuKien || '—'}</span>
                 </div>
 
@@ -239,8 +175,8 @@ export default function StayConditionsCheck({ maHoSo: propMaHoSo, hienThongBao, 
           <div className="stay-check-right">
             <div className="table-card">
               <div className="stay-check-members-head">
-                <h2 className="stay-check-card-title">Danh sách thành viên đăng ký lưu trú</h2>
-                <span className="stay-check-members-count">{danhSachThanhVienLuuTru.length} Người</span>
+                <h2 className="stay-check-card-title">Danh sách thành viên lưu trú</h2>
+                <span className="stay-check-members-count">{danhSachThanhVienLuuTru.length} Thành viên</span>
               </div>
 
               <div className="table-responsive">
@@ -251,33 +187,26 @@ export default function StayConditionsCheck({ maHoSo: propMaHoSo, hienThongBao, 
                       <th>Họ tên</th>
                       <th>CCCD</th>
                       <th style={{ textAlign: 'center' }}>Giới tính</th>
-                      <th>Quốc tịch</th>
-                      <th style={{ textAlign: 'right' }}>Khả năng tài chính</th>
                       <th style={{ textAlign: 'center' }}>Điều kiện</th>
                       <th>Kết quả</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {danhSachThanhVienLuuTru.map((tv, index) => (
-                      <tr key={tv.cccd} className={!tv.dieuKien ? 'stay-check-row-fail' : ''}>
-                        <td>{index + 1}</td>
+                    {danhSachThanhVienLuuTru.map((tv) => (
+                      <tr key={tv.id} className={!tv.dieuKien ? 'stay-check-row-fail' : ''}>
+                        <td>{tv.id}</td>
                         <td>
                           <strong className="client-name">{tv.hoTen}</strong>
                           {tv.truongNhom && <span className="stay-check-lead-tag">TRƯỞNG NHÓM</span>}
                         </td>
                         <td className="datetime-cell-content">{tv.cccd}</td>
                         <td style={{ textAlign: 'center' }} className="datetime-cell-content">{tv.gioiTinh}</td>
-                        <td>{tv.quocTich || 'Việt Nam'}</td>
-                        <td style={{ textAlign: 'right' }}>
-                          {tv.taiChinh ? `${Number(tv.taiChinh).toLocaleString('vi-VN')} đ` : '—'}
-                        </td>
                         <td style={{ textAlign: 'center' }}>
                           <input
                             type="checkbox"
                             className="stay-check-checkbox"
                             checked={tv.dieuKien}
                             onChange={() => capNhatDieuKienThanhVien(tv.id)}
-                            disabled={exceptionData !== null} // Khóa checkbox nếu đang xử lý ngoại lệ
                           />
                         </td>
                         <td>
@@ -291,41 +220,7 @@ export default function StayConditionsCheck({ maHoSo: propMaHoSo, hienThongBao, 
                 </table>
               </div>
 
-              {/* HIỂN THỊ HỘP LỰA CHỌN XỬ LÝ NGOẠI LỆ KHI CÓ THÀNH VIÊN KHÔNG ĐẠT */}
-              {exceptionData && (
-                <div className="compliance-exception-box" style={{ background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: '12px', padding: '16px', marginTop: '20px', textAlign: 'left' }}>
-                  <h3 style={{ margin: '0 0 8px 0', fontSize: '15.5px', color: '#b91c1c', fontWeight: '800' }}>
-                    ⚠️ Phát hiện thành viên không đủ điều kiện lưu trú!
-                  </h3>
-                  <p style={{ margin: '0 0 12px 0', fontSize: '13.5px', color: '#7f1d1d' }}>
-                    Thành viên chưa đạt: <strong>{exceptionData.thanhVienKhongDat.join(', ')}</strong>. Vui lòng chọn một trong các phương án xử lý dưới đây theo quy chế ký túc xá:
-                  </p>
-                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                    {exceptionData.luaChonXuLy?.map(option => (
-                      <button
-                        key={option.loai}
-                        type="button"
-                        onClick={() => xuLyNgoaiLeThanhVien(option.loai)}
-                        style={{
-                          flex: 1,
-                          padding: '10px 16px',
-                          borderRadius: '8px',
-                          border: 'none',
-                          background: option.loai === 'CONTINUE_PARTIAL' ? '#2563eb' : '#dc2626',
-                          color: 'white',
-                          fontWeight: '700',
-                          cursor: 'pointer',
-                          fontSize: '13px'
-                        }}
-                      >
-                        {option.nhan}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="stay-check-actions" style={{ marginTop: '24px' }}>
+              <div className="stay-check-actions">
                 <button
                   type="button"
                   className="btn-detail-outline"
@@ -333,27 +228,95 @@ export default function StayConditionsCheck({ maHoSo: propMaHoSo, hienThongBao, 
                 >
                   Quay lại
                 </button>
-                
-                {exceptionData === null && (
-                  <button
-                    type="button"
-                    className="btn-book-filled"
-                    disabled={dangXuLy}
-                    onClick={xacNhanKiemTraLuuTru}
-                  >
-                    {dangXuLy ? 'Đang xử lý...' : 'Xác nhận kết quả kiểm tra'}
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="btn-book-filled"
+                  disabled={dangXuLy}
+                  onClick={xacNhanKiemTraLuuTru}
+                >
+                  {dangXuLy ? 'Đang xử lý...' : 'Xác nhận kết quả kiểm tra → Lập hợp đồng'}
+                </button>
               </div>
             </div>
           </div>
 
         </div>
-      ) : (
-        <div style={{ textAlign: 'center', padding: '40px', background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', color: '#64748b' }}>
-          Không tìm thấy hồ sơ đặt cọc hợp lệ để kiểm tra lưu trú.
+      )}
+
+      {ngoaiLe && (
+        <div className="np-modal-overlay" onClick={() => { if (!dangXuLy) setNgoaiLe(null); }}>
+          <div className="np-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="np-modal-head">
+              <span className="material-symbols-outlined np-modal-icon">warning</span>
+              <div>
+                <h3>
+                  {ngoaiLe.trangThai === 'INDIVIDUAL_REJECT'
+                    ? 'Khách không đủ điều kiện lưu trú'
+                    : 'Một số thành viên không đủ điều kiện'}
+                </h3>
+                <p>{ngoaiLe.message}</p>
+              </div>
+            </div>
+
+            <div className="np-modal-body">
+              <div className="np-modal-field">
+                <span className="np-modal-label">Thành viên chưa đạt</span>
+                <div className="np-modal-chips">
+                  {(ngoaiLe.thanhVienKhongDat || []).map((ten, i) => (
+                    <span key={i} className="np-chip-fail">{ten}</span>
+                  ))}
+                </div>
+              </div>
+
+              {ngoaiLe.trangThai === 'COMPLIANCE_EXCEPTION' && (
+                <div className="np-modal-summary">
+                  <div>
+                    <span className="np-modal-label">Số thành viên còn lại</span>
+                    <strong>{ngoaiLe.soThanhVienConLai}</strong>
+                  </div>
+                  <div>
+                    <span className="np-modal-label">Số giường/phòng đã đặt</span>
+                    <strong>{ngoaiLe.soGiuongThue}</strong>
+                  </div>
+                </div>
+              )}
+
+              {ngoaiLe.trangThai === 'COMPLIANCE_EXCEPTION' && !ngoaiLe.choPhepTiepTuc && (
+                <div className="np-modal-note np-modal-note--warn">
+                  {ngoaiLe.lyDoKhongChoTiepTuc || 'Không thể tiếp tục ký hợp đồng với danh sách hiện tại.'}
+                </div>
+              )}
+
+              <p className="np-modal-hint">
+                Các thành viên không đạt sẽ không được ký hợp đồng và không được sắp xếp vào ở theo danh sách đã đăng ký.
+              </p>
+            </div>
+
+            <div className="np-modal-actions">
+              <button
+                type="button"
+                className="btn-detail-outline"
+                disabled={dangXuLy}
+                onClick={() => setNgoaiLe(null)}
+              >
+                Đóng
+              </button>
+              {(ngoaiLe.luaChonXuLy || []).map((lc) => (
+                <button
+                  key={lc.loai}
+                  type="button"
+                  className={lc.loai === 'TERMINATE_REFUND' ? 'np-btn-danger' : 'btn-book-filled'}
+                  disabled={dangXuLy}
+                  onClick={() => guiKetQuaKiemTra(lc.loai)}
+                >
+                  {dangXuLy ? 'Đang xử lý...' : lc.nhan}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
+
     </div>
   );
 }

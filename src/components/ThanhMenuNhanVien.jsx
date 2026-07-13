@@ -97,7 +97,7 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
       { key: 'dashboard', label: 'Tổng quan', path: ROUTES.dashboard },
       { key: 'phongGiuong', label: 'Sơ đồ phòng', path: ROUTES.phongGiuong },
       { key: 'deposit', label: 'Đặt cọc', path: ROUTES.deposit },
-      { key: 'stayCheck', label: 'Đăng ký lưu trú', path: ROUTES.stayCheck },
+      { key: 'kiemTraLuuTru', label: 'Kiểm tra ĐK lưu trú', path: ROUTES.kiemTraLuuTru },
       { key: 'checkout', label: 'Kiểm tra trả phòng', path: ROUTES.checkout },
       { key: 'thongBao', label: 'Thông báo', path: ROUTES.thongBao }
     ];
