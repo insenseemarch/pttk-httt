@@ -1,27 +1,67 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import KhungNhanVien from './KhungNhanVien';
 
 // Trang THANH TOÁN ĐẦU KỲ (INITIAL PAYMENT)
-// Kế toán xác nhận thu tiền thuê kỳ đầu trước khi bàn giao phòng.
-export default function InitialPayment({ maHopDong = 'CON-2023-1102', hienThongBao, onQuayLai, onXacNhanThanhCong }) {
+// Kế toán xem danh sách và lập phiếu thu tiền thuê kỳ đầu.
+export default function InitialPayment({ maHopDong = null, hienThongBao, onQuayLai, onXacNhanThanhCong, nguoiDung, dangXuat }) {
+  const navigate = useNavigate();
+  const [selectedMaHopDong, setSelectedMaHopDong] = useState(maHopDong);
+  const [danhSachHopDong, setDanhSachHopDong] = useState([]);
+  const [loadingList, setLoadingList] = useState(false);
+
+  // States cho Toast thông báo nội bộ (khi chạy độc lập không qua prop hienThongBao)
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  // States cho chi tiết thanh toán của hợp đồng đang chọn
   const [dangTai, setDangTai] = useState(false);
   const [dangXuLy, setDangXuLy] = useState(false);
-
-  // Dữ liệu hợp đồng & khoản thu
   const [maGiaoDich, setMaGiaoDich] = useState('');
   const [khachHang, setKhachHang] = useState(null);
   const [danhSachKhoanThu, setDanhSachKhoanThu] = useState([]);
   const [tongTienPhaiThu, setTongTienPhaiThu] = useState(0);
   const [ghiChuQuanLy, setGhiChuQuanLy] = useState('');
-
-  // Nhập liệu thanh toán
   const [phuongThuc, setPhuongThuc] = useState('tien-mat');
   const [soTienThucThu, setSoTienThucThu] = useState('');
 
-  // Tải dữ liệu chi tiết thanh toán
-  const taiChiTietThanhToan = async () => {
+  // Hàm hiển thị thông báo hợp nhất
+  const thongBao = (kieu, noiDung) => {
+    if (hienThongBao) {
+      hienThongBao(kieu, noiDung);
+    } else {
+      setToastMessage(noiDung);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
+    }
+  };
+
+  // 1. Tải danh sách hợp đồng
+  const taiDanhSachHopDong = async () => {
+    setLoadingList(true);
+    try {
+      const res = await fetch('/api/hop-dong').then(r => r.json());
+      if (res.ok) {
+        setDanhSachHopDong(res.danhSach || []);
+      }
+    } catch (err) {
+      console.error('Lỗi tải danh sách hợp đồng:', err);
+    } finally {
+      setLoadingList(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedMaHopDong === null) {
+      taiDanhSachHopDong();
+    }
+  }, [selectedMaHopDong]);
+
+  // 2. Tải chi tiết thanh toán của hợp đồng được chọn
+  const taiChiTietThanhToan = async (maHD) => {
     setDangTai(true);
     try {
-      const res = await fetch(`/api/ke-toan/chi-tiet-thanh-toan/${encodeURIComponent(maHopDong)}`);
+      const res = await fetch(`/api/ke-toan/chi-tiet-thanh-toan/${encodeURIComponent(maHD)}`);
       const json = await res.json();
       if (json.ok) {
         setMaGiaoDich(json.data.maGiaoDich || '');
@@ -31,20 +71,21 @@ export default function InitialPayment({ maHopDong = 'CON-2023-1102', hienThongB
         setGhiChuQuanLy(json.data.ghiChuQuanLy || '');
         setSoTienThucThu(String(json.data.tongTienPhaiThu || ''));
       } else {
-        hienThongBao('error', json.error || 'Không tải được dữ liệu thanh toán');
+        thongBao('error', json.error || 'Không tải được dữ liệu thanh toán');
       }
     } catch (err) {
       console.error('Lỗi khi tải chi tiết thanh toán:', err);
-      hienThongBao('error', 'Lỗi kết nối API thanh toán');
+      thongBao('error', 'Lỗi kết nối API thanh toán');
     } finally {
       setDangTai(false);
     }
   };
 
   useEffect(() => {
-    taiChiTietThanhToan();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [maHopDong]);
+    if (selectedMaHopDong !== null) {
+      taiChiTietThanhToan(selectedMaHopDong);
+    }
+  }, [selectedMaHopDong]);
 
   const soTienThucThuNum = Number(String(soTienThucThu).replace(/\D/g, '')) || 0;
   const chenhLech = soTienThucThuNum - tongTienPhaiThu;
@@ -52,11 +93,11 @@ export default function InitialPayment({ maHopDong = 'CON-2023-1102', hienThongB
 
   const xacNhanDaThu = async () => {
     if (!soTienThucThu || soTienThucThuNum <= 0) {
-      hienThongBao('error', 'Vui lòng nhập số tiền thực thu!');
+      thongBao('error', 'Vui lòng nhập số tiền thực thu!');
       return;
     }
     if (!duThu) {
-      hienThongBao('error', `Số tiền thu chưa đủ. Còn thiếu: ${(tongTienPhaiThu - soTienThucThuNum).toLocaleString('vi-VN')}đ`);
+      thongBao('error', `Số tiền thu chưa đủ. Còn thiếu: ${(tongTienPhaiThu - soTienThucThuNum).toLocaleString('vi-VN')}đ`);
       return;
     }
     setDangXuLy(true);
@@ -68,25 +109,34 @@ export default function InitialPayment({ maHopDong = 'CON-2023-1102', hienThongB
           maGiaoDich,
           phuongThuc,
           soTienThucThu: soTienThucThuNum,
-          maKeToan: 'KT-01'
+          maKeToan: 'KT-01',
+          maHopDong: selectedMaHopDong
         })
       });
       const json = await res.json();
       if (json.ok) {
-        hienThongBao('success', `${json.data.message} (Mã phiếu thu: ${json.data.maPhieuThu})`);
-        if (onXacNhanThanhCong) onXacNhanThanhCong(json.data);
+        thongBao('success', `${json.data.message} (Mã phiếu thu: ${json.data.maPhieuThu})`);
+        
+        // Cập nhật trạng thái trong danh sách local
+        setDanhSachHopDong(prev => prev.map(hd => hd.maHopDong === selectedMaHopDong ? { ...hd, daThanhToanDauKy: true } : hd));
+        
+        if (onXacNhanThanhCong) {
+          onXacNhanThanhCong(json.data);
+        } else {
+          // Quay lại danh sách
+          setSelectedMaHopDong(null);
+        }
       } else {
         throw new Error(json.error || 'Lỗi hệ thống');
       }
     } catch (err) {
       console.error('Lỗi khi xác nhận thu tiền:', err);
-      hienThongBao('error', `Lỗi: ${err.message}`);
+      thongBao('error', `Lỗi: ${err.message}`);
     } finally {
       setDangXuLy(false);
     }
   };
 
-  // Format số tiền nhập vào (hiển thị dấu phẩy)
   const xuLyNhapSoTien = (e) => {
     const raw = e.target.value.replace(/\D/g, '');
     setSoTienThucThu(raw);
@@ -94,7 +144,6 @@ export default function InitialPayment({ maHopDong = 'CON-2023-1102', hienThongB
 
   const formatTien = (so) => Number(so).toLocaleString('vi-VN');
 
-  // Đọc số thành chữ (đơn giản hóa)
   const docSoThanh = (so) => {
     if (!so || so === 0) return '';
     const trieu = Math.floor(so / 1000000);
@@ -107,46 +156,118 @@ export default function InitialPayment({ maHopDong = 'CON-2023-1102', hienThongB
     return chuoi.trim() + ' đồng chẵn.';
   };
 
-  return (
-    <div className="payment-page">
-
-      {/* BREADCRUMB */}
-      <div className="payment-breadcrumb">
-        <span>Thanh toán</span>
-        <span className="payment-breadcrumb-sep">›</span>
-        <span className="payment-breadcrumb-current">Tạo mới phiếu thu</span>
-      </div>
-
-      {/* PAGE HEADER */}
-      <div className="payment-header">
-        <div>
-          <h1 className="page-title" style={{ margin: 0 }}>Thanh toán đầu kỳ</h1>
-          <p className="page-subtitle" style={{ margin: '4px 0 0 0' }}>
-            Xác nhận thu tiền kỳ đầu để kế toán lên phiếu và thông báo bàn giao phòng.
-          </p>
-        </div>
-        {maGiaoDich && (
-          <div className="payment-transaction-badge">
-            <span className="payment-transaction-label">Mã giao dịch</span>
-            <strong className="payment-transaction-id">{maGiaoDich}</strong>
+  const renderMainContent = () => {
+    // NẾU CHƯA CHỌN HỢP ĐỒNG -> HIỂN THỊ DANH SÁCH HỢP ĐỒNG CHỜ TIẾP NHẬN THANH TOÁN
+    if (selectedMaHopDong === null) {
+      return (
+        <div className="payment-page" style={{ padding: '24px', background: '#f8fafc', minHeight: '80vh' }}>
+          <div className="payment-breadcrumb" style={{ marginBottom: '16px', fontSize: '13px', color: '#64748b' }}>
+            <span>Kế toán</span>
+            <span className="payment-breadcrumb-sep" style={{ margin: '0 8px' }}>›</span>
+            <span className="payment-breadcrumb-current" style={{ fontWeight: '600', color: '#0f172a' }}>Danh sách thu tiền đầu kỳ</span>
           </div>
-        )}
-      </div>
 
-      {dangTai ? (
-        <div className="stay-check-loading">Đang tải dữ liệu thanh toán...</div>
-      ) : (
+          <div className="qt-page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <div>
+              <h1 style={{ fontSize: '24px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Tiếp nhận thanh toán đầu kỳ</h1>
+              <p style={{ margin: '4px 0 0 0', color: '#64748b', fontSize: '14.5px' }}>
+                Danh sách các hợp đồng mới ký cần thu phí thuê phòng và cọc đợt đầu.
+              </p>
+            </div>
+          </div>
+
+          <div className="qt-table-wrap" style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+            {loadingList ? (
+              <div style={{ textAlign: 'center', padding: '48px', color: '#64748b' }}>Đang tải danh sách hợp đồng...</div>
+            ) : danhSachHopDong.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '48px', color: '#64748b' }}>Không có hợp đồng nào đang chờ.</div>
+            ) : (
+              <table className="qt-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14.5px' }}>
+                <thead style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+                  <tr>
+                    <th style={{ textAlign: 'left', padding: '16px', fontWeight: '700', color: '#475569' }}>Mã HĐ</th>
+                    <th style={{ textAlign: 'left', padding: '16px', fontWeight: '700', color: '#475569' }}>Tên khách hàng</th>
+                    <th style={{ textAlign: 'left', padding: '16px', fontWeight: '700', color: '#475569' }}>Phòng</th>
+                    <th style={{ textAlign: 'left', padding: '16px', fontWeight: '700', color: '#475569' }}>Ngày bắt đầu</th>
+                    <th style={{ textAlign: 'right', padding: '16px', fontWeight: '700', color: '#475569' }}>Tiền phòng tháng đầu</th>
+                    <th style={{ textAlign: 'center', padding: '16px', fontWeight: '700', color: '#475569' }}>Trạng thái thu</th>
+                    <th style={{ textAlign: 'center', padding: '16px', fontWeight: '700', color: '#475569' }}>Hành động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {danhSachHopDong.map((hd) => {
+                    const daThu = hd.daThanhToanDauKy || hd.trangThai === 'Hiệu lực';
+                    return (
+                      <tr key={hd.maHopDong} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }}>
+                        <td style={{ padding: '16px' }}><strong>{hd.maHD}</strong></td>
+                        <td style={{ padding: '16px' }}>
+                          <div>{hd.hoTen}</div>
+                          <div style={{ fontSize: '12.5px', color: '#64748b', marginTop: '2px' }}>{hd.sdt}</div>
+                        </td>
+                        <td style={{ padding: '16px' }}>{hd.phong}</td>
+                        <td style={{ padding: '16px' }}>{hd.ngayBatDau}</td>
+                        <td style={{ padding: '16px', textAlign: 'right' }}><strong>{hd.giaThue}</strong></td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          <span className={`qt-chip qt-chip--${daThu ? 'green' : 'orange'}`}>
+                            {daThu ? 'Đã thu tiền' : 'Chờ thu tiền'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '16px', textAlign: 'center' }}>
+                          {daThu ? (
+                            <button type="button" className="qt-btn-outline" style={{ opacity: 0.6, cursor: 'not-allowed', padding: '6px 12px', fontSize: '13px' }} disabled>
+                              Đã hoàn thành
+                            </button>
+                          ) : (
+                            <button type="button" className="qt-btn-primary" style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', background: '#10b981', color: '#fff', border: 'none', fontWeight: '700' }} onClick={() => setSelectedMaHopDong(hd.maHopDong)}>
+                              <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: '4px', verticalAlign: 'middle' }}>account_balance_wallet</span>
+                              Thu tiền
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // NẾU ĐÃ CHỌN HỢP ĐỒNG -> HIỂN THỊ PHIẾU THU TIỀN CHI TIẾT
+    return (
+      <div className="payment-page">
+        {/* BREADCRUMB */}
+        <div className="payment-breadcrumb">
+          <span style={{ cursor: 'pointer' }} onClick={() => setSelectedMaHopDong(null)}>Thanh toán</span>
+          <span className="payment-breadcrumb-sep">›</span>
+          <span className="payment-breadcrumb-current">Tạo mới phiếu thu</span>
+        </div>
+
+        {/* PAGE HEADER */}
+        <div className="payment-header">
+          <div>
+            <h1 className="page-title" style={{ margin: 0 }}>Thanh toán đầu kỳ</h1>
+            <p className="page-subtitle" style={{ margin: '4px 0 0 0' }}>
+              Xác nhận thu tiền kỳ đầu để kế toán lên phiếu và thông báo bàn giao phòng.
+            </p>
+          </div>
+          {maGiaoDich && (
+            <div className="payment-transaction-badge">
+              <span className="payment-transaction-label">Mã giao dịch</span>
+              <strong className="payment-transaction-id">{maGiaoDich}</strong>
+            </div>
+          )}
+        </div>
+
         <div className="payment-grid">
-
-          {/* ─── CỘT TRÁI: THÔNG TIN & CHI TIẾT KHOẢN THU ─── */}
+          {/* CỘT TRÁI: THÔNG TIN & CHI TIẾT KHOẢN THU */}
           <div className="payment-left">
-
-            {/* Thông tin hợp đồng */}
             <div className="stay-check-card payment-contract-card">
               <div className="stay-check-card-head">
                 <h2 className="stay-check-card-title">Thông tin hợp đồng</h2>
               </div>
-
               <div className="payment-contract-grid">
                 <div className="payment-contract-field">
                   <span className="payment-field-label">Tên khách hàng</span>
@@ -179,7 +300,6 @@ export default function InitialPayment({ maHopDong = 'CON-2023-1102', hienThongB
               </div>
             </div>
 
-            {/* Bảng chi tiết khoản thu */}
             <div className="stay-check-card payment-items-card">
               <div className="stay-check-card-head">
                 <h2 className="stay-check-card-title">Chi tiết các khoản thu</h2>
@@ -187,7 +307,6 @@ export default function InitialPayment({ maHopDong = 'CON-2023-1102', hienThongB
                   {khachHang?.kyThanhToan || 'Tháng đầu'}
                 </span>
               </div>
-
               <div className="table-responsive">
                 <table className="appointments-table payment-items-table">
                   <thead>
@@ -198,55 +317,42 @@ export default function InitialPayment({ maHopDong = 'CON-2023-1102', hienThongB
                   </thead>
                   <tbody>
                     {danhSachKhoanThu.map((item, idx) => (
-                      <tr key={idx} className="payment-item-row">
-                        <td>
-                          <span className="payment-item-name">{item.ten}</span>
-                          <span className="payment-item-period">{item.kyTinh}</span>
+                      <tr key={idx}>
+                        <td style={{ textAlign: 'left' }}>
+                          <div className="item-name">{item.ten}</div>
+                          <div className="item-period">{item.kyTinh}</div>
                         </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <span className="payment-item-amount">{formatTien(item.soTien)}đ</span>
+                        <td style={{ textAlign: 'right' }} className="item-price">
+                          {formatTien(item.soTien)}đ
                         </td>
                       </tr>
                     ))}
-                  </tbody>
-                  <tfoot>
                     <tr className="payment-total-row">
-                      <td>
-                        <strong className="payment-total-label">Tổng cộng</strong>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div>
-                          <span className="payment-total-amount">{formatTien(tongTienPhaiThu)}đ</span>
-                          <span className="payment-total-text">{docSoThanh(tongTienPhaiThu)}</span>
-                        </div>
+                      <td style={{ textAlign: 'left' }}>Tổng số tiền cần thu</td>
+                      <td style={{ textAlign: 'right' }} className="total-amount">
+                        {formatTien(tongTienPhaiThu)}đ
                       </td>
                     </tr>
-                  </tfoot>
+                  </tbody>
                 </table>
               </div>
             </div>
-
           </div>
 
-          {/* ─── CỘT PHẢI: NHẬP LIỆU THANH TOÁN ─── */}
+          {/* CỘT PHẢI: PHƯƠNG THỨC & HOÀN TẤT PHIẾU THU */}
           <div className="payment-right">
-
-            {/* Panel nhập liệu */}
-            <div className="stay-check-card payment-input-card">
+            <div className="stay-check-card payment-action-card">
               <div className="stay-check-card-head">
-                <h2 className="stay-check-card-title">Nhập liệu thanh toán</h2>
+                <h2 className="stay-check-card-title">Thông tin giao dịch</h2>
               </div>
-
-              <div className="payment-input-body">
-
-                {/* Phương thức thanh toán */}
+              <div className="payment-action-body">
                 <div className="payment-input-group">
                   <label className="payment-input-label">Phương thức thanh toán</label>
-                  <div className="payment-method-list">
+                  <div className="payment-method-selector">
                     {[
                       { value: 'tien-mat', label: 'Tiền mặt' },
                       { value: 'chuyen-khoan', label: 'Chuyển khoản' }
-                    ].map(opt => (
+                    ].map((opt) => (
                       <button
                         key={opt.value}
                         type="button"
@@ -260,7 +366,6 @@ export default function InitialPayment({ maHopDong = 'CON-2023-1102', hienThongB
                   </div>
                 </div>
 
-                {/* Số tiền thực thu */}
                 <div className="payment-input-group">
                   <label className="payment-input-label">Số tiền thực thu</label>
                   <div className="payment-amount-wrap">
@@ -273,8 +378,6 @@ export default function InitialPayment({ maHopDong = 'CON-2023-1102', hienThongB
                     />
                     <span className="payment-amount-suffix">đ</span>
                   </div>
-
-                  {/* Chênh lệch */}
                   {soTienThucThuNum > 0 && (
                     <div className={`payment-diff-row ${duThu ? 'surplus' : 'deficit'}`}>
                       <span>{duThu ? 'Đủ tiền' : 'Còn thiếu'}</span>
@@ -287,7 +390,6 @@ export default function InitialPayment({ maHopDong = 'CON-2023-1102', hienThongB
                   )}
                 </div>
 
-                {/* Nút xác nhận */}
                 <button
                   type="button"
                   className={`payment-confirm-btn ${dangXuLy ? 'loading' : ''}`}
@@ -296,15 +398,12 @@ export default function InitialPayment({ maHopDong = 'CON-2023-1102', hienThongB
                 >
                   {dangXuLy ? 'Đang xử lý...' : 'XÁC NHẬN ĐÃ THU ĐỦ'}
                 </button>
-
                 <div className="payment-notify-hint">
                   Hệ thống sẽ tự động thông báo Quản lý vận hành để bàn giao phòng sau khi bạn xác nhận.
                 </div>
-
               </div>
             </div>
 
-            {/* Hướng dẫn kế toán */}
             <div className="payment-guide-card">
               <div className="payment-guide-head">Hướng dẫn kế toán</div>
               <ul className="payment-guide-list">
@@ -321,21 +420,50 @@ export default function InitialPayment({ maHopDong = 'CON-2023-1102', hienThongB
               </ul>
             </div>
 
-            {/* Nút quay lại */}
             <button
               type="button"
               className="btn-detail-outline"
               style={{ width: '100%', padding: '12px', borderRadius: '10px', textAlign: 'center' }}
-              onClick={onQuayLai}
+              onClick={() => setSelectedMaHopDong(null)}
             >
-              Quay lại
+              Quay lại danh sách
             </button>
-
           </div>
+        </div>
+      </div>
+    );
+  };
 
+  const mainContent = (
+    <>
+      {renderMainContent()}
+      
+      {/* Toast popup thông báo nội bộ */}
+      {showToast && (
+        <div style={{
+          position: 'fixed', top: '24px', right: '24px',
+          background: '#0f172a', color: '#ffffff',
+          padding: '16px 24px', borderRadius: '16px',
+          boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15)',
+          display: 'flex', alignItems: 'center', gap: '12px',
+          zIndex: 2000
+        }}>
+          <span className="material-symbols-outlined" style={{ color: '#22c55e', fontSize: '22px' }}>check_circle</span>
+          <span style={{ fontSize: '14.5px', fontWeight: '600' }}>{toastMessage}</span>
         </div>
       )}
+    </>
+  );
 
-    </div>
+  // Nếu chạy trong luồng mô phỏng landing page (có onQuayLai), không render KhungNhanVien tránh bị lặp header
+  if (onQuayLai) {
+    return mainContent;
+  }
+
+  // Nếu chạy trang độc lập trong router hệ thống, bọc trong KhungNhanVien để có Sidebar + Header đồng bộ
+  return (
+    <KhungNhanVien nguoiDung={nguoiDung} dangXuat={dangXuat}>
+      {mainContent}
+    </KhungNhanVien>
   );
 }

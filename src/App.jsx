@@ -7,6 +7,7 @@ import ContractLiquidation from './components/ContractLiquidation';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from './config/routes';
 import CheckoutContainer from './components/checkout/CheckoutContainer';
+import StaffHopDongPage from './components/contracts/StaffHopDongPage';
 import { useRef } from 'react';
 
 function AnimatedCounter({ end, duration = 1500, suffix = "" }) {
@@ -955,6 +956,9 @@ export default function App() {
                 <li className={trangHienTai === 'payment_request' ? 'active' : ''}>
                   <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('payment_request'); }}>Y/c Thu cọc</a>
                 </li>
+                <li className={trangHienTai === 'staff_hop_dong' ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_hop_dong'); }}>Danh sách HĐ</a>
+                </li>
                 <li className={trangHienTai.startsWith('staff_checkout') ? 'active' : ''}>
                   <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_checkout'); }}>Báo trả phòng</a>
                 </li>
@@ -976,6 +980,9 @@ export default function App() {
                 </li>
                 <li className={trangHienTai === 'staff_handover' ? 'active' : ''}>
                   <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_handover'); }}>Bàn giao</a>
+                </li>
+                <li className={trangHienTai === 'staff_hop_dong' ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_hop_dong'); }}>Danh sách HĐ</a>
                 </li>
                 <li className={trangHienTai.startsWith('staff_checkout') ? 'active' : ''}>
                   <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_checkout'); }}>KT Trả phòng</a>
@@ -2429,9 +2436,12 @@ export default function App() {
                       value={formYeuCauThue.thoiHanThue}
                       onChange={xuLyThayDoiYeuCau}
                     >
-                      <option value="1">1 Tháng</option>
-                      <option value="3">3 Tháng</option>
                       <option value="6">6 Tháng</option>
+                      <option value="7">7 Tháng</option>
+                      <option value="8">8 Tháng</option>
+                      <option value="9">9 Tháng</option>
+                      <option value="10">10 Tháng</option>
+                      <option value="11">11 Tháng</option>
                       <option value="12">12 Tháng</option>
                     </select>
                   </div>
@@ -3179,7 +3189,7 @@ export default function App() {
                   </div>
                   <div className="approve-note-box">
                     <span>📝 Ghi chú từ khách hàng:</span>
-                    <p>"Em đã chuyển cọc trước 1 tháng, nhờ anh/chị giữ chỗ giúp em ạ. Em sẽ dọn vào cuối tuần này."</p>
+                    <p>"Em đã chuyển tiền cọc tương đương 2 tháng tiền thuê, nhờ anh/chị giữ chỗ giúp em ạ. Em sẽ dọn vào cuối tuần này."</p>
                   </div>
                   <div className="approve-warning-box">
                     <span>⚠ Lưu ý nghiệp vụ</span>
@@ -3627,6 +3637,13 @@ export default function App() {
           setCheDoNhanVien={setCheDoNhanVien}
           chuyenTrang={chuyenTrang}
           loggedRole={vaiTroNhanVien}
+        />
+      )}
+
+      {trangHienTai === 'staff_hop_dong' && (vaiTroNhanVien === 'sale' || vaiTroNhanVien === 'quanly') && (
+        <StaffHopDongPage
+          hienThongBao={hienThongBao}
+          vaiTro={vaiTroNhanVien}
         />
       )}
 
