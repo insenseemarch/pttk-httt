@@ -23,7 +23,7 @@ import ThuChi from './pages/ThuChi';
 import KiemTraLuuTruPage from './pages/KiemTraLuuTruPage';
 import CheckoutPage from './pages/CheckoutPage';
 import InitialPayment from './components/InitialPayment';
-import DepositWorkflow from './pages/DepositWorkflow';
+import QuyTrinhDatCoc from './pages/QuyTrinhDatCoc';
 
 import { KHOA_NGUOI_DUNG, ROUTES } from './config/routes';
 
@@ -179,7 +179,7 @@ export default function AppRouter() {
       <Route path={ROUTES.stayCheck} element={taoTrangStaff(KiemTraLuuTruPage)} />
       <Route path={ROUTES.checkout} element={taoTrangStaff(CheckoutPage)} />
       <Route path="/staff-payment" element={taoTrangStaff(InitialPayment)} />
-      <Route path={ROUTES.deposit} element={taoTrangStaff(DepositWorkflow)} />
+      <Route path={ROUTES.deposit} element={taoTrangStaff(QuyTrinhDatCoc)} />
 
       <Route path="/*" element={<App />} />
 

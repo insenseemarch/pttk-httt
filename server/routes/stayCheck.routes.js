@@ -152,7 +152,7 @@ router.get('/:maHoSo', async (req, res) => {
         maHoSo: String(datCoc.MaDatCoc),
         trangThai: datCoc.TrangThai || 'Đã duyệt',
         ngayNhanPhong: datCoc.ThoiDiemTao ? dinhDangNgay(datCoc.ThoiDiemTao) : '—',
-        thoiHanThue: 12, // Mặc định 12 tháng
+        thoiHanThue: datCoc.ThoiHanThue || 6,
         phongDuKien: phongDuKien,
         soTienDaCoc: datCoc.SoTienCoc || 0,
         donViTien: 'VNĐ',

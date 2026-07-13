@@ -211,7 +211,7 @@ export default function StayConditionsCheck({ maHoSo: propMaHoSo, hienThongBao, 
                   </div>
                   <div className="stay-check-info-block">
                     <span className="stay-check-label">Thời hạn thuê</span>
-                    <span className="stay-check-value-sm">{thongTinDatCoc?.thoiHanThue || 12} Tháng</span>
+                    <span className="stay-check-value-sm">{thongTinDatCoc?.thoiHanThue || 6} Tháng</span>
                   </div>
                 </div>
 
