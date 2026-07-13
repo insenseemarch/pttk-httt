@@ -99,11 +99,65 @@ export async function layDanhSachHopDong(boLoc = {}) {
       ngayHetHan: dinhDangNgay(hd.NgayGioKT),
       sapHetHan,
       tyLeHoanCoc: tyLeHoan,
-      trangThai: chuanHoaTrangThai(hd.TrangThai),
+      trangThai: chuanHoaTrangThai(phieu?.TrangThai || hd.TrangThai),
       giaThue: dinhDangTien(hd.GiaThue),
       pdsInfo
     };
   });
+
+  const { data: datCocData } = await supabase
+    .from('DatCoc')
+    .select(`
+      MaDatCoc, ThoiDiemTao, TrangThai, SoTienCoc,
+      KhachHang ( HoTen, SDT, CCCD ),
+      PhieuDoiSoat!inner ( TyLeHoanTien, TrangThai, SoTienHoanThuc, NgayDKTraPhong )
+    `);
+
+  const { data: giuongDatCocData } = await supabase
+    .from('GiuongDatCoc')
+    .select('MaDatCoc, Giuong ( Phong ( MaPhong, MaCN, ChiNhanh ( TenCN ) ) )');
+
+  const gdcMap = {};
+  (giuongDatCocData || []).forEach(g => {
+    if (!gdcMap[g.MaDatCoc]) gdcMap[g.MaDatCoc] = [];
+    gdcMap[g.MaDatCoc].push(g);
+  });
+
+  let danhSachDatCoc = (datCocData || []).map((d) => {
+    const phieuFirst = Array.isArray(d.PhieuDoiSoat) ? d.PhieuDoiSoat[0] : d.PhieuDoiSoat;
+    const tyLeHoan = phieuFirst?.TyLeHoanTien != null ? `${phieuFirst.TyLeHoanTien}%` : '—';
+    const pdsInfo = phieuFirst ? {
+      soTienHoanThuc: Number(phieuFirst.SoTienHoanThuc) || 0,
+      ngayLap: phieuFirst.NgayDKTraPhong,
+    } : null;
+
+    const gdc = gdcMap[d.MaDatCoc] || [];
+    const maCNPC = gdc[0]?.Giuong?.Phong?.MaCN || '';
+    
+    return {
+      maHopDong: d.MaDatCoc,
+      maHD: `PC-${d.MaDatCoc}`,
+      hoTen: d.KhachHang?.HoTen || '—',
+      sdt: d.KhachHang?.SDT || '',
+      phong: 'Chưa gán phòng',
+      maCN: maCNPC,
+      ngayBatDau: dinhDangNgay(d.ThoiDiemTao),
+      ngayHetHan: '—',
+      sapHetHan: false,
+      tyLeHoanCoc: tyLeHoan,
+      trangThai: chuanHoaTrangThai(phieuFirst?.TrangThai || d.TrangThai),
+      giaThue: dinhDangTien(d.SoTienCoc),
+      pdsInfo
+    };
+  });
+
+  if (trangThai) {
+    const mapTrangThai = { 'Hiệu lực': 'Đang hiệu lực', 'Thanh lý': 'Đã thanh lý', 'Hủy': 'Đã hủy' };
+    const t = mapTrangThai[trangThai] || trangThai;
+    danhSachDatCoc = danhSachDatCoc.filter(d => d.trangThai === t);
+  }
+
+  danhSach = [...danhSach, ...danhSachDatCoc];
 
   if (maCN) danhSach = danhSach.filter((h) => String(h.maCN) === String(maCN));
   if (phong.trim()) {

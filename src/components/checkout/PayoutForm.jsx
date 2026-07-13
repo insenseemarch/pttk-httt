@@ -1,21 +1,21 @@
 import React from 'react';
 
-export default function PayoutForm({ 
-  selectedItem, 
-  formValues, 
-  onChange, 
-  onSubmit, 
-  onCancel 
+export default function PayoutForm({
+  selectedItem,
+  formValues,
+  onChange,
+  onSubmit,
+  onCancel
 }) {
   const isDatCoc = selectedItem?.loai === 'dat_coc';
   const tienCocGoc = selectedItem.tienCoc || 0;
   const tiLeHoan = selectedItem.tiLeHoanCoc || 100;
   const tienCocDuocHoan = tienCocGoc * (tiLeHoan / 100);
-  
+
   const noThue = isDatCoc ? 0 : (selectedItem.noThue || 0);
   const noDienNuoc = isDatCoc ? 0 : (selectedItem.noDienNuoc || 0);
   const chiPhiHuHong = isDatCoc ? 0 : (selectedItem.chiPhiHuHong || 0);
-  
+
   const danhSachKhauTruKhac = selectedItem.danhSachKhauTruKhac || [];
   const tongKhauTruKhac = danhSachKhauTruKhac.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
   const tongKhauTru = noThue + noDienNuoc + chiPhiHuHong + tongKhauTruKhac;
@@ -206,7 +206,7 @@ export default function PayoutForm({
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '14px', boxSizing: 'border-box' }}>
                     <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: '800', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Mã QR thanh toán nhanh</span>
-                    <img 
+                    <img
                       src={`https://img.vietqr.io/image/vietcombank-0071000999999-compact.png?amount=${Math.abs(soTienQuyetToan)}&addInfo=${encodeURIComponent('THU CHENH LECH HOP DONG ' + selectedItem.maSo)}&accountName=CONG%20TY%20HOMESTAY%20VIET%20NAM`}
                       alt="VietQR"
                       style={{ width: '120px', height: '120px', border: '1px solid #e2e8f0', borderRadius: '8px', background: '#ffffff', padding: '4px' }}

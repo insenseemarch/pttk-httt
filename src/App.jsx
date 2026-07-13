@@ -1048,7 +1048,7 @@ export default function App() {
           {/* NEW MODERN HERO SECTION */}
           <section className="guest-hero-container">
             <div className="hero-left-col">
-              <h1 className="hero-main-title">Tìm Phòng / Giường Phù Hợp Với Bạn</h1>
+              <h1 className="hero-main-title">Tìm phòng ở TP.HCM?</h1>
               <p className="hero-subtitle">
                 Giải pháp lưu trú hoàn hảo, hiện đại, an toàn và đầy đủ tiện nghi hàng đầu tại TP. Hồ Chí Minh dành cho học sinh, sinh viên và người đi làm năng động.
               </p>
