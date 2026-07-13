@@ -20,15 +20,12 @@ import QuanLyTaiKhoan from './pages/QuanLyTaiKhoan';
 
 import ThongBaoViecCanXuLy from './pages/ThongBaoViecCanXuLy';
 import ThuChi from './pages/ThuChi';
-<<<<<<< HEAD
 import KiemTraLuuTruPage from './pages/KiemTraLuuTruPage';
 import CheckoutPage from './pages/CheckoutPage';
 import InitialPayment from './components/InitialPayment';
 import QuyTrinhDatCoc from './pages/QuyTrinhDatCoc';
-=======
 import DanhSachNhanPhong from './pages/DanhSachNhanPhong';
 import ChiTietNhanPhong from './pages/ChiTietNhanPhong';
->>>>>>> ce67a7b (feat: record check-in info (Sale) and notify Manager for stay-condition check)
 
 import { KHOA_NGUOI_DUNG, ROUTES } from './config/routes';
 
