@@ -24,6 +24,31 @@ function laSapHetHan(ngayKT, soNgay = 30) {
   return diff >= 0 && diff <= soNgay;
 }
 
+const KY_HAN_BUCKETS = [1, 3, 6, 12, 24];
+
+/** Tính số tháng thuê từ ngày bắt đầu → kết thúc, rồi gắn bucket 1/3/6/12/24 gần nhất. */
+export function tinhKyHanThang(ngayBD, ngayKT) {
+  if (!ngayBD || !ngayKT) return null;
+  const start = new Date(ngayBD);
+  const end = new Date(ngayKT);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return null;
+  const months =
+    (end.getFullYear() - start.getFullYear()) * 12 +
+    (end.getMonth() - start.getMonth()) +
+    (end.getDate() >= start.getDate() ? 0 : -1);
+  const raw = Math.max(0, months);
+  let best = KY_HAN_BUCKETS[0];
+  let bestDiff = Math.abs(raw - best);
+  for (const b of KY_HAN_BUCKETS) {
+    const d = Math.abs(raw - b);
+    if (d < bestDiff) {
+      best = b;
+      bestDiff = d;
+    }
+  }
+  return best;
+}
+
 export async function demHopDongSapHetHan(soNgay = 30) {
   const homNay = new Date();
   const han = new Date();
@@ -41,7 +66,16 @@ export async function demHopDongSapHetHan(soNgay = 30) {
 }
 
 export async function layDanhSachHopDong(boLoc = {}) {
-  const { maCN = '', trangThai = '', thang = '', phong = '', page = 1, limit = 10 } = boLoc;
+  const {
+    maCN = '',
+    trangThai = '',
+    thang = '',
+    phong = '',
+    kyHan = '',
+    tuKhoa = '',
+    page = 1,
+    limit = 10,
+  } = boLoc;
   const tu = (Number(page) - 1) * Number(limit);
   const den = tu + Number(limit) - 1;
 
@@ -49,15 +83,15 @@ export async function layDanhSachHopDong(boLoc = {}) {
     .from('HopDong')
     .select(
       `
-      MaHopDong, NgayKy, NgayGioBD, NgayGioKT, TrangThai, GiaThue,
-      KhachHang ( HoTen, SDT, CCCD ),
+      MaHopDong, NgayKy, NgayGioBD, NgayGioKT, TrangThai, GiaThue, KyThanhToan, MaDatCoc,
+      KhachHang ( HoTen, SDT, CCCD, Email ),
       ChiTiet (
         Giuong (
           MaGiuong, MaPhong,
-          Phong ( MaPhong, MaCN, ChiNhanh ( TenCN ) )
+          Phong ( MaPhong, MaCN, LoaiPhong, ChiNhanh ( TenCN ) )
         )
       ),
-      PhieuDoiSoat ( TyLeHoanTien, TrangThai, SoTienHoanThuc, NgayDKTraPhong )
+      PhieuDoiSoat ( TyLeHoanTien, TrangThai, SoTienHoanThuc, NgayDKTraPhong, LoaiHinhTraPhong, LyDoTraPhong )
     `,
       { count: 'exact' },
     )
@@ -81,27 +115,45 @@ export async function layDanhSachHopDong(boLoc = {}) {
     const tyLeHoan = phieu?.TyLeHoanTien != null ? `${phieu.TyLeHoanTien}%` : '—';
     const phongStr = layPhongTuChiTiet(hd.ChiTiet);
     const maCNHop = hd.ChiTiet?.[0]?.Giuong?.Phong?.MaCN;
+    const tenCN = hd.ChiTiet?.[0]?.Giuong?.Phong?.ChiNhanh?.TenCN || '—';
     const sapHetHan = laSapHetHan(hd.NgayGioKT);
+    const kyHanThang = tinhKyHanThang(hd.NgayGioBD || hd.NgayKy, hd.NgayGioKT);
 
-    const pdsInfo = phieu ? {
-      soTienHoanThuc: Number(phieu.SoTienHoanThuc) || 0,
-      ngayLap: phieu.NgayDKTraPhong,
-    } : null;
+    const pdsInfo = phieu
+      ? {
+          soTienHoanThuc: Number(phieu.SoTienHoanThuc) || 0,
+          ngayLap: phieu.NgayDKTraPhong,
+          loaiHinhTraPhong: phieu.LoaiHinhTraPhong,
+          lyDo: phieu.LyDoTraPhong,
+          trangThaiPds: phieu.TrangThai,
+        }
+      : null;
 
     return {
       maHopDong: hd.MaHopDong,
       maHD: `HD-${String(hd.MaHopDong).padStart(5, '0')}`,
+      maChungTu: `HĐ-${hd.MaHopDong}`,
       hoTen: hd.KhachHang?.HoTen || '—',
       sdt: hd.KhachHang?.SDT || '',
+      email: hd.KhachHang?.Email || '',
+      cccd: hd.KhachHang?.CCCD || '',
       phong: phongStr,
       maCN: maCNHop,
+      tenCN,
       ngayBatDau: dinhDangNgay(hd.NgayGioBD || hd.NgayKy),
       ngayHetHan: dinhDangNgay(hd.NgayGioKT),
+      ngayBatDauISO: hd.NgayGioBD || hd.NgayKy,
+      ngayKetThucISO: hd.NgayGioKT,
       sapHetHan,
+      kyHanThang,
       tyLeHoanCoc: tyLeHoan,
       trangThai: chuanHoaTrangThai(hd.TrangThai),
+      trangThaiGoc: hd.TrangThai,
       giaThue: dinhDangTien(hd.GiaThue),
-      pdsInfo
+      giaThueSo: Number(hd.GiaThue) || 0,
+      kyThanhToan: hd.KyThanhToan || '—',
+      maDatCoc: hd.MaDatCoc,
+      pdsInfo,
     };
   });
 
@@ -115,6 +167,20 @@ export async function layDanhSachHopDong(boLoc = {}) {
       const d = h.ngayHetHan.split('/').reverse().join('-');
       return d.startsWith(thang);
     });
+  }
+  if (kyHan) {
+    const ky = Number(kyHan);
+    danhSach = danhSach.filter((h) => h.kyHanThang === ky);
+  }
+  if (tuKhoa.trim()) {
+    const q = tuKhoa.trim().toLowerCase();
+    danhSach = danhSach.filter(
+      (h) =>
+        String(h.maHD).toLowerCase().includes(q) ||
+        String(h.maHopDong).includes(q) ||
+        String(h.hoTen).toLowerCase().includes(q) ||
+        String(h.sdt).includes(q),
+    );
   }
 
   return {
@@ -148,15 +214,26 @@ export async function layChiTietHopDong(maHopDong) {
   return {
     maHopDong: data.MaHopDong,
     maHD: `HD-${String(data.MaHopDong).padStart(5, '0')}`,
+    maChungTu: `HĐ-${data.MaHopDong}`,
     hoTen: data.KhachHang?.HoTen,
     sdt: data.KhachHang?.SDT,
     email: data.KhachHang?.Email,
+    cccd: data.KhachHang?.CCCD,
     phong: layPhongTuChiTiet(data.ChiTiet),
+    tenCN: data.ChiTiet?.[0]?.Giuong?.Phong?.ChiNhanh?.TenCN || '—',
+    loaiPhong: data.ChiTiet?.[0]?.Giuong?.Phong?.LoaiPhong || '—',
+    maGiuong: data.ChiTiet?.[0]?.Giuong?.MaGiuong,
     ngayBatDau: dinhDangNgay(data.NgayGioBD || data.NgayKy),
     ngayHetHan: dinhDangNgay(data.NgayGioKT),
+    ngayBatDauISO: data.NgayGioBD || data.NgayKy,
+    ngayKetThucISO: data.NgayGioKT,
+    kyHanThang: tinhKyHanThang(data.NgayGioBD || data.NgayKy, data.NgayGioKT),
     trangThai: chuanHoaTrangThai(data.TrangThai),
+    trangThaiGoc: data.TrangThai,
     giaThue: dinhDangTien(data.GiaThue),
+    giaThueSo: Number(data.GiaThue) || 0,
     kyThanhToan: data.KyThanhToan || '—',
+    maDatCoc: data.MaDatCoc,
     phieuDoiSoat: data.PhieuDoiSoat || [],
   };
 }

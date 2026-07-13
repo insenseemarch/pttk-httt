@@ -7,6 +7,7 @@ import ContractLiquidation from './components/ContractLiquidation';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from './config/routes';
 import CheckoutContainer from './components/checkout/CheckoutContainer';
+import StaffHopDongPage from './components/contracts/StaffHopDongPage';
 import { useRef } from 'react';
 
 function AnimatedCounter({ end, duration = 1500, suffix = "" }) {
@@ -955,6 +956,9 @@ export default function App() {
                 <li className={trangHienTai === 'payment_request' ? 'active' : ''}>
                   <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('payment_request'); }}>Y/c Thu cọc</a>
                 </li>
+                <li className={trangHienTai === 'staff_hop_dong' ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_hop_dong'); }}>Danh sách HĐ</a>
+                </li>
                 <li className={trangHienTai.startsWith('staff_checkout') ? 'active' : ''}>
                   <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_checkout'); }}>Báo trả phòng</a>
                 </li>
@@ -976,6 +980,9 @@ export default function App() {
                 </li>
                 <li className={trangHienTai === 'staff_handover' ? 'active' : ''}>
                   <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_handover'); }}>Bàn giao</a>
+                </li>
+                <li className={trangHienTai === 'staff_hop_dong' ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_hop_dong'); }}>Danh sách HĐ</a>
                 </li>
                 <li className={trangHienTai.startsWith('staff_checkout') ? 'active' : ''}>
                   <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_checkout'); }}>KT Trả phòng</a>
@@ -3627,6 +3634,13 @@ export default function App() {
           setCheDoNhanVien={setCheDoNhanVien}
           chuyenTrang={chuyenTrang}
           loggedRole={vaiTroNhanVien}
+        />
+      )}
+
+      {trangHienTai === 'staff_hop_dong' && (vaiTroNhanVien === 'sale' || vaiTroNhanVien === 'quanly') && (
+        <StaffHopDongPage
+          hienThongBao={hienThongBao}
+          vaiTro={vaiTroNhanVien}
         />
       )}
 
