@@ -10,6 +10,7 @@ export const ROUTES = {
   thongBao: '/thong-bao',
   quanLyTaiKhoan: '/quan-ly-tai-khoan',
   nhanPhong: '/nhan-phong',
+  kiemTraLuuTru: '/kiem-tra-luu-tru',
 };
 
 export const KHOA_NGUOI_DUNG = 'homestay_nguoiDung';

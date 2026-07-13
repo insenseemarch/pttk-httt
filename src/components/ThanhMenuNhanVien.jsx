@@ -28,6 +28,20 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
       { key: 'hopDong', label: 'Hợp đồng', path: ROUTES.hopDong },
       { key: 'thongBao', label: 'Thông báo', path: ROUTES.thongBao },
     ];
+  } else if (
+    rawRole.includes('quản lý')
+    || rawRole.includes('quan ly')
+    || rawRole === 'quanly'
+    || rawRole.includes('manager')
+  ) {
+    menu = [
+      { key: 'dashboard', label: 'Dashboard', path: ROUTES.dashboard },
+      { key: 'kiemTraLuuTru', label: 'Kiểm tra ĐK lưu trú', path: ROUTES.kiemTraLuuTru },
+      { key: 'phongGiuong', label: 'Phòng/Giường', path: ROUTES.phongGiuong },
+      { key: 'khachHang', label: 'Khách hàng', path: ROUTES.khachHang },
+      { key: 'hopDong', label: 'Hợp đồng', path: ROUTES.hopDong },
+      { key: 'thongBao', label: 'Thông báo', path: ROUTES.thongBao },
+    ];
   } else {
     menu = [...MENU_NHAN_VIEN];
   }
