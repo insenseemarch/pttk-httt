@@ -20,6 +20,9 @@ import QuanLyTaiKhoan from './pages/QuanLyTaiKhoan';
 
 import ThongBaoViecCanXuLy from './pages/ThongBaoViecCanXuLy';
 import ThuChi from './pages/ThuChi';
+import CheckoutPage from './pages/CheckoutPage';
+import InitialPayment from './components/InitialPayment';
+import QuyTrinhDatCoc from './pages/QuyTrinhDatCoc';
 import DanhSachNhanPhong from './pages/DanhSachNhanPhong';
 import ChiTietNhanPhong from './pages/ChiTietNhanPhong';
 import DanhSachKiemTraLuuTru from './pages/DanhSachKiemTraLuuTru';
@@ -180,6 +183,9 @@ export default function AppRouter() {
       <Route path={ROUTES.thongBao} element={taoTrangStaff(ThongBaoViecCanXuLy)} />
 
       <Route path={ROUTES.quanLyTaiKhoan} element={taoTrangStaff(QuanLyTaiKhoan)} />
+      <Route path={ROUTES.checkout} element={taoTrangStaff(CheckoutPage)} />
+      <Route path="/staff-payment" element={taoTrangStaff(InitialPayment)} />
+      <Route path={ROUTES.deposit} element={taoTrangStaff(QuyTrinhDatCoc)} />
 
       <Route path="/*" element={<App />} />
 
@@ -188,4 +194,3 @@ export default function AppRouter() {
   );
 
 }
-

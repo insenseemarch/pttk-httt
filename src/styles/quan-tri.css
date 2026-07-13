@@ -56,6 +56,20 @@
   font-size: 15px;
 }
 
+.qt-page-header .qt-room-auto-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  color: #15803d;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.qt-room-auto-note .material-symbols-outlined {
+  font-size: 18px;
+}
+
 .qt-btn-primary {
   background: #f97316;
   color: #fff;
@@ -320,6 +334,45 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.qt-room-card--focused {
+  position: relative;
+  border-color: #fb923c;
+  background: linear-gradient(145deg, #fff 65%, #fff7ed);
+  animation: qt-room-focus-glow 1.8s ease-in-out infinite alternate;
+}
+
+.qt-room-card-badges {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.qt-focus-badge {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: #ffedd5;
+  color: #9a3412;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+@keyframes qt-room-focus-glow {
+  from {
+    box-shadow: 0 0 0 2px rgba(249, 115, 22, 0.14), 0 8px 24px rgba(249, 115, 22, 0.14);
+  }
+  to {
+    box-shadow: 0 0 0 5px rgba(249, 115, 22, 0.22), 0 12px 36px rgba(249, 115, 22, 0.32);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qt-room-card--focused {
+    animation: none;
+    box-shadow: 0 0 0 4px rgba(249, 115, 22, 0.2), 0 12px 32px rgba(249, 115, 22, 0.24);
+  }
 }
 
 .qt-room-card-header {
