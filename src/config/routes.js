@@ -9,9 +9,11 @@ export const ROUTES = {
   thuChi: '/thu-chi',
   thongBao: '/thong-bao',
   quanLyTaiKhoan: '/quan-ly-tai-khoan',
-  stayCheck: '/stay-check',
   checkout: '/checkout',
   deposit: '/dat-coc',
+  nhanPhong: '/nhan-phong',
+  kiemTraLuuTru: '/kiem-tra-luu-tru',
+  lapHopDong: '/lap-hop-dong',
 };
 
 export const KHOA_NGUOI_DUNG = 'homestay_nguoiDung';

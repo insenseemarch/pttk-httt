@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import SignatureCanvas from 'react-signature-canvas';
 
 const QUY_DINH_HOAN_COC = [
   { moTa: 'Đã đặt cọc, chưa ký HĐ', mucHoan: '80%' },
@@ -29,7 +30,7 @@ const tinhNgayKetThuc = (ngayBatDau, thoiHanThue) => {
 
 // Trang LẬP HỢP ĐỒNG THUÊ (CONTRACT DRAFTING)
 // Nhân viên đối chiếu thông tin thuê, biểu phí dịch vụ và lập hợp đồng điện tử.
-export default function ContractDrafting({ maHoSo = 'DEP-2023-8942', hienThongBao, onQuayLai, onXacNhanThanhCong }) {
+export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBao, onQuayLai, onXacNhanThanhCong }) {
   const [khachHang, setKhachHang] = useState(null);
   const [thongTinThue, setThongTinThue] = useState(null);
   const [bieuPhiDichVu, setBieuPhiDichVu] = useState([]);
@@ -37,15 +38,20 @@ export default function ContractDrafting({ maHoSo = 'DEP-2023-8942', hienThongBa
   const [dieuKhoanBoSung, setDieuKhoanBoSung] = useState('');
   const [dangTai, setDangTai] = useState(false);
   const [dangXuLy, setDangXuLy] = useState(false);
+  const [khachDaKy, setKhachDaKy] = useState(false);
 
-  const iconPhi = {
-    elec: '⚡',
-    water: '💧',
-    wifi: '📶',
-    parking: '🅿️'
+  const sigPadKhach = useRef(null);
+
+  const xoaChuKy = () => {
+    sigPadKhach.current?.clear();
+    setKhachDaKy(false);
   };
 
   const taiDuLieuLapHopDong = async (maHoSoCanTai = maHoSo) => {
+    if (!maHoSoCanTai) {
+      hienThongBao('error', 'Thiếu mã hồ sơ. Vui lòng chọn hồ sơ từ danh sách chờ lập hợp đồng.');
+      return;
+    }
     setDangTai(true);
     try {
       const res = await fetch(`/api/hop-dong/pre-fill/${encodeURIComponent(maHoSoCanTai)}`);
@@ -67,7 +73,7 @@ export default function ContractDrafting({ maHoSo = 'DEP-2023-8942', hienThongBa
   };
 
   useEffect(() => {
-    taiDuLieuLapHopDong();
+    if (maHoSo) taiDuLieuLapHopDong();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [maHoSo]);
 
@@ -82,16 +88,24 @@ export default function ContractDrafting({ maHoSo = 'DEP-2023-8942', hienThongBa
       hienThongBao('error', 'Chưa có dữ liệu hợp đồng để lưu!');
       return;
     }
+    if (choKy && (!khachDaKy || sigPadKhach.current?.isEmpty())) {
+      hienThongBao('error', 'Vui lòng yêu cầu khách hàng ký xác nhận trước khi ký hợp đồng.');
+      return;
+    }
     setDangXuLy(true);
     try {
       const res = await fetch('/api/hop-dong/tao-moi', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          maHoSo,
           khachHang,
           thongTinThue: { ...thongTinThue, kyThanhToan },
           bieuPhiDichVu,
-          dieuKhoanBoSung
+          dieuKhoanBoSung,
+          choKy,
+          khachDaKy: choKy ? khachDaKy : false,
+          nguoiThucHien: nguoiDung?.maNV || null,
         })
       });
       const json = await res.json();
@@ -293,11 +307,33 @@ export default function ContractDrafting({ maHoSo = 'DEP-2023-8942', hienThongBa
               ></textarea>
             </div>
 
+            <div className="stay-check-card">
+              <div className="stay-check-card-head">
+                <h2 className="stay-check-card-title" style={{ fontSize: '15px' }}>Chữ ký xác nhận của khách hàng</h2>
+              </div>
+              <div className="np-sign-head">
+                <span className="stay-check-label">Người thuê: {khachHang?.hoTen || '—'}</span>
+                <button type="button" className="np-sign-clear" onClick={xoaChuKy}>Xóa chữ ký</button>
+              </div>
+              <div className="np-sign-box">
+                <SignatureCanvas
+                  ref={sigPadKhach}
+                  penColor="#1d4ed8"
+                  onEnd={() => setKhachDaKy(true)}
+                  canvasProps={{ className: 'np-sign-canvas', style: { width: '100%', height: '140px' } }}
+                />
+                {!khachDaKy && <span className="np-sign-placeholder">Khách hàng ký tên tại đây</span>}
+              </div>
+              <p className="np-sign-note">
+                Bằng việc ký tên, khách hàng xác nhận đã đọc và đồng ý toàn bộ nội dung hợp đồng, biểu phí dịch vụ, nội quy và điều khoản xử lý vi phạm.
+              </p>
+            </div>
+
             <div className="contract-actions">
               <button
                 type="button"
                 className="btn-book-filled"
-                disabled={dangXuLy}
+                disabled={dangXuLy || !khachDaKy}
                 onClick={() => taoHopDong(true)}
               >
                 {dangXuLy ? 'Đang xử lý...' : 'Xác nhận ký hợp đồng'}

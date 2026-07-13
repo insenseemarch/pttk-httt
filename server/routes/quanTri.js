@@ -113,7 +113,8 @@ export function ganRouteQuanTri(app) {
     }
   });
 
-  app.get('/api/hop-dong/:ma', async (req, res) => {
+  app.get('/api/hop-dong/:ma', async (req, res, next) => {
+    if (!/^\d+$/.test(req.params.ma)) return next();
     try {
       const data = await layChiTietHopDong(req.params.ma);
       if (!data) return res.status(404).json({ ok: false, error: 'Không tìm thấy hợp đồng' });

@@ -14,7 +14,9 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
     ? 'KE_TOAN'
     : rawRole.includes('quản lý') || rawRole.includes('quan ly') || rawRole === 'quanly'
       ? 'QUAN_LY'
-      : 'SALE';
+      : rawRole.includes('phụ trách') || rawRole.includes('phu trach') || rawRole === 'phutrach'
+        ? 'PHU_TRACH'
+        : 'SALE';
 
   const taiThongBaoDatCoc = async () => {
     try {
@@ -97,9 +99,31 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
       { key: 'dashboard', label: 'Tổng quan', path: ROUTES.dashboard },
       { key: 'phongGiuong', label: 'Sơ đồ phòng', path: ROUTES.phongGiuong },
       { key: 'deposit', label: 'Đặt cọc', path: ROUTES.deposit },
-      { key: 'stayCheck', label: 'Đăng ký lưu trú', path: ROUTES.stayCheck },
+      { key: 'kiemTraLuuTru', label: 'Kiểm tra ĐK lưu trú', path: ROUTES.kiemTraLuuTru },
       { key: 'checkout', label: 'Kiểm tra trả phòng', path: ROUTES.checkout },
       { key: 'thongBao', label: 'Thông báo', path: ROUTES.thongBao }
+    ];
+  } else if (
+    rawRole.includes('sale')
+    || rawRole.includes('kinh doanh')
+    || rawRole.includes('nhân viên sale')
+  ) {
+    menu = [
+      { key: 'dashboard', label: 'Dashboard', path: ROUTES.dashboard },
+      { key: 'nhanPhong', label: 'Nhận phòng', path: ROUTES.nhanPhong },
+      { key: 'phongGiuong', label: 'Phòng/Giường', path: ROUTES.phongGiuong },
+      { key: 'khachHang', label: 'Khách hàng', path: ROUTES.khachHang },
+      { key: 'hopDong', label: 'Hợp đồng', path: ROUTES.hopDong },
+      { key: 'thongBao', label: 'Thông báo', path: ROUTES.thongBao },
+    ];
+  } else if (rawRole.includes('phụ trách') || rawRole.includes('phu trach') || rawRole === 'phutrach') {
+    menu = [
+      { key: 'dashboard', label: 'Dashboard', path: ROUTES.dashboard },
+      { key: 'lapHopDong', label: 'Lập hợp đồng', path: ROUTES.lapHopDong },
+      { key: 'phongGiuong', label: 'Phòng/Giường', path: ROUTES.phongGiuong },
+      { key: 'khachHang', label: 'Khách hàng', path: ROUTES.khachHang },
+      { key: 'hopDong', label: 'Hợp đồng', path: ROUTES.hopDong },
+      { key: 'thongBao', label: 'Thông báo', path: ROUTES.thongBao },
     ];
   } else {
     // Sale role
