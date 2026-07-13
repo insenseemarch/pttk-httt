@@ -204,265 +204,107 @@ export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
           loai: loai,
           trangThai: tthai
         }]);
+      }
+    }
+  };
+
+  const dongModalXem = () => {
+    setHdDangXem(null);
+    setChiTietDayDu(null);
+  };
+
+  const batDauKetThuc = (hd) => {
+    const src = hd || chiTietDayDu || hdDangXem;
+    if (!src || !coTheKetThuc(src)) {
+      showToast('Chỉ xử lý khi hợp đồng đang ở trạng thái Chờ kiểm tra.', 'error');
+      return;
+    }
+    setManKiemPhong({
+      ...src,
+      maSo: src.maChungTu || `HĐ-${src.maHopDong}`,
+      tenKhachHang: src.hoTen,
+      phongCoSo: `${src.phong}${src.tenCN ? ` · ${src.tenCN}` : ''}`,
+      ngayBatDau: src.ngayBatDauISO || src.ngayBatDau,
+      ngayKetThuc: src.ngayKetThucISO || src.ngayHetHan,
+      giaThue: src.giaThueSo || 0,
+      loai: 'hop_dong',
+      loaiHinhTraPhong: src.pdsInfo?.loaiHinhTraPhong || src.phieuDoiSoat?.[0]?.LoaiHinhTraPhong || 'dung_han',
+      lyDo: src.pdsInfo?.lyDo || src.phieuDoiSoat?.[0]?.LyDoTraPhong || '',
+    });
+    dongModalXem();
+  };
+
+  const sauKiemPhongThanhCong = async () => {
+    setManKiemPhong(null);
+    showToast('Đã hoàn tất kiểm phòng. Đã chuyển sang kế toán (Chờ đối soát).');
+    await taiDanhSach();
+  };
+
+  const batDauYeuCauTraPhong = (hd) => {
+    const src = hd || chiTietDayDu || hdDangXem;
+    if (!src || !coTheYeuCauTraPhong(src)) {
+      showToast('Chỉ gửi yêu cầu khi hợp đồng đang hiệu lực.', 'error');
+      return;
+    }
+    const today = new Date().toISOString().slice(0, 10);
+    setFormYeuCau({
+      loaiHinhTraPhong: 'dung_han',
+      ngayTraDuKien: today,
+      lyDo: '',
+      phuongThucHoanTien: 'chuyen_khoan',
+    });
+    setManYeuCau(mapHdSangCheckoutItem(src));
+    dongModalXem();
+  };
+
+  const guiYeuCauTraPhong = async (e) => {
+    e.preventDefault();
+    if (!manYeuCau?.maSo) return;
+    if (!formYeuCau.ngayTraDuKien) {
+      showToast('Vui lòng chọn ngày trả phòng dự kiến.', 'error');
+      return;
+    }
+    setDangGuiYeuCau(true);
+    try {
+      const res = await fetch('/api/checkout/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          maSoChungTu: manYeuCau.maSo,
+          loaiHinhTraPhong: formYeuCau.loaiHinhTraPhong,
+          ngayTraDuKien: formYeuCau.ngayTraDuKien,
+          lyDo: formYeuCau.lyDo,
+          phuongThucHoanTien: formYeuCau.phuongThucHoanTien,
+        }),
+      }).then((r) => r.json());
+      if (res.ok) {
+        setManYeuCau(null);
+        showToast('Đã gửi yêu cầu trả phòng. Hợp đồng chuyển sang Chờ kiểm tra.');
+        await taiDanhSach();
       } else {
-        setPhieuDoiSoat([]);
+        showToast(res.error || 'Không gửi được yêu cầu trả phòng.', 'error');
       }
-    };
-
-    const dongModalXem = () => {
-      setHdDangXem(null);
-      setChiTietDayDu(null);
-    };
-
-    const batDauKetThuc = (hd) => {
-      const src = hd || chiTietDayDu || hdDangXem;
-      if (!src || !coTheKetThuc(src)) {
-        showToast('Chỉ xử lý khi hợp đồng đang ở trạng thái Chờ kiểm tra.', 'error');
-        return;
-      }
-      setManKiemPhong({
-        ...src,
-        maSo: src.maChungTu || `HĐ-${src.maHopDong}`,
-        tenKhachHang: src.hoTen,
-        phongCoSo: `${src.phong}${src.tenCN ? ` · ${src.tenCN}` : ''}`,
-        ngayBatDau: src.ngayBatDauISO || src.ngayBatDau,
-        ngayKetThuc: src.ngayKetThucISO || src.ngayHetHan,
-        giaThue: src.giaThueSo || 0,
-        loai: 'hop_dong',
-        loaiHinhTraPhong: src.pdsInfo?.loaiHinhTraPhong || src.phieuDoiSoat?.[0]?.LoaiHinhTraPhong || 'dung_han',
-        lyDo: src.pdsInfo?.lyDo || src.phieuDoiSoat?.[0]?.LyDoTraPhong || '',
-      });
-      dongModalXem();
-    };
-
-    const sauKiemPhongThanhCong = async () => {
-      setManKiemPhong(null);
-      showToast('Đã hoàn tất kiểm phòng. Đã chuyển sang kế toán (Chờ đối soát).');
-      await taiDanhSach();
-    };
-
-    const batDauYeuCauTraPhong = (hd) => {
-      const src = hd || chiTietDayDu || hdDangXem;
-      if (!src || !coTheYeuCauTraPhong(src)) {
-        showToast('Chỉ gửi yêu cầu khi hợp đồng đang hiệu lực.', 'error');
-        return;
-      }
-      const today = new Date().toISOString().slice(0, 10);
-      setFormYeuCau({
-        loaiHinhTraPhong: 'dung_han',
-        ngayTraDuKien: today,
-        lyDo: '',
-        phuongThucHoanTien: 'chuyen_khoan',
-      });
-      setManYeuCau(mapHdSangCheckoutItem(src));
-      dongModalXem();
-    };
-
-    const guiYeuCauTraPhong = async (e) => {
-      e.preventDefault();
-      if (!manYeuCau?.maSo) return;
-      if (!formYeuCau.ngayTraDuKien) {
-        showToast('Vui lòng chọn ngày trả phòng dự kiến.', 'error');
-        return;
-      }
-      setDangGuiYeuCau(true);
-      try {
-        const res = await fetch('/api/checkout/request', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            maSoChungTu: manYeuCau.maSo,
-            loaiHinhTraPhong: formYeuCau.loaiHinhTraPhong,
-            ngayTraDuKien: formYeuCau.ngayTraDuKien,
-            lyDo: formYeuCau.lyDo,
-            phuongThucHoanTien: formYeuCau.phuongThucHoanTien,
-          }),
-        }).then((r) => r.json());
-        if (res.ok) {
-          setManYeuCau(null);
-          showToast('Đã gửi yêu cầu trả phòng. Hợp đồng chuyển sang Chờ kiểm tra.');
-          await taiDanhSach();
-        } else {
-          showToast(res.error || 'Không gửi được yêu cầu trả phòng.', 'error');
-        }
-      } catch {
-        showToast('Lỗi kết nối khi gửi yêu cầu trả phòng.', 'error');
-      } finally {
-        setDangGuiYeuCau(false);
-      }
-    };
-
-    if (manKiemPhong) {
-      return (
-        <KhungNhanVien nguoiDung={nguoiDung} dangXuat={dangXuat}>
-          <ManagerRoomInspectForm
-            selectedItem={manKiemPhong}
-            onCancel={() => setManKiemPhong(null)}
-            onSuccess={sauKiemPhongThanhCong}
-            hienThongBao={(type, msg) => showToast(msg, type === 'error' ? 'error' : 'success')}
-          />
-        </KhungNhanVien>
-      );
+    } catch {
+      showToast('Lỗi kết nối khi gửi yêu cầu trả phòng.', 'error');
+    } finally {
+      setDangGuiYeuCau(false);
     }
+  };
 
-    if (manYeuCau) {
-      return (
-        <KhungNhanVien nguoiDung={nguoiDung} dangXuat={dangXuat}>
-          {toast.show && (
-            <div
-              style={{
-                position: 'fixed',
-                top: 20,
-                right: 20,
-                background: toast.type === 'success' ? '#10b981' : '#ef4444',
-                color: '#fff',
-                padding: '12px 24px',
-                borderRadius: 8,
-                zIndex: 10000,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                fontWeight: 'bold',
-              }}
-            >
-              {toast.message}
-            </div>
-          )}
-          <div style={{ padding: '8px 0 24px' }}>
-            <h1 style={{ fontSize: 22, margin: '0 0 8px', color: '#0f172a' }}>Yêu cầu trả phòng / Kết thúc hợp đồng</h1>
-            <p style={{ margin: '0 0 20px', color: '#64748b', fontSize: 14 }}>
-              Gửi hồ sơ để Quản lý kiểm tra phòng · Trạng thái sẽ chuyển thành <strong>Chờ kiểm tra</strong>
-            </p>
-            <fieldset disabled={dangGuiYeuCau} style={{ border: 'none', padding: 0, margin: 0 }}>
-              <CheckoutRequestForm
-                selectedItem={manYeuCau}
-                formValues={formYeuCau}
-                onChange={(e) => {
-                  const { name, value } = e.target;
-                  setFormYeuCau((p) => ({ ...p, [name]: value }));
-                }}
-                onSubmit={guiYeuCauTraPhong}
-                onCancel={() => setManYeuCau(null)}
-              />
-            </fieldset>
-          </div>
-        </KhungNhanVien>
-      );
-    }
+  if (manKiemPhong) {
+    return (
+      <KhungNhanVien nguoiDung={nguoiDung} dangXuat={dangXuat}>
+        <ManagerRoomInspectForm
+          selectedItem={manKiemPhong}
+          onCancel={() => setManKiemPhong(null)}
+          onSuccess={sauKiemPhongThanhCong}
+          hienThongBao={(type, msg) => showToast(msg, type === 'error' ? 'error' : 'success')}
+        />
+      </KhungNhanVien>
+    );
+  }
 
-    const hienThi = chiTietDayDu || hdDangXem;
-    const isQL = laQuanLy(nguoiDung);
-    const isSale = laNhanVienSale(nguoiDung);
-    const moXacNhanDoiSoat = async (pdsIndex) => {
-      if (!hdDangXem) return;
-      const p = phieuDoiSoat[pdsIndex];
-      const maSo = hdDangXem.maHD || hdDangXem.maHopDong;
-
-      try {
-        const res = await fetch(`/api/checkout/detail?id=${maSo}`);
-        const data = await res.json();
-        if (data.ok && data.data) {
-          setSelectedMockItem(data.data);
-          setActionIndex(pdsIndex);
-          setShowDoiSoat(true);
-        } else {
-          showToast(data.error || 'Không tìm thấy hồ sơ quyết toán', 'error');
-        }
-      } catch (err) {
-        showToast('Lỗi khi lấy dữ liệu', 'error');
-      }
-    };
-
-    const handleXacNhanDoiSoatSubmit = async (hanhDong, lyDoTranhChap = '') => {
-      if (!hdDangXem) return;
-      const newPds = [...phieuDoiSoat];
-      const p = newPds[actionIndex];
-
-      if (hanhDong === 'tranh_chap') {
-        showToast('Đã ghi nhận tranh chấp, chuyển về cho Kế toán xử lý', 'success');
-        setShowDoiSoat(false);
-        dongModalXem();
-        return;
-      }
-
-      const newTrangThaiHD = p.loai === 'Hoàn cọc' ? 'Chờ hoàn cọc' : 'Chờ thanh toán thêm';
-      try {
-        const res = await fetch('/api/phieu-doi-soat/xac-nhan-khach', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ maHD: selectedMockItem.maSo, trangThai: newTrangThaiHD })
-        });
-        const data = await res.json();
-
-        if (!data.ok) {
-          showToast('Lỗi cập nhật: ' + data.message, 'error');
-          return;
-        }
-
-        p.trangThai = newTrangThaiHD;
-        setPhieuDoiSoat(newPds);
-
-        const listMoi = danhSach.map(item => {
-          if ((item.maHD && selectedMockItem.maSo === item.maHD) || (item.maHopDong && selectedMockItem.maSo === item.maHopDong)) {
-            return { ...item, trangThai: newTrangThaiHD };
-          }
-          return item;
-        });
-        setDanhSach(listMoi);
-
-        // Cập nhật state hdDangXem
-        setHdDangXem({ ...hdDangXem, trangThai: newTrangThaiHD });
-
-        showToast('Đã xác nhận khách hàng đồng ý phiếu đối soát. Trạng thái chuyển thành: ' + newTrangThaiHD);
-      } catch (err) {
-        console.error(err);
-        showToast('Đã có lỗi xảy ra. Vui lòng thử lại.', 'error');
-      }
-    };
-
-    const moThanhLy = async (hd) => {
-      const maSo = hd.maHD || hd.maHopDong;
-      try {
-        const res = await fetch(`/api/checkout/detail?id=${maSo}`);
-        const data = await res.json();
-        if (data.ok && data.data) {
-          setSelectedMockItem(data.data);
-          setShowThanhLy(true);
-        } else {
-          showToast(data.error || 'Không tìm thấy hồ sơ quyết toán', 'error');
-        }
-      } catch (err) {
-        showToast('Lỗi khi lấy dữ liệu', 'error');
-      }
-    };
-
-    const handleThanhLySubmit = async (e) => {
-      if (e) e.preventDefault();
-      try {
-        const res = await fetch('/api/phieu-doi-soat/hoan-tat-tra-phong', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ maHD: selectedMockItem.maSo })
-        });
-        const data = await res.json();
-        if (!data.ok) {
-          showToast('Lỗi cập nhật: ' + data.message, 'error');
-          return;
-        }
-
-        const listMoi = danhSach.map(item => {
-          if ((item.maHD && selectedMockItem.maSo === item.maHD) || (item.maHopDong && selectedMockItem.maSo === item.maHopDong)) {
-            return { ...item, trangThai: 'Đã trả phòng' };
-          }
-          return item;
-        });
-        setDanhSach(listMoi);
-        showToast('Hoàn tất trả phòng thành công!');
-        setShowThanhLy(false);
-        dongModalXem();
-      } catch (err) {
-        showToast('Lỗi kết nối', 'error');
-      }
-    };
-
+  if (manYeuCau) {
     return (
       <KhungNhanVien nguoiDung={nguoiDung} dangXuat={dangXuat}>
         {toast.show && (
@@ -483,438 +325,594 @@ export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
             {toast.message}
           </div>
         )}
-
-        {soCanBao > 0 && (
-          <div className="qt-alert">
-            <span className="material-symbols-outlined">warning</span>
-            <span>
-              {soCanBao} hợp đồng sắp hết hạn trong 30 ngày. Vui lòng kiểm tra và thực hiện gia hạn hoặc thanh lý.
-            </span>
-            <button type="button" onClick={() => setBoLoc((p) => ({ ...p, trangThai: 'Hiệu lực', page: 1 }))}>
-              Xem chi tiết
-            </button>
-          </div>
-        )}
-
-        <div className="qt-page-header">
-          <div>
-            <h1>Danh sách hợp đồng</h1>
-          </div>
+        <div style={{ padding: '8px 0 24px' }}>
+          <h1 style={{ fontSize: 22, margin: '0 0 8px', color: '#0f172a' }}>Yêu cầu trả phòng / Kết thúc hợp đồng</h1>
+          <p style={{ margin: '0 0 20px', color: '#64748b', fontSize: 14 }}>
+            Gửi hồ sơ để Quản lý kiểm tra phòng · Trạng thái sẽ chuyển thành <strong>Chờ kiểm tra</strong>
+          </p>
+          <fieldset disabled={dangGuiYeuCau} style={{ border: 'none', padding: 0, margin: 0 }}>
+            <CheckoutRequestForm
+              selectedItem={manYeuCau}
+              formValues={formYeuCau}
+              onChange={(e) => {
+                const { name, value } = e.target;
+                setFormYeuCau((p) => ({ ...p, [name]: value }));
+              }}
+              onSubmit={guiYeuCauTraPhong}
+              onCancel={() => setManYeuCau(null)}
+            />
+          </fieldset>
         </div>
+      </KhungNhanVien>
+    );
+  }
 
-        {/* Kỳ hạn 1/3/6/12/24 */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
-          <button
-            type="button"
-            className={!boLoc.kyHan ? 'qt-btn-primary' : 'qt-btn-icon'}
-            onClick={() => setBoLoc((p) => ({ ...p, kyHan: '' }))}
-            style={{
-              padding: '8px 14px',
-              borderRadius: 999,
-              border: !boLoc.kyHan ? 'none' : '1px solid #e2e8f0',
-              background: !boLoc.kyHan ? 'var(--primary-color)' : '#fff',
-              color: !boLoc.kyHan ? '#fff' : '#475569',
-              fontWeight: 700,
-              cursor: 'pointer',
-            }}
-          >
-            Tất cả
-          </button>
-          {KY_HAN_OPTIONS.map((k) => {
-            const active = String(boLoc.kyHan) === String(k);
-            return (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setBoLoc((p) => ({ ...p, kyHan: String(k) }))}
-                style={{
-                  padding: '8px 14px',
-                  borderRadius: 999,
-                  border: active ? 'none' : '1px solid #e2e8f0',
-                  background: active ? 'var(--primary-color)' : '#fff',
-                  color: active ? '#fff' : '#475569',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                {k} tháng
-              </button>
-            );
-          })}
-        </div>
+  const hienThi = chiTietDayDu || hdDangXem;
+  const isQL = laQuanLy(nguoiDung);
+  const isSale = laNhanVienSale(nguoiDung);
+  const moXacNhanDoiSoat = async (pdsIndex) => {
+    if (!hdDangXem) return;
+    const p = phieuDoiSoat[pdsIndex];
+    const maSo = hdDangXem.maHD || hdDangXem.maHopDong;
+    
+    try {
+      const res = await fetch(`/api/checkout/detail?id=${maSo}`);
+      const data = await res.json();
+      if (data.ok && data.data) {
+        setSelectedMockItem(data.data);
+        setActionIndex(pdsIndex);
+        setShowDoiSoat(true);
+      } else {
+        showToast(data.error || 'Không tìm thấy hồ sơ quyết toán', 'error');
+      }
+    } catch (err) {
+      showToast('Lỗi khi lấy dữ liệu', 'error');
+    }
+  };
 
-        <form
-          className="qt-filter-card"
-          onSubmit={(e) => {
-            e.preventDefault();
-            taiDanhSach();
+  const handleXacNhanDoiSoatSubmit = async (hanhDong, lyDoTranhChap = '') => {
+    if (!hdDangXem) return;
+    const newPds = [...phieuDoiSoat];
+    const p = newPds[actionIndex];
+
+    if (hanhDong === 'tranh_chap') {
+      showToast('Đã ghi nhận tranh chấp, chuyển về cho Kế toán xử lý', 'success');
+      setShowDoiSoat(false);
+      dongModalXem();
+      return;
+    }
+
+    const newTrangThaiHD = p.loai === 'Hoàn cọc' ? 'Chờ hoàn cọc' : 'Chờ thanh toán thêm';
+    try {
+      const res = await fetch('/api/phieu-doi-soat/xac-nhan-khach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ maHD: selectedMockItem.maSo, trangThai: newTrangThaiHD })
+      });
+      const data = await res.json();
+
+      if (!data.ok) {
+        showToast('Lỗi cập nhật: ' + data.message, 'error');
+        return;
+      }
+
+      p.trangThai = newTrangThaiHD;
+      setPhieuDoiSoat(newPds);
+
+      const listMoi = danhSach.map(item => {
+        if ((item.maHD && selectedMockItem.maSo === item.maHD) || (item.maHopDong && selectedMockItem.maSo === item.maHopDong)) {
+          return { ...item, trangThai: newTrangThaiHD };
+        }
+        return item;
+      });
+      setDanhSach(listMoi);
+
+      // Cập nhật state hdDangXem
+      setHdDangXem({ ...hdDangXem, trangThai: newTrangThaiHD });
+
+      showToast('Đã xác nhận khách hàng đồng ý phiếu đối soát. Trạng thái chuyển thành: ' + newTrangThaiHD);
+    } catch (err) {
+      console.error(err);
+      showToast('Đã có lỗi xảy ra. Vui lòng thử lại.', 'error');
+    }
+  };
+
+  const moThanhLy = async (hd) => {
+    const maSo = hd.maHD || hd.maHopDong;
+    try {
+      const res = await fetch(`/api/checkout/detail?id=${maSo}`);
+      const data = await res.json();
+      if (data.ok && data.data) {
+        setSelectedMockItem(data.data);
+        setShowThanhLy(true);
+      } else {
+        showToast(data.error || 'Không tìm thấy hồ sơ quyết toán', 'error');
+      }
+    } catch (err) {
+      showToast('Lỗi khi lấy dữ liệu', 'error');
+    }
+  };
+
+  const handleThanhLySubmit = async (e) => {
+    if (e) e.preventDefault();
+    try {
+      const res = await fetch('/api/phieu-doi-soat/hoan-tat-tra-phong', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ maHD: selectedMockItem.maSo })
+      });
+      const data = await res.json();
+      if (!data.ok) {
+        showToast('Lỗi cập nhật: ' + data.message, 'error');
+        return;
+      }
+      
+      const listMoi = danhSach.map(item => {
+        if ((item.maHD && selectedMockItem.maSo === item.maHD) || (item.maHopDong && selectedMockItem.maSo === item.maHopDong)) {
+          return { ...item, trangThai: 'Đã trả phòng' };
+        }
+        return item;
+      });
+      setDanhSach(listMoi);
+      showToast('Hoàn tất trả phòng thành công!');
+      setShowThanhLy(false);
+      dongModalXem();
+    } catch (err) {
+      showToast('Lỗi kết nối', 'error');
+    }
+  };
+
+  return (
+    <KhungNhanVien nguoiDung={nguoiDung} dangXuat={dangXuat}>
+      {toast.show && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 20,
+            right: 20,
+            background: toast.type === 'success' ? '#10b981' : '#ef4444',
+            color: '#fff',
+            padding: '12px 24px',
+            borderRadius: 8,
+            zIndex: 10000,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            fontWeight: 'bold',
           }}
         >
-          <div className="qt-field">
-            <label>Chi nhánh</label>
-            <select value={boLoc.maCN} onChange={(e) => setBoLoc((p) => ({ ...p, maCN: e.target.value }))}>
-              <option value="">Tất cả chi nhánh</option>
-              {chiNhanh.map((cn) => (
-                <option key={cn.MaCN} value={cn.MaCN}>
-                  {cn.TenCN}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="qt-field">
-            <label>Trạng thái</label>
-            <select
-              value={boLoc.trangThai}
-              onChange={(e) => setBoLoc((p) => ({ ...p, trangThai: e.target.value }))}
-            >
-              <option value="">Tất cả</option>
-              <option value="Hiệu lực">Hiệu lực</option>
-              <option value="Chờ kiểm tra">Chờ kiểm tra</option>
-              <option value="Chờ đối soát">Chờ đối soát</option>
-              <option value="Chờ xác nhận đối soát">Chờ xác nhận đối soát</option>
-              <option value="Chờ hoàn cọc">Chờ hoàn cọc</option>
-              <option value="Thanh lý">Thanh lý</option>
-              <option value="Hủy">Hủy</option>
-            </select>
-          </div>
-          <div className="qt-field">
-            <label>Tìm mã HĐ / khách / SĐT</label>
-            <input
-              placeholder="HD-00001..."
-              value={boLoc.tuKhoa}
-              onChange={(e) => setBoLoc((p) => ({ ...p, tuKhoa: e.target.value }))}
-            />
-          </div>
-          <div className="qt-field">
-            <label>Phòng</label>
-            <input
-              placeholder="Tìm số phòng..."
-              value={boLoc.phong}
-              onChange={(e) => setBoLoc((p) => ({ ...p, phong: e.target.value }))}
-            />
-          </div>
-          <button type="submit" className="qt-btn-primary">
-            Lọc
-          </button>
-        </form>
+          {toast.message}
+        </div>
+      )}
 
-        <div className="qt-table-wrap">
-          {dangTai ? (
-            <div className="qt-loading">Đang tải...</div>
-          ) : (
-            <>
-              <table className="qt-table">
-                <thead>
-                  <tr>
-                    <th>Mã HĐ</th>
-                    <th>Tên khách</th>
-                    <th>Phòng</th>
-                    <th>Kỳ hạn</th>
-                    <th>Ngày bắt đầu</th>
-                    <th>Ngày hết hạn</th>
-                    <th>Tỷ lệ hoàn cọc</th>
-                    <th>Trạng thái</th>
-                    <th>Hành động</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {danhSach.map((hd) => (
-                    <tr key={hd.maHopDong || hd.maHD} style={{ cursor: 'pointer' }} onClick={() => moModalXem(hd)}>
-                      <td>
-                        <strong>{hd.maHD}</strong>
-                      </td>
-                      <td>
-                        <div>{hd.hoTen}</div>
-                        <div className="sub">{hd.sdt}</div>
-                      </td>
-                      <td>{hd.phong}</td>
-                      <td>{hd.kyHanThang ? `${hd.kyHanThang} tháng` : '—'}</td>
-                      <td>{hd.ngayBatDau}</td>
-                      <td style={{ color: hd.sapHetHan ? '#dc2626' : undefined }}>{hd.ngayHetHan}</td>
-                      <td>{hd.tyLeHoanCoc || '—'}</td>
-                      <td>
-                        <span className={`qt-chip qt-chip--${layChipHD(hd.trangThai)}`}>{hd.trangThai}</span>
-                      </td>
-                      <td onClick={(e) => e.stopPropagation()}>
-                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+      {soCanBao > 0 && (
+        <div className="qt-alert">
+          <span className="material-symbols-outlined">warning</span>
+          <span>
+            {soCanBao} hợp đồng sắp hết hạn trong 30 ngày. Vui lòng kiểm tra và thực hiện gia hạn hoặc thanh lý.
+          </span>
+          <button type="button" onClick={() => setBoLoc((p) => ({ ...p, trangThai: 'Hiệu lực', page: 1 }))}>
+            Xem chi tiết
+          </button>
+        </div>
+      )}
+
+      <div className="qt-page-header">
+        <div>
+          <h1>Danh sách hợp đồng</h1>
+        </div>
+      </div>
+
+      {/* Kỳ hạn 1/3/6/12/24 */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 14 }}>
+        <button
+          type="button"
+          className={!boLoc.kyHan ? 'qt-btn-primary' : 'qt-btn-icon'}
+          onClick={() => setBoLoc((p) => ({ ...p, kyHan: '' }))}
+          style={{
+            padding: '8px 14px',
+            borderRadius: 999,
+            border: !boLoc.kyHan ? 'none' : '1px solid #e2e8f0',
+            background: !boLoc.kyHan ? 'var(--primary-color)' : '#fff',
+            color: !boLoc.kyHan ? '#fff' : '#475569',
+            fontWeight: 700,
+            cursor: 'pointer',
+          }}
+        >
+          Tất cả
+        </button>
+        {KY_HAN_OPTIONS.map((k) => {
+          const active = String(boLoc.kyHan) === String(k);
+          return (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setBoLoc((p) => ({ ...p, kyHan: String(k) }))}
+              style={{
+                padding: '8px 14px',
+                borderRadius: 999,
+                border: active ? 'none' : '1px solid #e2e8f0',
+                background: active ? 'var(--primary-color)' : '#fff',
+                color: active ? '#fff' : '#475569',
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              {k} tháng
+            </button>
+          );
+        })}
+      </div>
+
+      <form
+        className="qt-filter-card"
+        onSubmit={(e) => {
+          e.preventDefault();
+          taiDanhSach();
+        }}
+      >
+        <div className="qt-field">
+          <label>Chi nhánh</label>
+          <select value={boLoc.maCN} onChange={(e) => setBoLoc((p) => ({ ...p, maCN: e.target.value }))}>
+            <option value="">Tất cả chi nhánh</option>
+            {chiNhanh.map((cn) => (
+              <option key={cn.MaCN} value={cn.MaCN}>
+                {cn.TenCN}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="qt-field">
+          <label>Trạng thái</label>
+          <select
+            value={boLoc.trangThai}
+            onChange={(e) => setBoLoc((p) => ({ ...p, trangThai: e.target.value }))}
+          >
+            <option value="">Tất cả</option>
+            <option value="Hiệu lực">Hiệu lực</option>
+            <option value="Chờ kiểm tra">Chờ kiểm tra</option>
+            <option value="Chờ đối soát">Chờ đối soát</option>
+            <option value="Chờ xác nhận đối soát">Chờ xác nhận đối soát</option>
+            <option value="Chờ hoàn cọc">Chờ hoàn cọc</option>
+            <option value="Thanh lý">Thanh lý</option>
+            <option value="Hủy">Hủy</option>
+          </select>
+        </div>
+        <div className="qt-field">
+          <label>Tìm mã HĐ / khách / SĐT</label>
+          <input
+            placeholder="HD-00001..."
+            value={boLoc.tuKhoa}
+            onChange={(e) => setBoLoc((p) => ({ ...p, tuKhoa: e.target.value }))}
+          />
+        </div>
+        <div className="qt-field">
+          <label>Phòng</label>
+          <input
+            placeholder="Tìm số phòng..."
+            value={boLoc.phong}
+            onChange={(e) => setBoLoc((p) => ({ ...p, phong: e.target.value }))}
+          />
+        </div>
+        <button type="submit" className="qt-btn-primary">
+          Lọc
+        </button>
+      </form>
+
+      <div className="qt-table-wrap">
+        {dangTai ? (
+          <div className="qt-loading">Đang tải...</div>
+        ) : (
+          <>
+            <table className="qt-table">
+              <thead>
+                <tr>
+                  <th>Mã HĐ</th>
+                  <th>Tên khách</th>
+                  <th>Phòng</th>
+                  <th>Kỳ hạn</th>
+                  <th>Ngày bắt đầu</th>
+                  <th>Ngày hết hạn</th>
+                  <th>Tỷ lệ hoàn cọc</th>
+                  <th>Trạng thái</th>
+                  <th>Hành động</th>
+                </tr>
+              </thead>
+              <tbody>
+                {danhSach.map((hd) => (
+                  <tr key={hd.maHopDong || hd.maHD} style={{ cursor: 'pointer' }} onClick={() => moModalXem(hd)}>
+                    <td>
+                      <strong>{hd.maHD}</strong>
+                    </td>
+                    <td>
+                      <div>{hd.hoTen}</div>
+                      <div className="sub">{hd.sdt}</div>
+                    </td>
+                    <td>{hd.phong}</td>
+                    <td>{hd.kyHanThang ? `${hd.kyHanThang} tháng` : '—'}</td>
+                    <td>{hd.ngayBatDau}</td>
+                    <td style={{ color: hd.sapHetHan ? '#dc2626' : undefined }}>{hd.ngayHetHan}</td>
+                    <td>{hd.tyLeHoanCoc || '—'}</td>
+                    <td>
+                      <span className={`qt-chip qt-chip--${layChipHD(hd.trangThai)}`}>{hd.trangThai}</span>
+                    </td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          className="qt-btn-icon"
+                          title="Xem chi tiết"
+                          onClick={() => moModalXem(hd)}
+                        >
+                          <span className="material-symbols-outlined">visibility</span>
+                        </button>
+                        {isSale && coTheYeuCauTraPhong(hd) && (
                           <button
                             type="button"
-                            className="qt-btn-icon"
-                            title="Xem chi tiết"
-                            onClick={() => moModalXem(hd)}
+                            className="qt-btn-primary"
+                            title="Yêu cầu trả phòng / kết thúc hợp đồng"
+                            onClick={() => batDauYeuCauTraPhong(hd)}
+                            style={{
+                              padding: '6px 10px',
+                              fontSize: 12,
+                              whiteSpace: 'nowrap',
+                            }}
                           >
-                            <span className="material-symbols-outlined">visibility</span>
+                            Yêu cầu trả phòng
                           </button>
-                          {isSale && coTheYeuCauTraPhong(hd) && (
-                            <button
-                              type="button"
-                              className="qt-btn-primary"
-                              title="Yêu cầu trả phòng / kết thúc hợp đồng"
-                              onClick={() => batDauYeuCauTraPhong(hd)}
-                              style={{
-                                padding: '6px 10px',
-                                fontSize: 12,
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              Yêu cầu trả phòng
-                            </button>
-                          )}
-                          {isQL && coTheKetThuc(hd) && (
-                            <button
-                              type="button"
-                              className="qt-btn-primary"
-                              title="Kiểm phòng / kết thúc HĐ"
-                              onClick={() => batDauKetThuc(hd)}
-                              style={{
-                                padding: '6px 10px',
-                                fontSize: 12,
-                                whiteSpace: 'nowrap',
-                              }}
-                            >
-                              Kiểm phòng
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button type="button" className="qt-btn-icon" title="Xem thông tin và xác nhận đối soát" onClick={() => moModalXem(hd)}>
-                            <span className="material-symbols-outlined">visibility</span>
+                        )}
+                        {isQL && coTheKetThuc(hd) && (
+                          <button
+                            type="button"
+                            className="qt-btn-primary"
+                            title="Kiểm phòng / kết thúc HĐ"
+                            onClick={() => batDauKetThuc(hd)}
+                            style={{
+                              padding: '6px 10px',
+                              fontSize: 12,
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            Kiểm phòng
                           </button>
-                          {hd.trangThai === 'Chờ thanh lý' && (
-                            <button type="button" className="qt-btn-icon" style={{ color: '#059669', background: '#ecfdf5', borderColor: '#a7f3d0' }} title="Mở bảng thanh lý & thu hồi" onClick={() => moThanhLy(hd)}>
-                              <span className="material-symbols-outlined">contract</span>
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div className="qt-pagination">
-                <span>Tổng cộng: {danhSach.length} hợp đồng</span>
-              </div>
-            </>
-          )}
-        </div>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button type="button" className="qt-btn-icon" title="Xem thông tin và xác nhận đối soát" onClick={() => moModalXem(hd)}>
+                          <span className="material-symbols-outlined">visibility</span>
+                        </button>
+                        {hd.trangThai === 'Thanh lý' && (
+                          <button type="button" className="qt-btn-icon" style={{ color: '#059669', background: '#ecfdf5', borderColor: '#a7f3d0' }} title="Mở bảng thanh lý & thu hồi" onClick={() => moThanhLy(hd)}>
+                            <span className="material-symbols-outlined">contract</span>
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="qt-pagination">
+              <span>Tổng cộng: {danhSach.length} hợp đồng</span>
+            </div>
+          </>
+        )}
+      </div>
 
-        {hdDangXem && (
+      {hdDangXem && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+          }}
+          onClick={dongModalXem}
+        >
           <div
             style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0,0,0,0.5)',
-              zIndex: 9999,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: 16,
+              background: '#fff',
+              borderRadius: 12,
+              width: 'min(640px, 100%)',
+              padding: 24,
+              boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
+              maxHeight: '90vh',
+              overflowY: 'auto',
             }}
-            onClick={dongModalXem}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-              style={{
-                background: '#fff',
-                borderRadius: 12,
-                width: 'min(640px, 100%)',
-                padding: 24,
-                boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-                maxHeight: '90vh',
-                overflowY: 'auto',
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
-                <h2 style={{ fontSize: 18, margin: 0, color: '#0f172a' }}>
-                  Chi tiết hợp đồng: {hienThi?.maHD || hdDangXem.maHD}
-                </h2>
-                <button
-                  type="button"
-                  onClick={dongModalXem}
-                  aria-label="Đóng"
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 8,
-                    border: '1px solid #e2e8f0',
-                    background: '#f8fafc',
-                    cursor: 'pointer',
-                    fontSize: 20,
-                    fontWeight: 700,
-                    color: '#64748b',
-                    lineHeight: 1,
-                  }}
-                >
-                  ×
-                </button>
-              </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 }}>
+              <h2 style={{ fontSize: 18, margin: 0, color: '#0f172a' }}>
+                Chi tiết hợp đồng: {hienThi?.maHD || hdDangXem.maHD}
+              </h2>
+              <button
+                type="button"
+                onClick={dongModalXem}
+                aria-label="Đóng"
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 8,
+                  border: '1px solid #e2e8f0',
+                  background: '#f8fafc',
+                  cursor: 'pointer',
+                  fontSize: 20,
+                  fontWeight: 700,
+                  color: '#64748b',
+                  lineHeight: 1,
+                }}
+              >
+                ×
+              </button>
+            </div>
 
-              {dangTaiChiTiet ? (
-                <p style={{ color: '#64748b' }}>Đang tải chi tiết từ database...</p>
+            {dangTaiChiTiet ? (
+              <p style={{ color: '#64748b' }}>Đang tải chi tiết từ database...</p>
+            ) : (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: 16,
+                  fontSize: 14,
+                  color: '#334155',
+                  marginBottom: 24,
+                }}
+              >
+                {[
+                  ['Khách hàng', hienThi.hoTen],
+                  ['Số điện thoại', hienThi.sdt || '—'],
+                  ['CCCD', hienThi.cccd || '—'],
+                  ['Email', hienThi.email || '—'],
+                  ['Phòng/Giường', hienThi.phong],
+                  ['Chi nhánh', hienThi.tenCN || '—'],
+                  ['Ngày bắt đầu', hienThi.ngayBatDau],
+                  ['Ngày hết hạn', hienThi.ngayHetHan],
+                  ['Kỳ hạn', hienThi.kyHanThang ? `${hienThi.kyHanThang} tháng` : '—'],
+                  ['Giá thuê', hienThi.giaThue],
+                  ['Kỳ thanh toán', hienThi.kyThanhToan || '—'],
+                  ['Trạng thái', hienThi.trangThai],
+                ].map(([label, value]) => (
+                  <div key={label}>
+                    <p style={{ margin: '4px 0', color: '#64748b' }}>{label}:</p>
+                    <strong style={{ color: '#0f172a' }}>{value}</strong>
+                  </div>
+                ))}
+              </div>
+            )}
+
+
+            {/* Phần Phiếu Đối Soát */}
+            <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '20px', marginBottom: '24px' }}>
+              <h3 style={{ fontSize: '15px', fontWeight: 'bold', color: '#0f172a', margin: '0 0 12px 0' }}>
+                Các phiếu đối soát liên kết
+              </h3>
+
+              {phieuDoiSoat.length === 0 ? (
+                <p style={{ fontSize: '14px', color: '#64748b', fontStyle: 'italic' }}>Không có phiếu đối soát nào cần xử lý.</p>
               ) : (
-                <div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr 1fr',
-                    gap: 16,
-                    fontSize: 14,
-                    color: '#334155',
-                    marginBottom: 24,
-                  }}
-                >
-                  {[
-                    ['Khách hàng', hienThi.hoTen],
-                    ['Số điện thoại', hienThi.sdt || '—'],
-                    ['CCCD', hienThi.cccd || '—'],
-                    ['Email', hienThi.email || '—'],
-                    ['Phòng/Giường', hienThi.phong],
-                    ['Chi nhánh', hienThi.tenCN || '—'],
-                    ['Ngày bắt đầu', hienThi.ngayBatDau],
-                    ['Ngày hết hạn', hienThi.ngayHetHan],
-                    ['Kỳ hạn', hienThi.kyHanThang ? `${hienThi.kyHanThang} tháng` : '—'],
-                    ['Giá thuê', hienThi.giaThue],
-                    ['Kỳ thanh toán', hienThi.kyThanhToan || '—'],
-                    ['Trạng thái', hienThi.trangThai],
-                  ].map(([label, value]) => (
-                    <div key={label}>
-                      <p style={{ margin: '4px 0', color: '#64748b' }}>{label}:</p>
-                      <strong style={{ color: '#0f172a' }}>{value}</strong>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {phieuDoiSoat.map((p, idx) => (
+                    <div key={p.maPhieu} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ fontSize: '13.5px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ fontWeight: 'bold', color: '#0f172a' }}>{p.maPhieu} - <span style={{ color: p.loai === 'Hoàn cọc' ? '#059669' : '#dc2626' }}>Loại: {p.loai}</span></div>
+                        <div>Ngày lập: {p.ngayLap}</div>
+                        <div>Số tiền: <strong style={{ color: '#0f172a' }}>{p.soTien.toLocaleString('vi-VN')} VNĐ</strong></div>
+                        <div style={{ marginTop: '4px' }}>
+                          Trạng thái phiếu: <span style={{ fontWeight: 'bold', color: p.trangThai === 'Chờ khách xác nhận' ? '#ea580c' : '#2563eb' }}>{p.trangThai}</span>
+                        </div>
+                      </div>
+
+                      <div>
+                        {p.trangThai === 'Chờ khách xác nhận' ? (
+                          <button
+                            onClick={() => moXacNhanDoiSoat(idx)}
+                            style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: 'var(--primary-color)', color: '#fff', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
+                            Xác nhận của khách hàng
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>check_circle</span>
+                            Đã chuyển qua Kế toán
+                          </span>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
+            </div>
 
-
-              {/* Phần Phiếu Đối Soát */}
-              <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '20px', marginBottom: '24px' }}>
-                <h3 style={{ fontSize: '15px', fontWeight: 'bold', color: '#0f172a', margin: '0 0 12px 0' }}>
-                  Các phiếu đối soát liên kết
-                </h3>
-
-                {phieuDoiSoat.length === 0 ? (
-                  <p style={{ fontSize: '14px', color: '#64748b', fontStyle: 'italic' }}>Không có phiếu đối soát nào cần xử lý.</p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {phieuDoiSoat.map((p, idx) => (
-                      <div key={p.maPhieu} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ fontSize: '13.5px', color: '#334155', display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <div style={{ fontWeight: 'bold', color: '#0f172a' }}>{p.maPhieu} - <span style={{ color: p.loai === 'Hoàn cọc' ? '#059669' : '#dc2626' }}>Loại: {p.loai}</span></div>
-                          <div>Ngày lập: {p.ngayLap}</div>
-                          <div>Số tiền: <strong style={{ color: '#0f172a' }}>{p.soTien.toLocaleString('vi-VN')} VNĐ</strong></div>
-                          <div style={{ marginTop: '4px' }}>
-                            Trạng thái phiếu: <span style={{ fontWeight: 'bold', color: p.trangThai === 'Chờ khách xác nhận' ? '#ea580c' : '#2563eb' }}>{p.trangThai}</span>
-                          </div>
-                        </div>
-
-                        <div>
-                          {p.trangThai === 'Chờ khách xác nhận' ? (
-                            <button
-                              onClick={() => moXacNhanDoiSoat(idx)}
-                              style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: 'var(--primary-color)', color: '#fff', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px' }}>
-                              Xác nhận của khách hàng
-                            </button>
-                          ) : (
-                            <span style={{ fontSize: '13px', color: '#64748b', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>check_circle</span>
-                              Đã chuyển qua Kế toán
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-                {hdDangXem.trangThai === 'Chờ thanh lý' && (
-                  <button onClick={() => moThanhLy(hdDangXem)} style={{ padding: '8px 20px', borderRadius: '6px', border: 'none', background: '#10b981', color: '#fff', cursor: 'pointer', fontWeight: 'bold' }}>
-                    Ký thanh lý & Thu hồi phòng
-                  </button>
-                )}
-                <button onClick={dongModalXem} style={{ padding: '8px 20px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', cursor: 'pointer', fontWeight: 'bold' }}>
-                  Đóng
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+              {hdDangXem.trangThai === 'Thanh lý' && (
+                <button onClick={() => moThanhLy(hdDangXem)} style={{ padding: '8px 20px', borderRadius: '6px', border: 'none', background: '#10b981', color: '#fff', cursor: 'pointer', fontWeight: 'bold' }}>
+                  Ký thanh lý & Thu hồi phòng
                 </button>
-                {isSale && (
-                  <button
-                    type="button"
-                    disabled={!coTheYeuCauTraPhong(hienThi || {})}
-                    title={
-                      coTheYeuCauTraPhong(hienThi || {})
-                        ? 'Gửi yêu cầu trả phòng → Chờ kiểm tra'
-                        : 'Chỉ bật khi hợp đồng đang hiệu lực'
-                    }
-                    onClick={() => batDauYeuCauTraPhong(hienThi)}
-                    style={{
-                      padding: '8px 16px',
-                      borderRadius: 6,
-                      border: 'none',
-                      background: coTheYeuCauTraPhong(hienThi || {}) ? 'var(--primary-color)' : '#cbd5e1',
-                      color: '#fff',
-                      cursor: coTheYeuCauTraPhong(hienThi || {}) ? 'pointer' : 'not-allowed',
-                      fontWeight: 'bold',
-                    }}
-                  >
-                    Yêu cầu trả phòng / Kết thúc hợp đồng
-                  </button>
-                )}
-                {isQL && (
-                  <button
-                    type="button"
-                    disabled={!coTheKetThuc(hienThi || {})}
-                    title={
-                      coTheKetThuc(hienThi || {})
-                        ? 'Mở xử lý kiểm phòng'
-                        : 'Chỉ bật khi trạng thái = Chờ kiểm tra'
-                    }
-                    onClick={batDauKetThuc}
-                    style={{
-                      padding: '8px 16px',
-                      borderRadius: 6,
-                      border: 'none',
-                      background: coTheKetThuc(hienThi || {}) ? 'var(--primary-color)' : '#cbd5e1',
-                      color: '#fff',
-                      cursor: coTheKetThuc(hienThi || {}) ? 'pointer' : 'not-allowed',
-                      fontWeight: 'bold',
-                    }}
-                  >
-                    Kết thúc hợp đồng / Trả phòng
-                  </button>
-                )}
-              </div>
+              )}
+              <button onClick={dongModalXem} style={{ padding: '8px 20px', borderRadius: '6px', border: '1px solid #cbd5e1', background: '#fff', color: '#475569', cursor: 'pointer', fontWeight: 'bold' }}>
+                Đóng
+              </button>
+              {isSale && (
+                <button
+                  type="button"
+                  disabled={!coTheYeuCauTraPhong(hienThi || {})}
+                  title={
+                    coTheYeuCauTraPhong(hienThi || {})
+                      ? 'Gửi yêu cầu trả phòng → Chờ kiểm tra'
+                      : 'Chỉ bật khi hợp đồng đang hiệu lực'
+                  }
+                  onClick={() => batDauYeuCauTraPhong(hienThi)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 6,
+                    border: 'none',
+                    background: coTheYeuCauTraPhong(hienThi || {}) ? 'var(--primary-color)' : '#cbd5e1',
+                    color: '#fff',
+                    cursor: coTheYeuCauTraPhong(hienThi || {}) ? 'pointer' : 'not-allowed',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  Yêu cầu trả phòng / Kết thúc hợp đồng
+                </button>
+              )}
+              {isQL && (
+                <button
+                  type="button"
+                  disabled={!coTheKetThuc(hienThi || {})}
+                  title={
+                    coTheKetThuc(hienThi || {})
+                      ? 'Mở xử lý kiểm phòng'
+                      : 'Chỉ bật khi trạng thái = Chờ kiểm tra'
+                  }
+                  onClick={batDauKetThuc}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 6,
+                    border: 'none',
+                    background: coTheKetThuc(hienThi || {}) ? 'var(--primary-color)' : '#cbd5e1',
+                    color: '#fff',
+                    cursor: coTheKetThuc(hienThi || {}) ? 'pointer' : 'not-allowed',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  Kết thúc hợp đồng / Trả phòng
+                </button>
+              )}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {/* OVERLAY: MÀN HÌNH ĐỐI SOÁT */}
-        {showDoiSoat && selectedMockItem && (
-          <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: '900px', maxWidth: '95vw', maxHeight: '95vh', overflowY: 'auto' }}>
-              <ReconcileConfirmForm
-                selectedItem={selectedMockItem}
-                onConfirm={handleXacNhanDoiSoatSubmit}
-                onCancel={() => setShowDoiSoat(false)}
-              />
-            </div>
+      {/* OVERLAY: MÀN HÌNH ĐỐI SOÁT */}
+      {showDoiSoat && selectedMockItem && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '900px', maxWidth: '95vw', maxHeight: '95vh', overflowY: 'auto' }}>
+            <ReconcileConfirmForm
+              selectedItem={selectedMockItem}
+              onConfirm={handleXacNhanDoiSoatSubmit}
+              onCancel={() => setShowDoiSoat(false)}
+            />
           </div>
-        )}
+        </div>
+      )}
 
-        {/* OVERLAY: MÀN HÌNH THANH LÝ */}
-        {showThanhLy && selectedMockItem && (
-          <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <div style={{ width: '900px', maxWidth: '95vw', background: '#fff', borderRadius: '16px', padding: '24px', maxHeight: '95vh', overflowY: 'auto' }}>
-              <ContractLiquidateForm
-                selectedItem={selectedMockItem}
-                onSubmit={handleThanhLySubmit}
-                onCancel={() => setShowThanhLy(false)}
-              />
-            </div>
+      {/* OVERLAY: MÀN HÌNH THANH LÝ */}
+      {showThanhLy && selectedMockItem && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '900px', maxWidth: '95vw', background: '#fff', borderRadius: '16px', padding: '24px', maxHeight: '95vh', overflowY: 'auto' }}>
+            <ContractLiquidateForm
+              selectedItem={selectedMockItem}
+              onSubmit={handleThanhLySubmit}
+              onCancel={() => setShowThanhLy(false)}
+            />
           </div>
-        )}
+        </div>
+      )}
 
-      </KhungNhanVien>
-    );
-  }
+    </KhungNhanVien>
+  );
 }
