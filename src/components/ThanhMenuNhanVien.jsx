@@ -101,6 +101,19 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
       { key: 'checkout', label: 'Kiểm tra trả phòng', path: ROUTES.checkout },
       { key: 'thongBao', label: 'Thông báo', path: ROUTES.thongBao }
     ];
+  } else if (
+    rawRole.includes('sale')
+    || rawRole.includes('kinh doanh')
+    || rawRole.includes('nhân viên sale')
+  ) {
+    menu = [
+      { key: 'dashboard', label: 'Dashboard', path: ROUTES.dashboard },
+      { key: 'nhanPhong', label: 'Nhận phòng', path: ROUTES.nhanPhong },
+      { key: 'phongGiuong', label: 'Phòng/Giường', path: ROUTES.phongGiuong },
+      { key: 'khachHang', label: 'Khách hàng', path: ROUTES.khachHang },
+      { key: 'hopDong', label: 'Hợp đồng', path: ROUTES.hopDong },
+      { key: 'thongBao', label: 'Thông báo', path: ROUTES.thongBao },
+    ];
   } else {
     // Sale role
     menu = [
