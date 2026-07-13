@@ -7,6 +7,7 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [depositNotifications, setDepositNotifications] = useState([]);
+  const [transientNotifications, setTransientNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
   const rawRole = (nguoiDung?.vaiTro || '').toLowerCase();
@@ -45,6 +46,14 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
     socket.on('thong_bao_moi', (data) => {
       console.log('[Socket] Received new notification in menu:', data);
       taiThongBaoDatCoc();
+
+      setTransientNotifications(prev => [{
+        MaThongBao: 'temp_' + Date.now(),
+        NoiDung: data.noiDung,
+        TaoLuc: new Date().toISOString(),
+        DaDoc: false,
+        MaDatCoc: data.phieuId || null
+      }, ...prev]);
     });
 
     const onFocus = () => taiThongBaoDatCoc();
@@ -62,23 +71,37 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
 
   const moThongBao = async (item) => {
     if (!item.DaDoc) {
-      setDepositNotifications((current) => current.map((notification) => (
-        notification.MaThongBao === item.MaThongBao
-          ? { ...notification, DaDoc: true }
-          : notification
-      )));
-      try {
-        await fetch(`/api/dat-coc/notifications/${item.MaThongBao}/read`, {
-          method: 'PATCH',
-          headers: { 'x-user-id': String(nguoiDung?.maNV || ''), 'x-user-role': apiRole },
-        });
-      } catch (err) {
-        console.error(err);
+      if (String(item.MaThongBao).startsWith('temp_')) {
+        setTransientNotifications((current) => current.map((notification) => (
+          notification.MaThongBao === item.MaThongBao
+            ? { ...notification, DaDoc: true }
+            : notification
+        )));
+      } else {
+        setDepositNotifications((current) => current.map((notification) => (
+          notification.MaThongBao === item.MaThongBao
+            ? { ...notification, DaDoc: true }
+            : notification
+        )));
+        try {
+          await fetch(`/api/dat-coc/notifications/${item.MaThongBao}/read`, {
+            method: 'PATCH',
+            headers: { 'x-user-id': String(nguoiDung?.maNV || ''), 'x-user-role': apiRole },
+          });
+        } catch (err) {
+          console.error(err);
+        }
       }
     }
     setShowNotifications(false);
     await taiThongBaoDatCoc();
-    navigate(`${ROUTES.deposit}?phieu=${item.MaDatCoc}`);
+    // Only navigate to deposit if it has a valid deposit ID
+    if (item.MaDatCoc) {
+      navigate(`${ROUTES.deposit}?phieu=${item.MaDatCoc}`);
+    } else {
+      // It's a checkout notification, just stay on current page or navigate to checkout
+      navigate(ROUTES.checkout);
+    }
   };
   
   let menu = [];
@@ -115,7 +138,10 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
 
   const laActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
 
+  const allUnreadNotifications = [...transientNotifications, ...depositNotifications].filter((n) => !n.DaDoc);
+
   return (
+    <>
     <nav className="navbar">
       <div className="logo-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
         <Link to={ROUTES.dashboard} className="logo">
@@ -139,18 +165,19 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
       <div className="nav-actions">
         <button type="button" className="notification-btn deposit-bell" title="Thông báo" onClick={handleToggleNotifications}>
           <span className="material-symbols-outlined">notifications</span>
-          {depositNotifications.some((item) => !item.DaDoc) && <span className="deposit-bell-count">{depositNotifications.filter((item) => !item.DaDoc).length}</span>}
+          {allUnreadNotifications.length > 0 && <span className="deposit-bell-count">{allUnreadNotifications.length}</span>}
         </button>
         {showNotifications && (
           <div className="deposit-notification-popover">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid #f1f5f9', marginBottom: '8px' }}>
-              <strong style={{ fontSize: '13px', color: '#1e293b' }}>Thông báo đặt cọc</strong>
+              <strong style={{ fontSize: '13px', color: '#1e293b' }}>Thông báo</strong>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {depositNotifications.some((n) => !n.DaDoc) && (
+                {allUnreadNotifications.length > 0 && (
                   <button
                     type="button"
                     onClick={async () => {
                       try {
+                        setTransientNotifications(current => current.map(n => ({ ...n, DaDoc: true })));
                         await fetch('/api/dat-coc/notifications/mark-all-read', {
                           method: 'PATCH',
                           headers: { 'x-user-id': String(nguoiDung?.maNV || ''), 'x-user-role': apiRole },
@@ -172,12 +199,19 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
                 </button>
               </div>
             </div>
-            {!depositNotifications.filter((n) => !n.DaDoc).length && <p style={{ padding: '12px 0', textAlign: 'center', color: '#64748b' }}>Không có thông báo mới.</p>}
-            {depositNotifications.filter((n) => !n.DaDoc).slice(0, 6).map((item) => (
-              <button type="button" key={item.MaThongBao} className="unread" onClick={() => moThongBao(item)}>
-                <span>{item.NoiDung}</span><small>{new Date(item.TaoLuc).toLocaleString('vi-VN')}</small>
-              </button>
-            ))}
+            
+            {/* Combine both lists for display */}
+            {(() => {
+              const allNotifications = [...transientNotifications, ...depositNotifications].filter((n) => !n.DaDoc);
+              if (!allNotifications.length) {
+                return <p style={{ padding: '12px 0', textAlign: 'center', color: '#64748b' }}>Không có thông báo mới.</p>;
+              }
+              return allNotifications.slice(0, 6).map((item) => (
+                <button type="button" key={item.MaThongBao} className="unread" onClick={() => moThongBao(item)}>
+                  <span>{item.NoiDung}</span><small>{new Date(item.TaoLuc).toLocaleString('vi-VN')}</small>
+                </button>
+              ));
+            })()}
           </div>
         )}
         <div className="user-profile">
@@ -196,5 +230,6 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
         </div>
       </div>
     </nav>
+    </>
   );
 }
