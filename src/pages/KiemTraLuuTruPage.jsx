@@ -19,8 +19,8 @@ export default function KiemTraLuuTruPage({ nguoiDung, dangXuat }) {
         hienThongBao={hienThongBao}
         onQuayLai={() => navigate(ROUTES.dashboard)}
         onXacNhanThanhCong={() => {
-          hienThongBao('success', 'Kiểm tra lưu trú hoàn tất! Đang chuyển sang màn hình Hợp đồng...');
-          setTimeout(() => navigate(ROUTES.hopDong), 2000);
+          hienThongBao('success', 'Kiểm tra lưu trú hoàn tất!');
+          setTimeout(() => navigate(ROUTES.dashboard), 2000);
         }}
       />
 

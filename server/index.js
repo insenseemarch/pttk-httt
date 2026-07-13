@@ -773,9 +773,20 @@ app.post('/api/checkout/request', async (req, res) => {
 
   try {
     const nextTrangThai = 'Chờ kiểm tra';
+    if (!maSoChungTu) {
+      return res.status(400).json({ ok: false, error: 'Thiếu mã chứng từ' });
+    }
 
-    if (maSoChungTu.startsWith('HĐ-')) {
-      const id = Number(maSoChungTu.replace('HĐ-', ''));
+    // Chấp nhận HĐ-12 hoặc HD-00012
+    const isHopDong =
+      String(maSoChungTu).startsWith('HĐ-') ||
+      /^HD-/i.test(String(maSoChungTu));
+
+    if (isHopDong) {
+      const id = Number(String(maSoChungTu).replace(/^(HĐ-|HD-)/i, ''));
+      if (!Number.isFinite(id) || id <= 0) {
+        return res.status(400).json({ ok: false, error: 'Mã hợp đồng không hợp lệ' });
+      }
 
       await supabase.from('HopDong').update({ TrangThai: nextTrangThai }).eq('MaHopDong', id);
 
