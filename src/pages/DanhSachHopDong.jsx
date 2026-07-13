@@ -672,6 +672,10 @@ export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
                             }}
                           >
                             Kiểm phòng
+                          </button>
+                        )}
+                      </div>
+                    </td>
                     <td>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button type="button" className="qt-btn-icon" title="Xem thông tin và xác nhận đối soát" onClick={() => moModalXem(hd)}>
@@ -781,20 +785,7 @@ export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
               </div>
             )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-              <button
-                type="button"
-                onClick={dongModalXem}
-                style={{
-                  padding: '8px 20px',
-                  borderRadius: 6,
-                  border: '1px solid #cbd5e1',
-                  background: '#fff',
-                  color: '#475569',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                }}
-              >
+
             {/* Phần Phiếu Đối Soát */}
             <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: '20px', marginBottom: '24px' }}>
               <h3 style={{ fontSize: '15px', fontWeight: 'bold', color: '#0f172a', margin: '0 0 12px 0' }}>
@@ -924,4 +915,5 @@ export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
 
     </KhungNhanVien>
   );
+}
 }
