@@ -198,7 +198,14 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
             </div>
             {!depositNotifications.filter((n) => !n.DaDoc).length && <p style={{ padding: '12px 0', textAlign: 'center', color: '#64748b' }}>Không có thông báo mới.</p>}
             {depositNotifications.filter((n) => !n.DaDoc).slice(0, 6).map((item) => (
-              <button type="button" key={item.MaThongBao} className="unread" onClick={() => moThongBao(item)}>
+              <button
+                type="button"
+                key={item.MaThongBao}
+                className="unread deposit-notification-tooltip"
+                data-tooltip="Nhấn vào để đánh dấu đã đọc"
+                aria-label={`${item.NoiDung}. Nhấn vào để đánh dấu đã đọc`}
+                onClick={() => moThongBao(item)}
+              >
                 <span>{item.NoiDung}</span><small>{new Date(item.TaoLuc).toLocaleString('vi-VN')}</small>
               </button>
             ))}

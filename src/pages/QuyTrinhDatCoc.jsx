@@ -8,6 +8,7 @@ import ThongTinKhachHang from '../components/dat-coc/ThongTinKhachHang';
 import ThanhToanMinhChung from '../components/dat-coc/ThanhToanMinhChung';
 import BieuDoLichSu from '../components/dat-coc/BieuDoLichSu';
 import ModalLapPhieuDatCoc from '../components/dat-coc/ModalLapPhieuDatCoc';
+import { moAnhTrongTabMoi } from '../utils/moAnhTrongTabMoi';
 
 const API = '/api/dat-coc';
 
@@ -32,10 +33,20 @@ function maTrangThai(value) {
   return STATUS_CODE_BY_LABEL[value] || value;
 }
 
+function dinhDangCCCD(value) {
+  const digits = String(value ?? '').replace(/\D/g, '');
+  if (!digits) return '';
+  return digits.length < 12 ? digits.padStart(12, '0') : digits;
+}
+
 function chuanHoaPhieuTuAPI(phieu) {
   if (!phieu) return phieu;
   return {
     ...phieu,
+    CCCD: dinhDangCCCD(phieu.CCCD),
+    KhachHang: phieu.KhachHang
+      ? { ...phieu.KhachHang, CCCD: dinhDangCCCD(phieu.KhachHang.CCCD ?? phieu.CCCD) }
+      : phieu.KhachHang,
     TrangThai: maTrangThai(phieu.TrangThai),
     lichSu: (phieu.lichSu || []).map((item) => ({
       ...item,
@@ -184,7 +195,7 @@ function layHanhDongChoVaiTro(role, status) {
       CHO_XAC_NHAN_THANH_TOAN: ['XAC_NHAN_CHUNG_TU', 'Xác nhận hợp lệ'],
     },
     KE_TOAN: {
-      CHO_TINH_COC: ['TINH_COC', 'Duyệt tiền cọc và Gửi yêu cầu'],
+      CHO_TINH_COC: ['TINH_COC', 'Gửi yêu cầu thanh toán'],
     },
   };
   return actions[role]?.[status] || null;
@@ -698,10 +709,17 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
           max-width: 1440px;
           margin: 0 auto;
           padding: 32px 24px;
-          font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+          font-family: 'Plus Jakarta Sans', 'Inter', 'Segoe UI', Arial, sans-serif;
           color: #1e293b;
           background: #f8fafc;
           min-height: 100vh;
+        }
+
+        .d-workflow-page button,
+        .d-workflow-page input,
+        .d-workflow-page select,
+        .d-workflow-page textarea {
+          font-family: inherit;
         }
         
         .d-header {
@@ -793,6 +811,59 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
           background: transparent;
         }
         
+        .d-tooltip-wrap {
+          position: relative;
+          display: inline-flex;
+          flex: 0 0 auto;
+        }
+        .d-tooltip-wrap::after {
+          position: absolute;
+          left: 50%;
+          opacity: 0;
+          visibility: hidden;
+          pointer-events: none;
+          z-index: 1000;
+          transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s ease;
+        }
+        .d-tooltip-wrap::after {
+          content: attr(data-tooltip);
+          top: calc(100% + 7px);
+          padding: 5px 8px;
+          border: 1px solid #dbe4ee;
+          border-radius: 6px;
+          background: #ffffff;
+          color: #475569;
+          box-shadow: 0 3px 10px rgba(15, 23, 42, 0.1);
+          font-size: 11.5px;
+          font-weight: 600;
+          line-height: 1.3;
+          white-space: nowrap;
+          transform: translate(-50%, -2px);
+        }
+        .d-tooltip-wrap:hover::after,
+        .d-tooltip-wrap:focus-within::after {
+          opacity: 1;
+          visibility: visible;
+          transform: translate(-50%, 0);
+        }
+        .d-card-tooltip {
+          display: block;
+          width: 100%;
+          z-index: 1;
+        }
+        .d-card-tooltip:hover,
+        .d-card-tooltip:focus-within {
+          z-index: 5;
+        }
+        .d-card-tooltip::after {
+          top: auto;
+          bottom: calc(100% + 5px);
+        }
+        .d-card-tooltip:first-of-type::after {
+          top: calc(100% + 5px);
+          bottom: auto;
+        }
+
         .d-refresh-btn {
           display: flex;
           align-items: center;
@@ -1489,9 +1560,11 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <button type="button" className="d-refresh-btn" title="Tải lại danh sách" onClick={fetchList}>
-            <span className="material-symbols-outlined">refresh</span>
-          </button>
+          <span className="d-tooltip-wrap" data-tooltip="Làm mới">
+            <button type="button" className="d-refresh-btn" aria-label="Làm mới" onClick={fetchList}>
+              <span className="material-symbols-outlined">refresh</span>
+            </button>
+          </span>
         </div>
 
         <div className="d-main-layout">
@@ -1627,7 +1700,7 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
                         {latestProof.HinhAnhDataUrl && (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             <span style={{ fontSize: '13px', fontWeight: '800', color: '#64748b' }}>Ảnh chứng từ chuyển khoản:</span>
-                            <a href={latestProof.HinhAnhDataUrl} target="_blank" rel="noreferrer" style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', display: 'block', textDecoration: 'none', transition: 'all 0.2s' }}>
+                            <a href={latestProof.HinhAnhDataUrl} target="_blank" rel="noreferrer" onClick={(event) => moAnhTrongTabMoi(event, latestProof.HinhAnhDataUrl)} style={{ border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', display: 'block', textDecoration: 'none', transition: 'all 0.2s' }}>
                               <img src={latestProof.HinhAnhDataUrl} alt="Ảnh chứng từ chuyển khoản" style={{ width: '100%', maxHeight: '160px', objectFit: 'contain', display: 'block' }} />
                               <div style={{ background: '#f8fafc', padding: '8px', textAlign: 'center', fontSize: '11px', color: '#f26a21', fontWeight: '800', borderTop: '1px solid #e2e8f0' }}>
                                 Nhấp để mở ảnh lớn trong tab mới
