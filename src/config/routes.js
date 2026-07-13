@@ -9,6 +9,9 @@ export const ROUTES = {
   thuChi: '/thu-chi',
   thongBao: '/thong-bao',
   quanLyTaiKhoan: '/quan-ly-tai-khoan',
+  stayCheck: '/stay-check',
+  checkout: '/checkout',
+  deposit: '/dat-coc',
 };
 
 export const KHOA_NGUOI_DUNG = 'homestay_nguoiDung';
@@ -18,5 +21,7 @@ export const MENU_NHAN_VIEN = [
   { key: 'phongGiuong', label: 'Phòng/Giường', path: ROUTES.phongGiuong },
   { key: 'khachHang', label: 'Khách hàng', path: ROUTES.khachHang },
   { key: 'hopDong', label: 'Hợp đồng', path: ROUTES.hopDong },
+  { key: 'deposit', label: 'Đặt cọc', path: ROUTES.deposit },
+  { key: 'checkout', label: 'Báo trả phòng', path: ROUTES.checkout },
   { key: 'thongBao', label: 'Thông báo', path: ROUTES.thongBao },
 ];
