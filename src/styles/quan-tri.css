@@ -706,3 +706,257 @@
 
 .qt-status-dot--active::before { background: #16a34a; }
 .qt-status-dot--locked::before { background: #dc2626; }
+
+/* ─── Nhận phòng (Ghi nhận thông tin) ─── */
+.np-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+.np-breadcrumb a {
+  color: var(--primary-color);
+  text-decoration: none;
+}
+
+.np-grid {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .np-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.np-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.np-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.np-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.np-card-head h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.np-card h3 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.np-info-list {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.np-info-list > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 14px;
+}
+
+.np-info-list dt {
+  color: #64748b;
+  margin: 0;
+}
+
+.np-info-list dd {
+  margin: 0;
+  text-align: right;
+}
+
+.np-amount {
+  color: var(--primary-color);
+  font-weight: 700;
+}
+
+.np-rules ul {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.np-rules li {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.np-rules li strong {
+  color: #191c1f;
+}
+
+.np-counter {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px;
+  background: #f8fafc;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.np-counter .np-ok { color: #16a34a; }
+.np-counter .np-over { color: #dc2626; }
+
+.np-main {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.np-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.np-full {
+  grid-column: 1 / -1;
+}
+
+.np-verify {
+  display: flex;
+  align-items: flex-end;
+}
+
+.np-check-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 10px 0;
+}
+
+.np-tag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.np-add-member {
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.np-empty-members {
+  margin: 0;
+  padding: 24px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+.np-inline-input,
+.np-inline-select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 13px;
+  background: #fff;
+}
+
+.np-mono {
+  font-family: monospace;
+  font-size: 13px;
+}
+
+.np-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e0c0b1;
+  border-radius: 8px;
+  font-size: 14px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.np-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 8px;
+}
+
+.np-alert {
+  display: flex;
+  gap: 12px;
+  padding: 14px 18px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  color: #9a3412;
+  font-size: 14px;
+}
+
+.np-alert ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.np-toast {
+  position: fixed;
+  top: 80px;
+  right: 24px;
+  z-index: 9999;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.np-toast--success {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+
+.np-toast--error {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}

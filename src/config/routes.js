@@ -9,9 +9,13 @@ export const ROUTES = {
   thuChi: '/thu-chi',
   thongBao: '/thong-bao',
   quanLyTaiKhoan: '/quan-ly-tai-khoan',
+<<<<<<< HEAD
   stayCheck: '/stay-check',
   checkout: '/checkout',
   deposit: '/dat-coc',
+=======
+  nhanPhong: '/nhan-phong',
+>>>>>>> ce67a7b (feat: record check-in info (Sale) and notify Manager for stay-condition check)
 };
 
 export const KHOA_NGUOI_DUNG = 'homestay_nguoiDung';
