@@ -1,4 +1,5 @@
 import React from 'react';
+import BieuDoLichSu from './BieuDoLichSu';
 
 export default function ThanhToanMinhChung({
   role,
@@ -40,7 +41,7 @@ export default function ThanhToanMinhChung({
             <strong>Gợi ý: {money(suggested)}</strong>
           </div>
 
-          {role === 'KE_TOAN' && selected.TrangThai === 'Chờ tính tiền cọc' ? (
+          {role === 'KE_TOAN' && selected.TrangThai === 'CHO_TINH_COC' ? (
             <label className="d-field-group">
               <span>SỐ TIỀN CỌC XÁC NHẬN (KẾ TOÁN CÓ THỂ ĐIỀU CHỈNH)</span>
               <input
@@ -61,7 +62,7 @@ export default function ThanhToanMinhChung({
       )}
 
       {/* Segment: Proof Upload (Sales) */}
-      {['Chờ khách chuyển khoản', 'Chứng từ bị từ chối'].includes(selected.TrangThai) && role === 'SALE' && (
+      {['CHO_THANH_TOAN', 'TU_CHOI_CHUNG_TU'].includes(selected.TrangThai) && role === 'SALE' && (
         <section className="d-section-card d-card-proof">
           <h3>Tải lên chứng từ thanh toán của khách</h3>
           <div className="d-payment-toggle-group">
@@ -137,7 +138,7 @@ export default function ThanhToanMinhChung({
       )}
 
       {/* Display latest uploaded receipt proof */}
-      {selected.chungTu?.length > 0 && !(role === 'QUAN_LY' && selected.TrangThai === 'Chờ duyệt cọc') && (
+      {selected.chungTu?.length > 0 && !(role === 'QUAN_LY' && selected.TrangThai === 'CHO_XAC_NHAN_THANH_TOAN') && (
         <section className="d-section-card d-card-proof">
           <h3>Chứng từ gửi gần nhất</h3>
           <div style={{ display: 'grid', gridTemplateColumns: latestProof.HinhAnhDataUrl ? '1.2fr 1fr' : '1fr', gap: '20px', background: '#f8fafc', padding: '16px', borderRadius: '12px' }}>
@@ -166,8 +167,11 @@ export default function ThanhToanMinhChung({
         </section>
       )}
 
+      {/* Log list history (rendered before primary action buttons) */}
+      <BieuDoLichSu history={selected.lichSu} dateTime={dateTime} />
+
       {/* Primary actions buttons */}
-      {(primaryAction || (role === 'QUAN_LY' && ['Chờ duyệt phòng', 'Chờ duyệt cọc'].includes(selected.TrangThai))) && (
+      {(primaryAction || (role === 'QUAN_LY' && ['CHO_KIEM_TRA_PHONG', 'CHO_XAC_NHAN_THANH_TOAN'].includes(selected.TrangThai))) && (
         <div className="d-action-area">
           {actionError && (
             <div className="d-inline-error" role="alert">
@@ -176,7 +180,7 @@ export default function ThanhToanMinhChung({
             </div>
           )}
           <div className="d-btn-group">
-            {role === 'QUAN_LY' && selected.TrangThai === 'Chờ duyệt phòng' && (
+            {role === 'QUAN_LY' && selected.TrangThai === 'CHO_KIEM_TRA_PHONG' && (
               <button
                 type="button"
                 className="d-btn-outline d-btn-danger"
@@ -192,7 +196,7 @@ export default function ThanhToanMinhChung({
                 Báo hết chỗ và Từ chối
               </button>
             )}
-            {role === 'QUAN_LY' && selected.TrangThai === 'Chờ duyệt cọc' && (
+            {role === 'QUAN_LY' && selected.TrangThai === 'CHO_XAC_NHAN_THANH_TOAN' && (
               <button
                 type="button"
                 className="d-btn-outline d-btn-danger"
@@ -208,11 +212,11 @@ export default function ThanhToanMinhChung({
                 Từ chối chứng từ
               </button>
             )}
-            {primaryAction && !(selected.TrangThai === 'Hết chỗ' && role === 'SALE') && (
+            {primaryAction && !(selected.TrangThai === 'HET_CHO' && role === 'SALE') && (
               <button
                 type="button"
                 className="d-btn-primary"
-                disabled={busy || (role === 'QUAN_LY' && selected.TrangThai === 'Chờ duyệt cọc' && !latestProof)}
+                disabled={busy || (role === 'QUAN_LY' && selected.TrangThai === 'CHO_XAC_NHAN_THANH_TOAN' && !latestProof)}
                 onClick={() => submitAction(primaryAction[0])}
               >
                 {busy ? 'Đang xử lý...' : primaryAction[1]}

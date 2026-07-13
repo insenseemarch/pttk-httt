@@ -1464,17 +1464,41 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
           </div>
         )}
 
+        <div className="d-toolbar">
+          <div className="d-tabs">
+            {ROLE_TABS[role].map((tab) => (
+              <button
+                type="button"
+                className={selectedTab === tab.key ? 'active' : ''}
+                key={tab.key}
+                onClick={() => {
+                  setSelectedTab(tab.key);
+                  setSearchQuery('');
+                }}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <div className="d-search-bar" style={{ marginLeft: 'auto' }}>
+            <span className="material-symbols-outlined">search</span>
+            <input
+              type="text"
+              placeholder="Tìm khách thuê, số phòng..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <button type="button" className="d-refresh-btn" title="Tải lại danh sách" onClick={fetchList}>
+            <span className="material-symbols-outlined">refresh</span>
+          </button>
+        </div>
+
         <div className="d-main-layout">
           <DanhSachPhieuDatCoc
             filteredItems={filteredItems}
             loading={loading}
             selected={selected}
-            role={role}
-            selectedTab={selectedTab}
-            setSelectedTab={setSelectedTab}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            fetchList={fetchList}
             fetchDetail={fetchDetail}
             dateTime={dateTime}
           />
@@ -1732,10 +1756,6 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
                   dateTime={dateTime}
                 />
 
-                <BieuDoLichSu
-                  history={selected.lichSu}
-                  dateTime={dateTime}
-                />
               </>
             )}
           </aside>

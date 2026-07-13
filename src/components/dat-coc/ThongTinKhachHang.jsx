@@ -15,7 +15,7 @@ export default function ThongTinKhachHang({
   return (
     <section className="d-section-card d-card-customer">
       <h3>Thông tin khách thuê</h3>
-      {role === 'SALE' && ['Mới tạo', 'Hết chỗ', 'Còn trống', 'Chờ khách chuyển khoản', 'Chứng từ bị từ chối'].includes(selected.TrangThai) ? (
+      {role === 'SALE' && ['MOI', 'HET_CHO', 'CON_TRONG_CHO_GUI_KE_TOAN', 'CHO_THANH_TOAN', 'TU_CHOI_CHUNG_TU'].includes(selected.TrangThai) ? (
         <>
           <div className="d-grid-2">
             <label className="d-field-group">
