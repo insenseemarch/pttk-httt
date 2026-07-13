@@ -48,7 +48,7 @@ router.get('/chi-tiet-thanh-toan/:maHopDong', async (req, res) => {
       ],
       tongTienPhaiThu: (hd?.GiaThue || 4800000) + 500000,
       donViTien: 'VNĐ',
-      ghiChuQuanLy: 'Khách thanh toán cọc 1 tháng trước đó. Nay thanh toán phí đầu kỳ để nhận phòng.'
+      ghiChuQuanLy: 'Khách đã thanh toán cọc tương đương 2 tháng tiền thuê. Nay thanh toán phí đầu kỳ để nhận phòng.'
     };
     res.json({ ok: true, data });
   } catch (error) {
