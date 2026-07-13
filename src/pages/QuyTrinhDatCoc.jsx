@@ -3,6 +3,11 @@ import { useSearchParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import KhungNhanVien from '../components/KhungNhanVien';
 import { ROUTES } from '../config/routes';
+import DanhSachPhieuDatCoc from '../components/dat-coc/DanhSachPhieuDatCoc';
+import ThongTinKhachHang from '../components/dat-coc/ThongTinKhachHang';
+import ThanhToanMinhChung from '../components/dat-coc/ThanhToanMinhChung';
+import BieuDoLichSu from '../components/dat-coc/BieuDoLichSu';
+import ModalLapPhieuDatCoc from '../components/dat-coc/ModalLapPhieuDatCoc';
 
 const API = '/api/dat-coc';
 
@@ -1459,75 +1464,20 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
           </div>
         )}
 
-        <div className="d-toolbar">
-          <div className="d-tabs">
-            {ROLE_TABS[role].map((tab) => (
-              <button
-                type="button"
-                className={selectedTab === tab.key ? 'active' : ''}
-                key={tab.key}
-                onClick={() => {
-                  setSelectedTab(tab.key);
-                  setSearchQuery('');
-                }}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-          <div className="d-search-bar" style={{ marginLeft: 'auto' }}>
-            <span className="material-symbols-outlined">search</span>
-            <input
-              type="text"
-              placeholder="Tìm khách thuê, số phòng..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <button type="button" className="d-refresh-btn" title="Tải lại danh sách" onClick={fetchList}>
-            <span className="material-symbols-outlined">refresh</span>
-          </button>
-        </div>
-
         <div className="d-main-layout">
-          <section className="d-sidebar-list" aria-label="Danh sách phiếu đặt cọc">
-            {loading && <div style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8', fontSize: '14.5px', fontWeight: '700' }}>Đang tải danh sách...</div>}
-            {!loading && !filteredItems.length && (
-              <div style={{ textAlign: 'center', padding: '80px 20px', color: '#94a3b8' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: '48px', color: '#cbd5e1', marginBottom: '12px' }}>inbox</span>
-                <p style={{ margin: 0, fontSize: '14px', fontWeight: '700' }}>Không tìm thấy phiếu đặt cọc phù hợp.</p>
-              </div>
-            )}
-            {filteredItems.map((item) => (
-              <button
-                type="button"
-                key={item.MaDatCoc}
-                className={`d-card-item status-${item.TrangThai} ${selected?.MaDatCoc === item.MaDatCoc ? 'active' : ''}`}
-                onClick={() => fetchDetail(item.MaDatCoc)}
-                style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '14px', width: '100%' }}
-              >
-                <span className={`d-card-dot d-card-dot-${item.TrangThai}`} />
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '8px' }}>
-                    <strong style={{ fontSize: '15px', color: '#0f172a', fontWeight: '800' }}>
-                      {item.KhachHang?.HoTen || `Khách hàng ${item.CCCD}`}
-                    </strong>
-                    <span className={`d-badge d-badge-${item.TrangThai}`} style={{ flexShrink: 0 }}>
-                      {LABELS[item.TrangThai] || item.TrangThai}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '8px' }}>
-                    <small style={{ fontSize: '12.5px', color: '#64748b', fontWeight: '500' }}>
-                      Phiếu #{item.MaDatCoc} · Phòng {item.MaPhong || '—'} · {item.LoaiThue === 'Thuê nguyên phòng' ? 'Nguyên phòng' : 'Giường lẻ'}
-                    </small>
-                    <small style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: '600', flexShrink: 0 }}>
-                      {dateTime(item.CapNhatLuc || item.ThoiDiemTao)}
-                    </small>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </section>
+          <DanhSachPhieuDatCoc
+            filteredItems={filteredItems}
+            loading={loading}
+            selected={selected}
+            role={role}
+            selectedTab={selectedTab}
+            setSelectedTab={setSelectedTab}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            fetchList={fetchList}
+            fetchDetail={fetchDetail}
+            dateTime={dateTime}
+          />
 
           <aside className="d-detail-panel">
             {!selected ? (
@@ -1676,141 +1626,18 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
                   </div>
                 )}
 
-                {/* Segment: Customer Details */}
-                <section className="d-section-card d-card-customer">
-                  <h3>Thông tin khách thuê</h3>
-                  {role === 'SALE' && ['MOI', 'HET_CHO', 'CON_TRONG_CHO_GUI_KE_TOAN', 'CHO_THANH_TOAN', 'TU_CHOI_CHUNG_TU'].includes(selected.TrangThai) ? (
-                    <>
-                    <div className="d-grid-2">
-                      <label className="d-field-group">
-                        <span>Họ và tên</span>
-                        <input
-                          type="text"
-                          value={customerForm.HoTen || ''}
-                          onChange={(event) => capNhatFormKhachHang('HoTen', event.target.value)}
-                        />
-                      </label>
-                      <label className="d-field-group">
-                        <span>Số điện thoại <span style={{ color: 'red' }}>*</span></span>
-                        <input
-                          type="text"
-                          value={customerForm.SDT || ''}
-                          onChange={(event) => capNhatFormKhachHang('SDT', event.target.value.replace(/\D/g, ''))}
-                        />
-                      </label>
-                      <label className="d-field-group">
-                        <span>Số căn cước công dân (12 chữ số) <span style={{ color: 'red' }}>*</span></span>
-                        <input
-                          type="text"
-                          maxLength={12}
-                          value={customerForm.CCCD || ''}
-                          onChange={(event) => capNhatFormKhachHang('CCCD', event.target.value.replace(/\D/g, ''))}
-                        />
-                      </label>
-                      <label className="d-field-group">
-                        <span>Địa chỉ thường trú</span>
-                        <input
-                          type="text"
-                          value={customerForm.DiaChi || ''}
-                          onChange={(event) => capNhatFormKhachHang('DiaChi', event.target.value)}
-                        />
-                      </label>
-                      <label className="d-field-group">
-                        <span>Giới tính <span style={{ color: 'red' }}>*</span></span>
-                        <select
-                          value={customerForm.GioiTinh || ''}
-                          onChange={(event) => capNhatFormKhachHang('GioiTinh', event.target.value)}
-                        >
-                          <option value="">Chưa chọn</option>
-                          <option value="Nam">Nam</option>
-                          <option value="Nữ">Nữ</option>
-                        </select>
-                      </label>
-                      <label className="d-field-group">
-                        <span>Quốc tịch <span style={{ color: 'red' }}>*</span></span>
-                        <input
-                          type="text"
-                          value={customerForm.QuocTich || ''}
-                          onChange={(event) => capNhatFormKhachHang('QuocTich', event.target.value)}
-                        />
-                      </label>
-                      <label className="d-field-group">
-                        <span>Email liên lạc</span>
-                        <input
-                          type="email"
-                          value={customerForm.Email || ''}
-                          onChange={(event) => capNhatFormKhachHang('Email', event.target.value)}
-                        />
-                      </label>
-                      <label className="d-field-group">
-                        <span>Khả năng tài chính định kỳ</span>
-                        <input
-                          type="number"
-                          placeholder="Ví dụ: 5000000"
-                          value={customerForm.KhaNangTaiChinh || ''}
-                          onChange={(event) => capNhatFormKhachHang('KhaNangTaiChinh', event.target.value)}
-                        />
-                      </label>
-
-                      {/* Rule Compliance check Box */}
-                      <label className={`d-consent-control${customerForm.ThoaDK ? ' is-checked' : ''}`}>
-                        <input
-                          className="d-consent-input"
-                          type="checkbox"
-                          checked={customerForm.ThoaDK || false}
-                          onChange={(event) => capNhatFormKhachHang('ThoaDK', event.target.checked)}
-                        />
-                        <span className="d-consent-box" aria-hidden="true">
-                          <span className="material-symbols-outlined">check</span>
-                        </span>
-                        <span className="d-consent-text">
-                          Khách thuê xác nhận đồng ý tuân thủ các điều kiện thuê và nội quy ký túc xá
-                        </span>
-                      </label>
-                    </div>
-                    {(customerHasChanges || customerSaveError || customerSaveMessage) && (
-                      <div className={`d-customer-save-bar${customerSaveError ? ' has-error' : ''}`}>
-                        <div className="d-customer-save-status" role={customerSaveError ? 'alert' : 'status'}>
-                          <span className="material-symbols-outlined">
-                            {customerSaveError ? 'error' : customerSaveMessage ? 'check_circle' : 'edit_note'}
-                          </span>
-                          <span>{customerSaveError || customerSaveMessage || 'Lưu thông tin khách thuê'}</span>
-                        </div>
-                        {customerHasChanges && (
-                          <button type="button" className="d-btn-primary" disabled={savingCustomer} onClick={saveCustomerInfo}>
-                            <span className="material-symbols-outlined">save</span>
-                            {savingCustomer ? 'Đang lưu...' : 'Lưu'}
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    </>
-                  ) : (
-                    <dl className="d-info-grid">
-                      <div className="d-info-block"><dt>Họ và tên</dt><dd>{selected.KhachHang?.HoTen || '—'}</dd></div>
-                      <div className="d-info-block"><dt>Số điện thoại</dt><dd>{selected.KhachHang?.SDT || '—'}</dd></div>
-                      <div className="d-info-block"><dt>Email liên lạc</dt><dd>{selected.KhachHang?.Email || '—'}</dd></div>
-                      <div className="d-info-block"><dt>Giới tính</dt><dd>{selected.KhachHang?.GioiTinh || '—'}</dd></div>
-                      <div className="d-info-block"><dt>Quốc tịch</dt><dd>{selected.KhachHang?.QuocTich || '—'}</dd></div>
-                      <div className="d-info-block"><dt>Số căn cước công dân</dt><dd>{selected.CCCD || '—'}</dd></div>
-                      <div className="d-info-block"><dt>Tài chính định kỳ</dt><dd>{selected.KhachHang?.KhaNangTaiChinh ? money(selected.KhachHang.KhaNangTaiChinh) : 'Chưa cập nhật'}</dd></div>
-                      <div className="d-info-block"><dt>Thời hạn thuê mong muốn</dt><dd>{selected.ThoiHanThue ? `${selected.ThoiHanThue} tháng` : '6 tháng'}</dd></div>
-                      <div className="d-info-block" style={{ gridColumn: 'span 2' }}>
-                        <dt>Địa chỉ thường trú</dt>
-                        <dd>{selected.KhachHang?.DiaChi || '—'}</dd>
-                      </div>
-                      <div className="d-info-block" style={{ gridColumn: 'span 2' }}>
-                        <dt>Nội quy ký túc xá</dt>
-                        <dd className={`d-consent-status${selected.KhachHang?.ThoaDK ? ' is-approved' : ''}`}>
-                          <span className="material-symbols-outlined" aria-hidden="true">
-                            {selected.KhachHang?.ThoaDK ? 'check_circle' : 'warning'}
-                          </span>
-                          <span>{selected.KhachHang?.ThoaDK ? 'Khách hàng đã đồng ý tuân thủ các quy định và nội quy lưu trú' : 'Chưa xác nhận đồng ý'}</span>
-                        </dd>
-                      </div>
-                    </dl>
-                  )}
-                </section>
+                <ThongTinKhachHang
+                  role={role}
+                  selected={selected}
+                  customerForm={customerForm}
+                  capNhatFormKhachHang={capNhatFormKhachHang}
+                  customerHasChanges={customerHasChanges}
+                  customerSaveError={customerSaveError}
+                  customerSaveMessage={customerSaveMessage}
+                  savingCustomer={savingCustomer}
+                  saveCustomerInfo={saveCustomerInfo}
+                  money={money}
+                />
 
                 {/* Segment: Room Details */}
                 <section className="d-section-card d-card-room">
@@ -1877,213 +1704,38 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
                   )}
                 </section>
 
-                {/* Segment: Money and Formula */}
-                {(selected.SoTienCoc > 0 || role === 'KE_TOAN') && (
-                  <section className="d-section-card d-card-money">
-                    <h3>Tính toán tiền cọc</h3>
-                    <div className="d-formula-box">
-                      <span>Công thức: Tiền thuê 2 tháng × {selected.LoaiThue === 'Thuê nguyên phòng' ? room?.SucChuaToiDa || selected.SoGiuongThue : selectedBeds.length} giường</span>
-                      <strong>Gợi ý: {money(suggested)}</strong>
-                    </div>
+                <ThanhToanMinhChung
+                  role={role}
+                  selected={selected}
+                  room={room}
+                  selectedBeds={selectedBeds}
+                  suggested={suggested}
+                  depositAmount={depositAmount}
+                  setDepositAmount={setDepositAmount}
+                  paymentMethod={paymentMethod}
+                  setPaymentMethod={setPaymentMethod}
+                  transaction={transaction}
+                  setTransaction={setTransaction}
+                  evidence={evidence}
+                  onEvidence={onEvidence}
+                  cashAmount={cashAmount}
+                  setCashAmount={setCashAmount}
+                  cashConfirmed={cashConfirmed}
+                  setCashConfirmed={setCashConfirmed}
+                  primaryAction={primaryAction}
+                  actionError={actionError}
+                  setActionError={setActionError}
+                  busy={busy}
+                  note={note}
+                  submitAction={submitAction}
+                  money={money}
+                  dateTime={dateTime}
+                />
 
-                    {role === 'KE_TOAN' && selected.TrangThai === 'CHO_TINH_COC' ? (
-                      <label className="d-field-group">
-                        <span>SỐ TIỀN CỌC XÁC NHẬN (KẾ TOÁN CÓ THỂ ĐIỀU CHỈNH)</span>
-                        <input
-                          type="number"
-                          min="1"
-                          value={depositAmount || suggested}
-                          onChange={(event) => setDepositAmount(event.target.value)}
-                          style={{ fontWeight: 'bold', fontSize: '15px', color: '#f26a21' }}
-                        />
-                      </label>
-                    ) : (
-                      <div className="d-total-box">
-                        <span>Số tiền cọc thực tế cần đóng:</span>
-                        <strong>{money(selected.SoTienCoc)}</strong>
-                      </div>
-                    )}
-                  </section>
-                )}
-
-                {/* Segment: Proof Upload (Sales) */}
-                {['CHO_THANH_TOAN', 'TU_CHOI_CHUNG_TU'].includes(selected.TrangThai) && role === 'SALE' && (
-                  <section className="d-section-card d-card-proof">
-                    <h3>Tải lên chứng từ thanh toán của khách</h3>
-                    <div className="d-payment-toggle-group">
-                      <button
-                        type="button"
-                        className={`d-payment-toggle-btn ${paymentMethod === 'Chuyển khoản' ? 'active' : ''}`}
-                        onClick={() => setPaymentMethod('Chuyển khoản')}
-                      >
-                        <span className="material-symbols-outlined">account_balance</span> Chuyển khoản ngân hàng
-                      </button>
-                      <button
-                        type="button"
-                        className={`d-payment-toggle-btn ${paymentMethod === 'Tiền mặt' ? 'active' : ''}`}
-                        onClick={() => setPaymentMethod('Tiền mặt')}
-                      >
-                        <span className="material-symbols-outlined">payments</span> Tiền mặt
-                      </button>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '9px', alignItems: 'center', background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8', padding: '10px 12px', borderRadius: '10px', fontSize: '12.5px', fontWeight: '700', marginBottom: '14px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>receipt_long</span>
-                      Khi gửi xác nhận, hệ thống cũng tự động lập và lưu mã phiếu thu cho giao dịch.
-                    </div>
-
-                    {paymentMethod === 'Tiền mặt' ? (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '16px', borderRadius: '12px' }}>
-                        <label className="d-field-group">
-                          <span style={{ color: '#14532d' }}>Số tiền mặt thực tế đã nhận (VNĐ)</span>
-                          <input
-                            type="number"
-                            min="1"
-                            step="1000"
-                            value={cashAmount || selected.SoTienCoc}
-                            onChange={(event) => setCashAmount(event.target.value)}
-                            style={{ borderColor: '#86efac', background: '#ffffff', fontWeight: 'bold' }}
-                          />
-                        </label>
-                        <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginTop: '8px' }}>
-                          <input
-                            type="checkbox"
-                            checked={cashConfirmed}
-                            onChange={(event) => setCashConfirmed(event.target.checked)}
-                            style={{ width: '18px', height: '18px', accentColor: '#16a34a' }}
-                          />
-                          <span style={{ fontSize: '13px', fontWeight: '750', color: '#14532d' }}>Tôi xác nhận đã kiểm đếm và nhận đủ tiền mặt từ khách hàng</span>
-                        </label>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                        <label className="d-field-group">
-                          <span>MÃ GIAO DỊCH NGÂN HÀNG (MÃ FT HOẶC BILL CHUYỂN KHOẢN)</span>
-                          <input
-                            type="text"
-                            value={transaction}
-                            onChange={(event) => setTransaction(event.target.value)}
-                            placeholder="Ví dụ: FT2607128892"
-                          />
-                        </label>
-                        <div className="d-upload-box">
-                          <span className="material-symbols-outlined" style={{ fontSize: '36px' }}>cloud_upload</span>
-                          <strong>{evidence ? 'Đã chọn ảnh chứng từ thanh toán' : 'Kéo thả hoặc click để chọn ảnh giao dịch'}</strong>
-                          <small>Định dạng ảnh PNG, JPG (Tối đa 2 megabyte)</small>
-                          <input type="file" accept="image/*" onChange={(event) => onEvidence(event.target.files?.[0])} />
-                        </div>
-                        {evidence && (
-                          <div className="d-proof-preview">
-                            <img src={evidence} alt="Xem trước chứng từ" />
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </section>
-                )}
-
-                {/* Display latest uploaded receipt proof */}
-                {selected.chungTu?.length > 0 && !(role === 'QUAN_LY' && selected.TrangThai === 'CHO_XAC_NHAN_THANH_TOAN') && (
-                  <section className="d-section-card d-card-proof">
-                    <h3>Chứng từ gửi gần nhất</h3>
-                    <div style={{ display: 'grid', gridTemplateColumns: selected.chungTu[0].HinhAnhDataUrl ? '1.2fr 1fr' : '1fr', gap: '20px', background: '#f8fafc', padding: '16px', borderRadius: '12px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <small style={{ fontSize: '10px', fontWeight: '850', color: '#94a3b8', letterSpacing: '0.5px' }}>MÃ PHIẾU THU</small>
-                        <strong style={{ fontSize: '15px' }}>{selected.chungTu[0].MaPhieuThu || selected.chungTu[0].MaGiaoDich || 'Chưa có'}</strong>
-                        {selected.chungTu[0].LoaiThanhToan === 'Chuyển khoản' && selected.chungTu[0].MaGiaoDich && (
-                          <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#475569', fontWeight: '650' }}>Mã giao dịch ngân hàng: {selected.chungTu[0].MaGiaoDich}</p>
-                        )}
-                        <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b', fontWeight: '500' }}>
-                          Hình thức thanh toán: {['Tiền mặt', 'TIEN_MAT'].includes(selected.chungTu[0].LoaiThanhToan) ? 'Tiền mặt' : 'Chuyển khoản ngân hàng'}
-                        </p>
-                        {selected.chungTu[0].NguoiNhanTien && (
-                          <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#64748b', fontWeight: '500' }}>
-                            Thực nhận: {money(selected.chungTu[0].SoTienThucNhan)} · Người nhận: {selected.chungTu[0].NguoiNhanTien}
-                          </p>
-                        )}
-                        <small style={{ color: '#94a3b8', marginTop: '6px', fontWeight: '600' }}>Tải lên lúc: {dateTime(selected.chungTu[0].TaiLenLuc)}</small>
-                      </div>
-                      {selected.chungTu[0].HinhAnhDataUrl && (
-                        <a href={selected.chungTu[0].HinhAnhDataUrl} target="_blank" rel="noreferrer" style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', display: 'block' }}>
-                          <img src={selected.chungTu[0].HinhAnhDataUrl} alt="Chứng từ thanh toán" style={{ width: '100%', maxHeight: '110px', objectFit: 'contain', display: 'block' }} />
-                        </a>
-                      )}
-                    </div>
-                  </section>
-                )}
-
-                {/* Log list history */}
-                {selected.lichSu?.length > 0 && (
-                  <section className="d-section-card d-card-history">
-                    <h3>Lịch sử xử lý phiếu</h3>
-                    <div className="d-history">
-                      {selected.lichSu.map((item, idx) => (
-                        <div key={item.MaLichSu} className={`d-history-item ${idx === 0 ? 'active' : ''}`}>
-                          <p>
-                            <strong>{LABELS[item.TrangThaiMoi] || item.TrangThaiMoi}</strong>
-                            <small>Thực hiện: {item.VaiTroThucHien === 'QUAN_LY' ? 'QUANLY' : item.VaiTroThucHien === 'KE_TOAN' ? 'KETOAN' : item.VaiTroThucHien} · {dateTime(item.ThoiDiem)}{item.GhiChu ? ` · "${item.GhiChu}"` : ''}</small>
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                )}
-
-                {/* Primary actions buttons */}
-                {(primaryAction || (role === 'QUAN_LY' && ['CHO_KIEM_TRA_PHONG', 'CHO_XAC_NHAN_THANH_TOAN'].includes(selected.TrangThai))) && (
-                  <div className="d-action-area">
-                    {actionError && (
-                      <div className="d-inline-error" role="alert">
-                        <span className="material-symbols-outlined">error</span>
-                        <span>{actionError}</span>
-                      </div>
-                    )}
-                    <div className="d-btn-group">
-                    {role === 'QUAN_LY' && selected.TrangThai === 'CHO_KIEM_TRA_PHONG' && (
-                      <button
-                        type="button"
-                        className="d-btn-outline d-btn-danger"
-                        disabled={busy}
-                        onClick={() => {
-                          if (!note.trim()) {
-                            setActionError('Vui lòng nhập lý do báo hết chỗ vào ô ghi chú phía trên.');
-                            return;
-                          }
-                          submitAction('BAO_HET_CHO');
-                        }}
-                      >
-                        Báo hết chỗ và Từ chối
-                      </button>
-                    )}
-                    {role === 'QUAN_LY' && selected.TrangThai === 'CHO_XAC_NHAN_THANH_TOAN' && (
-                      <button
-                        type="button"
-                        className="d-btn-outline d-btn-danger"
-                        disabled={busy}
-                        onClick={() => {
-                          if (!note.trim()) {
-                            setActionError('Vui lòng nhập lý do từ chối chứng từ vào ô ghi chú phía trên.');
-                            return;
-                          }
-                          submitAction('TU_CHOI_CHUNG_TU');
-                        }}
-                      >
-                        Từ chối chứng từ
-                      </button>
-                    )}
-                    {primaryAction && !(selected.TrangThai === 'HET_CHO' && role === 'SALE') && (
-                      <button
-                        type="button"
-                        className="d-btn-primary"
-                        disabled={busy || (role === 'QUAN_LY' && selected.TrangThai === 'CHO_XAC_NHAN_THANH_TOAN' && !latestProof)}
-                        onClick={() => submitAction(primaryAction[0])}
-                      >
-                        {busy ? 'Đang xử lý...' : primaryAction[1]}
-                      </button>
-                    )}
-                    </div>
-                  </div>
-                )}
+                <BieuDoLichSu
+                  history={selected.lichSu}
+                  dateTime={dateTime}
+                />
               </>
             )}
           </aside>
@@ -2091,400 +1743,25 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
       </div>
 
       {/* Modal Booking Form (Create booking) */}
-      {showCreate && (
-        <div className="d-create-overlay" role="presentation" onMouseDown={() => { setShowCreate(false); setCreateError(''); }}>
-          <div className={`d-create-dialog${editingSelection ? ' d-create-dialog--compact' : ''}`} role="dialog" aria-modal="true" aria-labelledby="d-create-title" onMouseDown={(event) => event.stopPropagation()}>
-            <div className="d-create-header">
-              <div>
-                <small style={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase', color: '#f26a21', letterSpacing: '0.5px' }}>Nhân viên Sale</small>
-                <h2 id="d-create-title" style={{ fontSize: '20px', fontWeight: '850', color: '#0f172a', margin: 0 }}>{editingSelection ? 'Đổi phòng và giường giữ chỗ' : 'Tạo phiếu đặt cọc mới'}</h2>
-              </div>
-              <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }} onClick={() => { setShowCreate(false); setCreateError(''); }}>
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-
-            <div className="d-create-body">
-            {editingSelection ? (
-              /* Simple flow for editing selection */
-              <div className="d-create-edit-content" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <label className="d-field-group">
-                  <span>Hình thức thuê phòng</span>
-                  <select
-                    value={createForm.loaiThue}
-                    onChange={(event) => setCreateForm((prev) => ({ ...prev, loaiThue: event.target.value, maGiuongs: [] }))}
-                  >
-                    <option value="Thuê giường lẻ">Thuê giường lẻ</option>
-                    <option value="Thuê nguyên phòng">Thuê nguyên phòng</option>
-                  </select>
-                </label>
-                <label className="d-field-group">
-                  <span>Chọn phòng trống khả dụng</span>
-                  <select
-                    value={createForm.maPhong}
-                    onChange={(event) => setCreateForm((prev) => ({ ...prev, maPhong: event.target.value, maGiuongs: [] }))}
-                  >
-                    <option value="">-- Chọn phòng --</option>
-                    {genderCompatibleRooms.map((item) => (
-                      <option key={item.MaPhong} value={item.MaPhong}>
-                        Phòng số {item.MaPhong} · {item.ChiNhanh?.TenCN} · Loại: {item.LoaiPhong} (Khả dụng {item.Giuong.filter(g => g.TinhTrang && !g.dangKhoa).length} giường)
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                
-                {selectedCreateRoom && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <span style={{ fontSize: '13px', fontWeight: '750', color: '#475569' }}>Chọn giường cụ thể trong phòng:</span>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px', maxHeight: '160px', overflowY: 'auto', paddingRight: '4px' }}>
-                      {selectedCreateRoom.Giuong.map((bed) => {
-                        const disabled = !bed.TinhTrang || bed.dangKhoa;
-                        const checked = createForm.maGiuongs.includes(bed.MaGiuong);
-                        return (
-                          <label
-                            key={bed.MaGiuong}
-                            style={{
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              padding: '10px',
-                              border: '1.5px solid',
-                              borderColor: checked ? '#f26a21' : '#cbd5e1',
-                              borderRadius: '12px',
-                              cursor: disabled ? 'not-allowed' : 'pointer',
-                              background: checked ? '#fff8f5' : disabled ? '#f1f5f9' : '#ffffff',
-                              opacity: disabled ? 0.6 : 1,
-                              gap: '6px'
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              disabled={disabled || (createForm.loaiThue === 'Thuê nguyên phòng' && !checked && createForm.maGiuongs.length > 0)}
-                              checked={checked}
-                              onChange={() => {
-                                const allAvailable = selectedCreateRoom.Giuong.filter((item) => item.TinhTrang && !item.dangKhoa).map((item) => item.MaGiuong);
-                                setCreateForm((prev) => ({
-                                  ...prev,
-                                  maGiuongs: prev.loaiThue === 'Thuê nguyên phòng'
-                                    ? allAvailable
-                                    : checked
-                                      ? prev.maGiuongs.filter((id) => id !== bed.MaGiuong)
-                                      : [...prev.maGiuongs, bed.MaGiuong]
-                                }));
-                              }}
-                              style={{ display: 'none' }}
-                            />
-                            <span className="material-symbols-outlined" style={{ fontSize: '24px', color: checked ? '#f26a21' : '#64748b' }}>single_bed</span>
-                            <strong style={{ fontSize: '13px', color: '#0f172a' }}>Giường {bed.MaGiuong}</strong>
-                            <small style={{ fontSize: '11px', color: '#64748b', fontWeight: 'bold' }}>{disabled ? 'Đã khóa/đầy' : money(bed.GiaThue)}</small>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              /* Two-column layout for full creation form */
-              <div className="d-create-form-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.15fr)', gap: '28px' }}>
-                {/* Column 1: Customer Profile Details */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  <h4 style={{ fontSize: '13.5px', fontWeight: '850', color: '#f26a21', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px 0' }}>Thông tin khách thuê</h4>
-                  
-                  <label className="d-field-group">
-                    <span>Số căn cước công dân (12 chữ số) <span style={{ color: 'red' }}>*</span></span>
-                    <input
-                      type="text"
-                      maxLength={12}
-                      value={createForm.cccd}
-                      onChange={(event) => setCreateForm((prev) => ({ ...prev, cccd: event.target.value.replace(/\D/g, '') }))}
-                      placeholder="Nhập đúng 12 chữ số CCCD..."
-                    />
-                  </label>
-
-                  <label className="d-field-group">
-                    <span>Họ và tên khách thuê <span style={{ color: 'red' }}>*</span></span>
-                    <input
-                      type="text"
-                      value={createForm.hoTen}
-                      onChange={(event) => setCreateForm((prev) => ({ ...prev, hoTen: event.target.value }))}
-                      placeholder="Nhập họ và tên đầy đủ..."
-                    />
-                  </label>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                    <label className="d-field-group">
-                      <span>Số điện thoại <span style={{ color: 'red' }}>*</span></span>
-                      <input
-                        type="text"
-                        value={createForm.sdt}
-                        onChange={(event) => setCreateForm((prev) => ({ ...prev, sdt: event.target.value.replace(/\D/g, '') }))}
-                        placeholder="Số điện thoại..."
-                      />
-                    </label>
-
-                    <label className="d-field-group">
-                      <span>Email liên lạc</span>
-                      <input
-                        type="email"
-                        value={createForm.email}
-                        onChange={(event) => setCreateForm((prev) => ({ ...prev, email: event.target.value }))}
-                        placeholder="địa_chỉ@email.com..."
-                      />
-                    </label>
-                  </div>
-
-                  <label className="d-field-group">
-                    <span>Địa chỉ thường trú</span>
-                    <input
-                      type="text"
-                      value={createForm.diaChi}
-                      onChange={(event) => setCreateForm((prev) => ({ ...prev, diaChi: event.target.value }))}
-                      placeholder="Thành phố, Quận/Huyện..."
-                    />
-                  </label>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                    <label className="d-field-group">
-                      <span>Giới tính <span style={{ color: 'red' }}>*</span></span>
-                      <select
-                        value={createForm.gioiTinh}
-                        onChange={(event) => {
-                          setCreateForm((prev) => ({ ...prev, gioiTinh: event.target.value, maPhong: '', maGiuongs: [] }));
-                          setOverviewRoomLimit(10);
-                        }}
-                      >
-                        <option value="">-- Chọn giới tính --</option>
-                        <option value="Nam">Nam</option>
-                        <option value="Nữ">Nữ</option>
-                      </select>
-                    </label>
-
-                    <label className="d-field-group">
-                      <span>Quốc tịch <span style={{ color: 'red' }}>*</span></span>
-                      <input
-                        type="text"
-                        value={createForm.quocTich}
-                        onChange={(event) => setCreateForm((prev) => ({ ...prev, quocTich: event.target.value }))}
-                        placeholder="Việt Nam..."
-                      />
-                    </label>
-                  </div>
-
-                  <label className="d-field-group">
-                    <span>Khả năng tài chính định kỳ (VNĐ/tháng)</span>
-                    <input
-                      type="number"
-                      value={createForm.khaNangTaiChinh}
-                      onChange={(event) => setCreateForm((prev) => ({ ...prev, khaNangTaiChinh: event.target.value }))}
-                      placeholder="Mức thu nhập hoặc khả năng chi trả..."
-                    />
-                  </label>
-                </div>
-
-                {/* Column 2: Room & Bed Selection */}
-                <div className="d-create-room-column" style={{ display: 'flex', flexDirection: 'column', gap: '14px', borderLeft: '1px solid #f1f5f9', paddingLeft: '20px' }}>
-                  <h4 style={{ fontSize: '13.5px', fontWeight: '850', color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 4px 0' }}>Lựa chọn Phòng và Giường</h4>
-                  
-                  <label className="d-field-group">
-                    <span>Hình thức thuê phòng</span>
-                    <select
-                      value={createForm.loaiThue}
-                      onChange={(event) => setCreateForm((prev) => ({ ...prev, loaiThue: event.target.value, maGiuongs: [] }))}
-                    >
-                      <option value="Thuê giường lẻ">Thuê giường lẻ</option>
-                      <option value="Thuê nguyên phòng">Thuê nguyên phòng</option>
-                    </select>
-                  </label>
-
-                  <label className="d-field-group">
-                    <span>Thời hạn thuê mong muốn</span>
-                    <select
-                      value={createForm.thoiHanThue}
-                      onChange={(event) => setCreateForm((prev) => ({ ...prev, thoiHanThue: Number(event.target.value) }))}
-                    >
-                      <option value={6}>6 tháng (Mặc định)</option>
-                      <option value={7}>7 tháng</option>
-                      <option value={8}>8 tháng</option>
-                      <option value={9}>9 tháng</option>
-                      <option value={10}>10 tháng</option>
-                      <option value={11}>11 tháng</option>
-                      <option value={12}>12 tháng</option>
-                    </select>
-                  </label>
-
-                  <label className="d-field-group">
-                    <span>Chọn phòng trống khả dụng</span>
-                    <select
-                      value={createForm.maPhong}
-                      onChange={(event) => setCreateForm((prev) => ({ ...prev, maPhong: event.target.value, maGiuongs: [] }))}
-                    >
-                      <option value="">-- Chọn phòng --</option>
-                      {genderCompatibleRooms.map((item) => (
-                        <option key={item.MaPhong} value={item.MaPhong}>
-                          Phòng số {item.MaPhong} · {item.ChiNhanh?.TenCN} · Loại: {item.LoaiPhong} (Khả dụng {item.Giuong.filter(g => g.TinhTrang && !g.dangKhoa).length} giường)
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: '800', color: '#475569' }}>Danh sách phòng và giường</span>
-                      <small style={{ color: '#64748b', fontWeight: '650' }}>
-                        Đang hiển thị {overviewRooms.length}/{genderCompatibleRooms.length} phòng phù hợp {createForm.gioiTinh ? `cho khách ${createForm.gioiTinh}` : ''}
-                      </small>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: '10px', padding: '4px 5px 8px 2px' }}>
-                      {overviewRooms.map((item) => {
-                        const isSelectedRoom = String(createForm.maPhong) === String(item.MaPhong);
-                        const availableCount = item.Giuong.filter((bed) => bed.TinhTrang && !bed.dangKhoa).length;
-                        return (
-                          <button
-                            type="button"
-                            key={`room-overview-${item.MaPhong}`}
-                            onClick={() => setCreateForm((prev) => ({ ...prev, maPhong: String(item.MaPhong), maGiuongs: [] }))}
-                            style={{
-                              border: `1.5px solid ${isSelectedRoom ? '#f26a21' : '#dbe3ee'}`,
-                              borderRadius: '13px',
-                              background: isSelectedRoom ? '#fff7ed' : '#ffffff',
-                              padding: '12px',
-                              textAlign: 'left',
-                              cursor: 'pointer',
-                              boxShadow: isSelectedRoom ? '0 0 0 3px rgba(242, 106, 33, 0.14)' : '0 3px 9px rgba(15, 23, 42, 0.04)',
-                            }}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'center' }}>
-                              <strong style={{ color: '#0f172a', fontSize: '13px' }}>Phòng {item.MaPhong}</strong>
-                              <span style={{ color: availableCount ? '#15803d' : '#b91c1c', background: availableCount ? '#f0fdf4' : '#fef2f2', borderRadius: '999px', padding: '3px 7px', fontSize: '9px', fontWeight: '850' }}>
-                                {availableCount ? `${availableCount} trống` : 'Đã đầy'}
-                              </span>
-                            </div>
-                            <small style={{ display: 'block', color: '#64748b', marginTop: '4px', lineHeight: 1.35 }}>{item.ChiNhanh?.TenCN || 'Chưa có chi nhánh'} · Phòng {item.GioiTinhYeuCau} · Loại: {item.LoaiPhong}</small>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginTop: '9px' }}>
-                              {item.Giuong.map((bed) => {
-                                const available = bed.TinhTrang && !bed.dangKhoa;
-                                return (
-                                  <span
-                                    key={bed.MaGiuong}
-                                    title={`Giường ${bed.MaGiuong}: ${available ? 'Còn trống' : 'Đã khóa/đầy'}`}
-                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: available ? '#15803d' : '#94a3b8', background: available ? '#f0fdf4' : '#f1f5f9', border: `1px solid ${available ? '#bbf7d0' : '#e2e8f0'}`, borderRadius: '7px', padding: '3px 5px', fontSize: '9px', fontWeight: '800' }}
-                                  >
-                                    <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>single_bed</span>
-                                    {bed.MaGiuong}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {genderCompatibleRooms.length > 10 && (
-                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', paddingTop: '2px' }}>
-                        {overviewRoomLimit < genderCompatibleRooms.length && (
-                          <button
-                            type="button"
-                            className="d-btn-outline"
-                            onClick={() => setOverviewRoomLimit((current) => Math.min(current + 5, genderCompatibleRooms.length))}
-                            style={{ padding: '8px 14px', fontSize: '12px' }}
-                          >
-                            Xem thêm {Math.min(5, genderCompatibleRooms.length - overviewRoomLimit)} phòng
-                          </button>
-                        )}
-                        {overviewRoomLimit > 10 && (
-                          <button
-                            type="button"
-                            className="d-btn-outline"
-                            onClick={() => setOverviewRoomLimit(10)}
-                            style={{ padding: '8px 14px', fontSize: '12px', color: '#64748b' }}
-                          >
-                            Thu gọn
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  
-                  {selectedCreateRoom && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-                      <span style={{ fontSize: '13px', fontWeight: '750', color: '#475569' }}>Chọn giường cụ thể trong phòng:</span>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '8px', maxHeight: '210px', overflowY: 'auto', paddingRight: '4px' }}>
-                        {selectedCreateRoom.Giuong.map((bed) => {
-                          const disabled = !bed.TinhTrang || bed.dangKhoa;
-                          const checked = createForm.maGiuongs.includes(bed.MaGiuong);
-                          return (
-                            <label
-                              key={bed.MaGiuong}
-                              style={{
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                padding: '8px',
-                                border: '1.5px solid',
-                                borderColor: checked ? '#f26a21' : '#cbd5e1',
-                                borderRadius: '12px',
-                                cursor: disabled ? 'not-allowed' : 'pointer',
-                                background: checked ? '#fff8f5' : disabled ? '#f1f5f9' : '#ffffff',
-                                opacity: disabled ? 0.6 : 1,
-                                gap: '4px'
-                              }}
-                            >
-                              <input
-                                type="checkbox"
-                                disabled={disabled || (createForm.loaiThue === 'Thuê nguyên phòng' && !checked && createForm.maGiuongs.length > 0)}
-                                checked={checked}
-                                onChange={() => {
-                                  const allAvailable = selectedCreateRoom.Giuong.filter((item) => item.TinhTrang && !item.dangKhoa).map((item) => item.MaGiuong);
-                                  setCreateForm((prev) => ({
-                                    ...prev,
-                                    maGiuongs: prev.loaiThue === 'Thuê nguyên phòng'
-                                      ? allAvailable
-                                      : checked
-                                        ? prev.maGiuongs.filter((id) => id !== bed.MaGiuong)
-                                        : [...prev.maGiuongs, bed.MaGiuong]
-                                  }));
-                                }}
-                                style={{ display: 'none' }}
-                              />
-                              <span className="material-symbols-outlined" style={{ fontSize: '20px', color: checked ? '#f26a21' : '#64748b' }}>single_bed</span>
-                              <strong style={{ fontSize: '12px', color: '#0f172a' }}>Giường {bed.MaGiuong}</strong>
-                              <small style={{ fontSize: '10px', color: '#64748b', fontWeight: 'bold' }}>{disabled ? 'Đã khóa' : money(bed.GiaThue)}</small>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            </div>
-
-            <div className="d-create-footer">
-              {createError && (
-                <div className="d-inline-error d-inline-error--footer" role="alert">
-                  <span className="material-symbols-outlined">error</span>
-                  <span>{createError}</span>
-                </div>
-              )}
-              <div className="d-create-footer-actions">
-                <button type="button" className="d-btn-outline" onClick={() => { setShowCreate(false); setCreateError(''); }}>Hủy</button>
-                <button
-                  type="button"
-                  className="d-btn-primary"
-                  disabled={busy}
-                  onClick={editingSelection ? saveNewSelection : createDeposit}
-                >
-                  {editingSelection ? 'Lưu và gửi kiểm tra' : 'Tạo phiếu đặt cọc'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <ModalLapPhieuDatCoc
+        showCreate={showCreate}
+        editingSelection={editingSelection}
+        createForm={createForm}
+        setCreateForm={setCreateForm}
+        rooms={rooms}
+        genderCompatibleRooms={genderCompatibleRooms}
+        overviewRooms={overviewRooms}
+        overviewRoomLimit={overviewRoomLimit}
+        setOverviewRoomLimit={setOverviewRoomLimit}
+        selectedCreateRoom={selectedCreateRoom}
+        createError={createError}
+        setCreateError={setCreateError}
+        busy={busy}
+        saveNewSelection={saveNewSelection}
+        createDeposit={createDeposit}
+        setShowCreate={setShowCreate}
+        money={money}
+      />
     </KhungNhanVien>
   );
 }
