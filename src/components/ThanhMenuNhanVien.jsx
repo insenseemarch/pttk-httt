@@ -14,7 +14,9 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
     ? 'KE_TOAN'
     : rawRole.includes('quản lý') || rawRole.includes('quan ly') || rawRole === 'quanly'
       ? 'QUAN_LY'
-      : 'SALE';
+      : rawRole.includes('phụ trách') || rawRole.includes('phu trach') || rawRole === 'phutrach'
+        ? 'PHU_TRACH'
+        : 'SALE';
 
   const taiThongBaoDatCoc = async () => {
     try {
@@ -109,6 +111,14 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
     menu = [
       { key: 'dashboard', label: 'Dashboard', path: ROUTES.dashboard },
       { key: 'nhanPhong', label: 'Nhận phòng', path: ROUTES.nhanPhong },
+      { key: 'phongGiuong', label: 'Phòng/Giường', path: ROUTES.phongGiuong },
+      { key: 'khachHang', label: 'Khách hàng', path: ROUTES.khachHang },
+      { key: 'hopDong', label: 'Hợp đồng', path: ROUTES.hopDong },
+      { key: 'thongBao', label: 'Thông báo', path: ROUTES.thongBao },
+    ];
+  } else if (rawRole.includes('phụ trách') || rawRole.includes('phu trach') || rawRole === 'phutrach') {
+    menu = [
+      { key: 'dashboard', label: 'Dashboard', path: ROUTES.dashboard },
       { key: 'lapHopDong', label: 'Lập hợp đồng', path: ROUTES.lapHopDong },
       { key: 'phongGiuong', label: 'Phòng/Giường', path: ROUTES.phongGiuong },
       { key: 'khachHang', label: 'Khách hàng', path: ROUTES.khachHang },

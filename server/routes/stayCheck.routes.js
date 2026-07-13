@@ -1,6 +1,7 @@
 import express from 'express';
 import { supabase } from '../config/supabase.js';
 import { dinhDangNgay, dinhDangTien } from '../utils/dinhDang.js';
+import { getIO } from '../config/ketNoiSocket.js';
 
 const router = express.Router();
 
@@ -229,12 +230,22 @@ async function thongBaoNhanVienLapHopDong(dc, soThanhVien) {
 
   const { error } = await supabase.from('ThongBaoDatCoc').insert({
     MaDatCoc: dc.MaDatCoc,
-    NguoiNhan: dc.NVSale || null,
-    VaiTroNhan: 'Sale',
+    NguoiNhan: null,
+    VaiTroNhan: 'Phụ trách',
     NoiDung: noiDung,
     DaDoc: false,
   });
   if (error) throw error;
+
+  const io = getIO();
+  if (io) {
+    io.to('role:PHU_TRACH').emit('thong_bao_moi', {
+      phieuId: dc.MaDatCoc,
+      noiDung,
+      loaiSuKien: 'Chờ xác nhận',
+    });
+    console.log('[Socket] Broadcasted thong_bao_moi to room: role:PHU_TRACH');
+  }
 }
 
 // POST /api/kiem-tra-luu-tru/xac-nhan

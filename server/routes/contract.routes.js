@@ -252,7 +252,7 @@ router.post('/tao-moi', async (req, res) => {
         TrangThaiCu: dc.TrangThai,
         TrangThaiMoi: TRANG_THAI_SAU_KY,
         NguoiThucHien: nguoiThucHien,
-        VaiTroThucHien: 'Sale',
+        VaiTroThucHien: 'Phụ trách',
         GhiChu: `Đã lập & khách ký hợp đồng (Mã HĐ: ${newHopDong.MaHopDong}) — chuyển kế toán thu tiền kỳ đầu.`,
       });
 
