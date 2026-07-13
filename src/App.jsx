@@ -1055,7 +1055,7 @@ export default function App() {
           {/* NEW MODERN HERO SECTION */}
           <section className="guest-hero-container">
             <div className="hero-left-col">
-              <h1 className="hero-main-title">Tìm Phòng / Giường Phù Hợp Với Bạn</h1>
+              <h1 className="hero-main-title">Tìm phòng ở TP.HCM?</h1>
               <p className="hero-subtitle">
                 Giải pháp lưu trú hoàn hảo, hiện đại, an toàn và đầy đủ tiện nghi hàng đầu tại TP. Hồ Chí Minh dành cho học sinh, sinh viên và người đi làm năng động.
               </p>
@@ -2436,9 +2436,12 @@ export default function App() {
                       value={formYeuCauThue.thoiHanThue}
                       onChange={xuLyThayDoiYeuCau}
                     >
-                      <option value="1">1 Tháng</option>
-                      <option value="3">3 Tháng</option>
                       <option value="6">6 Tháng</option>
+                      <option value="7">7 Tháng</option>
+                      <option value="8">8 Tháng</option>
+                      <option value="9">9 Tháng</option>
+                      <option value="10">10 Tháng</option>
+                      <option value="11">11 Tháng</option>
                       <option value="12">12 Tháng</option>
                     </select>
                   </div>
@@ -3186,7 +3189,7 @@ export default function App() {
                   </div>
                   <div className="approve-note-box">
                     <span>📝 Ghi chú từ khách hàng:</span>
-                    <p>"Em đã chuyển cọc trước 1 tháng, nhờ anh/chị giữ chỗ giúp em ạ. Em sẽ dọn vào cuối tuần này."</p>
+                    <p>"Em đã chuyển tiền cọc tương đương 2 tháng tiền thuê, nhờ anh/chị giữ chỗ giúp em ạ. Em sẽ dọn vào cuối tuần này."</p>
                   </div>
                   <div className="approve-warning-box">
                     <span>⚠ Lưu ý nghiệp vụ</span>
