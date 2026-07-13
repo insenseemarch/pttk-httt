@@ -216,8 +216,26 @@ router.get('/:maHoSo', async (req, res) => {
   }
 });
 
-const TRANG_THAI_DAT_KIEM_TRA = 'Chờ thanh toán';
+const TRANG_THAI_DAT_KIEM_TRA = 'Chờ xác nhận'; // đạt kiểm tra ĐK → chờ nhân viên lập & ký hợp đồng
 const TRANG_THAI_DUNG_THUE = 'Chờ hoàn cọc';
+
+async function thongBaoNhanVienLapHopDong(dc, soThanhVien) {
+  const noiDung = [
+    `[PC-${dc.MaDatCoc}]`,
+    dc.KhachHang?.HoTen || 'Khách hàng',
+    `đã đạt kiểm tra điều kiện lưu trú (${soThanhVien} người).`,
+    'Vui lòng lập hợp đồng và hướng dẫn khách ký.',
+  ].join(' ');
+
+  const { error } = await supabase.from('ThongBaoDatCoc').insert({
+    MaDatCoc: dc.MaDatCoc,
+    NguoiNhan: dc.NVSale || null,
+    VaiTroNhan: 'Sale',
+    NoiDung: noiDung,
+    DaDoc: false,
+  });
+  if (error) throw error;
+}
 
 // POST /api/kiem-tra-luu-tru/xac-nhan
 // Bước 1 (không có luaChon): đánh giá kết quả kiểm tra.
@@ -263,13 +281,14 @@ router.post('/xac-nhan', async (req, res) => {
         nguoiThucHien,
         `Kiểm tra ĐK lưu trú: loại ${dsKhongDat.length} thành viên không đạt, tiếp tục ký HĐ với ${dsDat.length} thành viên còn lại.`,
       );
+      await thongBaoNhanVienLapHopDong(dc, dsDat.length);
 
       return res.json({
         ok: true,
         data: {
           trangThai: 'CONTINUE_PARTIAL',
           message: `Đã ghi nhận. Tiếp tục lập hợp đồng với ${dsDat.length} thành viên đủ điều kiện.`,
-          buocTiepTheo: '/hop-dong',
+          buocTiepTheo: '/lap-hop-dong',
           maDatCoc,
         },
       });
@@ -308,13 +327,14 @@ router.post('/xac-nhan', async (req, res) => {
         nguoiThucHien,
         'Kiểm tra ĐK lưu trú: tất cả thành viên đạt — chuyển lập hợp đồng.',
       );
+      await thongBaoNhanVienLapHopDong(dc, dsDat.length);
 
       return res.json({
         ok: true,
         data: {
           trangThai: 'SUCCESS',
           message: 'Tất cả thành viên đã đạt điều kiện. Chuyển sang lập hợp đồng.',
-          buocTiepTheo: '/hop-dong',
+          buocTiepTheo: '/lap-hop-dong',
           maDatCoc,
         },
       });

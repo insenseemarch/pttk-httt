@@ -23,6 +23,7 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
     menu = [
       { key: 'dashboard', label: 'Dashboard', path: ROUTES.dashboard },
       { key: 'nhanPhong', label: 'Nhận phòng', path: ROUTES.nhanPhong },
+      { key: 'lapHopDong', label: 'Lập hợp đồng', path: ROUTES.lapHopDong },
       { key: 'phongGiuong', label: 'Phòng/Giường', path: ROUTES.phongGiuong },
       { key: 'khachHang', label: 'Khách hàng', path: ROUTES.khachHang },
       { key: 'hopDong', label: 'Hợp đồng', path: ROUTES.hopDong },
