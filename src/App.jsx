@@ -981,9 +981,6 @@ export default function App() {
                 <li className={trangHienTai === 'staff_handover' ? 'active' : ''}>
                   <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_handover'); }}>Bàn giao</a>
                 </li>
-                <li className={trangHienTai === 'staff_hop_dong' ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_hop_dong'); }}>Danh sách HĐ</a>
-                </li>
                 <li className={trangHienTai.startsWith('staff_checkout') ? 'active' : ''}>
                   <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_checkout'); }}>KT Trả phòng</a>
                 </li>
@@ -3640,7 +3637,7 @@ export default function App() {
         />
       )}
 
-      {trangHienTai === 'staff_hop_dong' && (vaiTroNhanVien === 'sale' || vaiTroNhanVien === 'quanly') && (
+      {trangHienTai === 'staff_hop_dong' && vaiTroNhanVien === 'sale' && (
         <StaffHopDongPage
           hienThongBao={hienThongBao}
           vaiTro={vaiTroNhanVien}
@@ -3782,11 +3779,9 @@ export default function App() {
                     background: 'white'
                   }}
                   onClick={() => {
-                    setCheDoNhanVien(true);
-                    setVaiTroNhanVien('quanly');
                     setShowLoginModal(false);
-                    chuyenTrang('staff_checkout');
                     hienThongBao('success', 'Đăng nhập thành công với vai trò Quản lý chi nhánh!');
+                    navigate(ROUTES.dashboard);
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = '#3b82f6';

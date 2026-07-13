@@ -156,11 +156,11 @@ export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTra
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           maChungTu: hoSoDangChon.maSo,
-          chiPhiHuHong: formQuyetToan.chiPhiHuHong,
+          chiPhiHuHong: 0,
           moTaHuHong: formQuyetToan.moTaHuHong,
-          checklistSach: formQuyetToan.checklistSach,
-          checklistTaiSan: formQuyetToan.checklistTaiSan,
-          checklistChiaKhoa: formQuyetToan.checklistChiaKhoa
+          checklistSach: true,
+          checklistTaiSan: true,
+          checklistChiaKhoa: true,
         })
       });
       const resData = await response.json();

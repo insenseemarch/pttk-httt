@@ -22,7 +22,6 @@ export default function ManagerRoomInspectForm({ selectedItem, onCancel, onSucce
   const [veSinh, setVeSinh] = useState(Object.fromEntries(VE_SINH.map((v) => [v.id, false])));
   const [coHuHong, setCoHuHong] = useState(false);
   const [moTaHuHong, setMoTaHuHong] = useState('');
-  const [chiPhiHuHong, setChiPhiHuHong] = useState(0);
   const [ghiChu, setGhiChu] = useState('');
   const [dangGui, setDangGui] = useState(false);
 
@@ -56,7 +55,7 @@ export default function ManagerRoomInspectForm({ selectedItem, onCancel, onSucce
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           maChungTu: selectedItem.maSo || selectedItem.maChungTu,
-          chiPhiHuHong: coHuHong ? Number(chiPhiHuHong) || 0 : 0,
+          chiPhiHuHong: 0,
           moTaHuHong: moTaTong,
           checklistSach: veSinh.san && veSinh.wc && veSinh.rac,
           checklistTaiSan: Object.values(taiSan).every((v) => v === 'binh_thuong' || v === 'hu_hong'),
@@ -208,16 +207,6 @@ export default function ManagerRoomInspectForm({ selectedItem, onCancel, onSucce
                   required={coHuHong}
                   style={{ padding: 10, borderRadius: 10, border: '1px solid #e2e8f0', resize: 'vertical' }}
                   placeholder="Mô tả vị trí, mức độ hư hỏng..."
-                />
-              </label>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, fontWeight: 650 }}>
-                Chi phí ước tính (VND)
-                <input
-                  type="number"
-                  min={0}
-                  value={chiPhiHuHong}
-                  onChange={(e) => setChiPhiHuHong(e.target.value)}
-                  style={{ padding: 10, borderRadius: 10, border: '1px solid #e2e8f0' }}
                 />
               </label>
             </div>

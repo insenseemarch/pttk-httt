@@ -92,8 +92,6 @@ function TrangDangNhap() {
 
   const navigate = useNavigate();
 
-  const location = useLocation();
-
   const nguoiDung = docNguoiDungTuLocal();
 
 
@@ -110,9 +108,7 @@ function TrangDangNhap() {
 
     localStorage.setItem(KHOA_NGUOI_DUNG, JSON.stringify(data));
 
-    const quayLai = location.state?.tu || ROUTES.dashboard;
-
-    navigate(quayLai, { replace: true });
+    navigate(ROUTES.dashboard, { replace: true });
 
   };
 
@@ -158,6 +154,25 @@ function taoTrangStaff(Component) {
 
 }
 
+function laQuanLy(nguoiDung) {
+  const r = (nguoiDung?.vaiTro || '').toLowerCase();
+  return r.includes('quản lý') || r.includes('quan ly') || r === 'quanly';
+}
+
+/** Hợp đồng chỉ dành cho Sale — Quản lý dùng Kiểm tra trả phòng */
+function TrangHopDongSale() {
+  return (
+    <TrangBaoVe>
+      {({ nguoiDung, dangXuat }) => {
+        if (laQuanLy(nguoiDung)) {
+          return <Navigate to={ROUTES.dashboard} replace />;
+        }
+        return <DanhSachHopDong nguoiDung={nguoiDung} dangXuat={dangXuat} />;
+      }}
+    </TrangBaoVe>
+  );
+}
+
 
 
 export default function AppRouter() {
@@ -176,7 +191,7 @@ export default function AppRouter() {
 
       <Route path={ROUTES.khachHang} element={taoTrangStaff(DanhSachKhachHang)} />
 
-      <Route path={ROUTES.hopDong} element={taoTrangStaff(DanhSachHopDong)} />
+      <Route path={ROUTES.hopDong} element={<TrangHopDongSale />} />
       <Route path={ROUTES.thuChi} element={taoTrangStaff(ThuChi)} />
       <Route path={ROUTES.nhanPhong} element={taoTrangStaff(DanhSachNhanPhong)} />
       <Route path={`${ROUTES.nhanPhong}/:maDatCoc`} element={taoTrangStaff(ChiTietNhanPhong)} />
