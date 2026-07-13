@@ -91,6 +91,7 @@ export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
   const [hdDangXem, setHdDangXem] = useState(null);
   const [chiTietDayDu, setChiTietDayDu] = useState(null);
   const [dangTaiChiTiet, setDangTaiChiTiet] = useState(false);
+  const [phieuDoiSoat, setPhieuDoiSoat] = useState([]);
   const [manKiemPhong, setManKiemPhong] = useState(null);
   const [manYeuCau, setManYeuCau] = useState(null);
   const [formYeuCau, setFormYeuCau] = useState({
@@ -206,11 +207,13 @@ export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
         }]);
       }
     }
+    }
   };
 
   const dongModalXem = () => {
     setHdDangXem(null);
     setChiTietDayDu(null);
+    setPhieuDoiSoat([]);
   };
 
   const batDauKetThuc = (hd) => {
@@ -674,13 +677,6 @@ export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
                             Kiểm phòng
                           </button>
                         )}
-                      </div>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button type="button" className="qt-btn-icon" title="Xem thông tin và xác nhận đối soát" onClick={() => moModalXem(hd)}>
-                          <span className="material-symbols-outlined">visibility</span>
-                        </button>
                         {hd.trangThai === 'Thanh lý' && (
                           <button type="button" className="qt-btn-icon" style={{ color: '#059669', background: '#ecfdf5', borderColor: '#a7f3d0' }} title="Mở bảng thanh lý & thu hồi" onClick={() => moThanhLy(hd)}>
                             <span className="material-symbols-outlined">contract</span>

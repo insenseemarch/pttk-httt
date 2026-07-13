@@ -14,6 +14,7 @@ import datCocRoutes, { huyDatCocQuaHan } from './routes/datCoc.routes.js';
 import { ganRouteAuthDashboard } from './routes/authDashboard.js';
 import { ganRouteQuanTri } from './routes/quanTri.js';
 import { syncPhongGiuong } from './syncPhongGiuong.js';
+import { dinhDangCCCD } from './utils/dinhDang.js';
 import {
   layMaDatCocTuPds,
   mapDatCocRaDTO,
@@ -58,7 +59,9 @@ async function luuThongTinKhachHang(kh) {
     .select();
 
   if (error) throw error;
-  return data && data.length > 0 ? data[0] : null;
+  return data && data.length > 0
+    ? { ...data[0], CCCD: dinhDangCCCD(data[0].CCCD) }
+    : null;
 }
 
 async function taoYeuCauThue(yc, cccd, maNV = 101) {
@@ -83,7 +86,9 @@ async function taoYeuCauThue(yc, cccd, maNV = 101) {
     .select();
 
   if (error) throw error;
-  return data && data.length > 0 ? data[0] : null;
+  return data && data.length > 0
+    ? { ...data[0], CCCD: dinhDangCCCD(data[0].CCCD) }
+    : null;
 }
 
 async function layThongKePhongTrong() {
@@ -775,9 +780,20 @@ app.post('/api/checkout/request', async (req, res) => {
 
   try {
     const nextTrangThai = 'Chờ kiểm tra';
+    if (!maSoChungTu) {
+      return res.status(400).json({ ok: false, error: 'Thiếu mã chứng từ' });
+    }
 
-    if (maSoChungTu.startsWith('HĐ-')) {
-      const id = Number(maSoChungTu.replace('HĐ-', ''));
+    // Chấp nhận HĐ-12 hoặc HD-00012
+    const isHopDong =
+      String(maSoChungTu).startsWith('HĐ-') ||
+      /^HD-/i.test(String(maSoChungTu));
+
+    if (isHopDong) {
+      const id = Number(String(maSoChungTu).replace(/^(HĐ-|HD-)/i, ''));
+      if (!Number.isFinite(id) || id <= 0) {
+        return res.status(400).json({ ok: false, error: 'Mã hợp đồng không hợp lệ' });
+      }
 
       await supabase.from('HopDong').update({ TrangThai: nextTrangThai }).eq('MaHopDong', id);
 

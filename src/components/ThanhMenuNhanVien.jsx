@@ -154,6 +154,7 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
       { key: 'dashboard', label: 'Tổng quan', path: ROUTES.dashboard },
       { key: 'phongGiuong', label: 'Sơ đồ phòng', path: ROUTES.phongGiuong },
       { key: 'deposit', label: 'Đặt cọc', path: ROUTES.deposit },
+      { key: 'hopDong', label: 'Hợp đồng', path: ROUTES.hopDong },
       { key: 'thongBao', label: 'Thông báo', path: ROUTES.thongBao }
     ];
   }
