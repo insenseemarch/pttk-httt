@@ -35,7 +35,7 @@ export async function layThongKeDashboard() {
   ] = await Promise.all([
     supabase.from('Phong').select('MaPhong', { count: 'exact', head: true }).eq('TinhTrang', true),
     supabase.from('Giuong').select('MaGiuong', { count: 'exact', head: true }).eq('TinhTrang', true),
-    supabase.from('DatCoc').select('MaDatCoc', { count: 'exact', head: true }).in('TrangThai', ['Đã cọc', 'Đã thanh toán', 'Hoàn tất']),
+    supabase.from('DatCoc').select('MaDatCoc', { count: 'exact', head: true }).in('TrangThai', ['Đã cọc', 'Đã thanh toán', 'Hoàn tất', 'Đặt cọc thành công']),
     supabase.from('HopDong').select('MaHopDong', { count: 'exact', head: true }).eq('TrangThai', 'Đang hiệu lực'),
     supabase.from('PhieuDoiSoat').select('MaPhieu', { count: 'exact', head: true }).eq('TrangThai', 'Chờ xử lý'),
   ]);
@@ -68,7 +68,7 @@ export async function layCocChoDuyet(gioiHan = 10) {
         Giuong ( MaPhong )
       )
     `)
-    .in('TrangThai', ['Chờ duyệt', 'Chờ xác nhận', 'Chờ thanh toán'])
+    .in('TrangThai', ['Chờ duyệt', 'Chờ xác nhận', 'Chờ thanh toán', 'Chờ duyệt phòng', 'Chờ tính tiền cọc', 'Chờ khách chuyển khoản', 'Chờ duyệt cọc', 'Chứng từ bị từ chối'])
     .order('ThoiDiemTao', { ascending: false })
     .limit(gioiHan);
 
@@ -142,7 +142,7 @@ export async function demCocChoDuyet() {
   const { count, error } = await supabase
     .from('DatCoc')
     .select('MaDatCoc', { count: 'exact', head: true })
-    .in('TrangThai', ['Chờ duyệt', 'Chờ xác nhận', 'Chờ thanh toán']);
+    .in('TrangThai', ['Chờ duyệt', 'Chờ xác nhận', 'Chờ thanh toán', 'Chờ duyệt phòng', 'Chờ tính tiền cọc', 'Chờ khách chuyển khoản', 'Chờ duyệt cọc', 'Chứng từ bị từ chối']);
 
   if (error) throw error;
   return count || 0;

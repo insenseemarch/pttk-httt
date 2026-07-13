@@ -37,7 +37,7 @@ router.get('/pre-fill/:maHoSo', async (req, res) => {
         phongGiuong: hoSo?.Phong?.LoaiPhong || 'Phòng 402 - Giường A',
         maPhong: hoSo?.Phong?.MaPhong || 'P.402-A',
         ngayBatDau: hoSo?.NgayNhanPhong || '2023-10-15',
-        thoiHanThue: hoSo?.ThoiHanThue || 12,
+        thoiHanThue: hoSo?.ThoiHanThue || 6,
         soGiuong: hoSo?.SoGiuong || 1,
         giaThueCoBan: hoSo?.Phong?.GiaThue || 2500000,
         kyThanhToan: hoSo?.KyThanhToan || 'MONTHLY'
@@ -74,7 +74,7 @@ router.post('/tao-moi', async (req, res) => {
     // Insert data into HopDong
     const ngayBD = new Date(thongTinThue.ngayBatDau || Date.now());
     const ngayKT = new Date(ngayBD);
-    ngayKT.setMonth(ngayKT.getMonth() + (thongTinThue.thoiHanThue || 12));
+    ngayKT.setMonth(ngayKT.getMonth() + (thongTinThue.thoiHanThue || 6));
 
     const { data: newHopDong, error } = await supabase
       .from('HopDong')
