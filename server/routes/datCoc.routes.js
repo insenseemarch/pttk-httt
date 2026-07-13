@@ -39,6 +39,7 @@ function chuanHoaVaiTro(value) {
   const role = String(value || '').toLowerCase();
   if (role === 'ke_toan' || role.includes('kế toán') || role.includes('ke toan') || role.includes('ketoan')) return 'KE_TOAN';
   if (role === 'quan_ly' || role.includes('quản lý') || role.includes('quan ly') || role.includes('quanly')) return 'QUAN_LY';
+  if (role === 'phu_trach' || role.includes('phụ trách') || role.includes('phu trach') || role.includes('phutrach')) return 'PHU_TRACH';
   return 'SALE';
 }
 
@@ -52,6 +53,7 @@ function nguoiDung(req) {
 function vaiTroDatabase(role) {
   if (role === 'QUAN_LY') return 'Quản lý';
   if (role === 'KE_TOAN') return 'Kế toán';
+  if (role === 'PHU_TRACH') return 'Phụ trách';
   if (role === 'HE_THONG') return 'Hệ thống';
   return 'Nhân viên Sale';
 }

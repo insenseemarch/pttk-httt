@@ -246,6 +246,9 @@ export async function layDanhSachHopDong(boLoc = {}) {
 }
 
 export async function layChiTietHopDong(maHopDong) {
+  const id = Number(maHopDong);
+  if (!Number.isFinite(id)) return null;
+
   const { data, error } = await supabase
     .from('HopDong')
     .select(
@@ -259,7 +262,7 @@ export async function layChiTietHopDong(maHopDong) {
       PhieuDoiSoat ( * )
     `,
     )
-    .eq('MaHopDong', Number(maHopDong))
+    .eq('MaHopDong', id)
     .maybeSingle();
 
   if (error) throw error;
