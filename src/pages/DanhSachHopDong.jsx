@@ -10,6 +10,7 @@ import ContractLiquidateForm from '../components/checkout/ContractLiquidateForm'
 function layChipHD(trangThai) {
   const map = {
     'Hiệu lực': 'green',
+    'Chờ thanh lý': 'blue',
     'Thanh lý': 'gray',
     'Đã trả phòng': 'gray',
     'Hủy': 'red',
@@ -161,51 +162,50 @@ export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
       setChiTietDayDu(hd);
     } finally {
       setDangTaiChiTiet(false);
-    // Mock dữ liệu phiếu đối soát liên kết nếu hợp đồng đang trong quá trình trả phòng
-    if (hd.trangThai === 'Chờ xác nhận đối soát' || hd.trangThai === 'Khách đồng ý đối soát (Chờ TT)' || hd.trangThai === 'Chờ hoàn cọc' || hd.trangThai === 'Chờ thanh toán thêm') {
+      // Mock dữ liệu phiếu đối soát liên kết nếu hợp đồng đang trong quá trình trả phòng
+      if (hd.trangThai === 'Chờ xác nhận đối soát' || hd.trangThai === 'Khách đồng ý đối soát (Chờ TT)' || hd.trangThai === 'Chờ hoàn cọc' || hd.trangThai === 'Chờ thanh toán thêm') {
 
-      let loai = 'Hoàn cọc';
-      let soTien = 21500000;
-      let ngayLap = new Date().toLocaleDateString('vi-VN');
+        let loai = 'Hoàn cọc';
+        let soTien = 21500000;
+        let ngayLap = new Date().toLocaleDateString('vi-VN');
 
-      if (hd.pdsInfo) {
-        // Lấy dữ liệu thật từ DB (tính toán dựa vào SoTienHoanThuc)
-        soTien = Math.abs(hd.pdsInfo.soTienHoanThuc);
-        loai = hd.pdsInfo.soTienHoanThuc >= 0 ? 'Hoàn cọc' : 'Thu thêm';
-        if (hd.pdsInfo.ngayLap) {
-          ngayLap = new Date(hd.pdsInfo.ngayLap).toLocaleDateString('vi-VN');
-        }
-      } else {
-        // Fallback: Khớp dữ liệu giả lập với thông tin trên các màn hình khác (cho test offline)
-        if (hd.maHD === 'HD-00010' || hd.maHD === 'HD-10') {
-          loai = 'Hoàn cọc';
-          soTien = 7400000;
-        } else if (hd.maHD === 'HD-00009' || hd.maHD === 'HD-9') {
-          loai = 'Hoàn cọc';
-          soTien = 21500000;
-        } else if (hd.maHD === 'HD-00002' || hd.maHD === 'HD-2') {
-          loai = 'Thu thêm';
-          soTien = 6000000;
+        if (hd.pdsInfo) {
+          // Lấy dữ liệu thật từ DB (tính toán dựa vào SoTienHoanThuc)
+          soTien = Math.abs(hd.pdsInfo.soTienHoanThuc);
+          loai = hd.pdsInfo.soTienHoanThuc >= 0 ? 'Hoàn cọc' : 'Thu thêm';
+          if (hd.pdsInfo.ngayLap) {
+            ngayLap = new Date(hd.pdsInfo.ngayLap).toLocaleDateString('vi-VN');
+          }
         } else {
-          const num = parseInt(hd.maHD.replace(/\D/g, '') || '0', 10);
-          loai = num % 2 === 0 ? 'Thu thêm' : 'Hoàn cọc';
-          soTien = num % 2 === 0 ? 500000 : 3500000;
+          // Fallback: Khớp dữ liệu giả lập với thông tin trên các màn hình khác (cho test offline)
+          if (hd.maHD === 'HD-00010' || hd.maHD === 'HD-10') {
+            loai = 'Hoàn cọc';
+            soTien = 7400000;
+          } else if (hd.maHD === 'HD-00009' || hd.maHD === 'HD-9') {
+            loai = 'Hoàn cọc';
+            soTien = 21500000;
+          } else if (hd.maHD === 'HD-00002' || hd.maHD === 'HD-2') {
+            loai = 'Thu thêm';
+            soTien = 6000000;
+          } else {
+            const num = parseInt(hd.maHD.replace(/\D/g, '') || '0', 10);
+            loai = num % 2 === 0 ? 'Thu thêm' : 'Hoàn cọc';
+            soTien = num % 2 === 0 ? 500000 : 3500000;
+          }
         }
+
+        let tthai = 'Chờ hoàn cọc';
+        if (hd.trangThai === 'Chờ xác nhận đối soát') tthai = 'Chờ khách xác nhận';
+        if (hd.trangThai === 'Khách đồng ý đối soát (Chờ TT)') tthai = loai === 'Hoàn cọc' ? 'Chờ hoàn cọc' : 'Chờ thanh toán thêm';
+
+        setPhieuDoiSoat([{
+          maPhieu: `PDS-${hd.maHD ? hd.maHD.replace('HD-', '') : '001'}`,
+          ngayLap: ngayLap,
+          soTien: soTien,
+          loai: loai,
+          trangThai: tthai
+        }]);
       }
-
-      let tthai = 'Chờ hoàn cọc';
-      if (hd.trangThai === 'Chờ xác nhận đối soát') tthai = 'Chờ khách xác nhận';
-      if (hd.trangThai === 'Khách đồng ý đối soát (Chờ TT)') tthai = loai === 'Hoàn cọc' ? 'Chờ hoàn cọc' : 'Chờ thanh toán thêm';
-
-      setPhieuDoiSoat([{
-        maPhieu: `PDS-${hd.maHD ? hd.maHD.replace('HD-', '') : '001'}`,
-        ngayLap: ngayLap,
-        soTien: soTien,
-        loai: loai,
-        trangThai: tthai
-      }]);
-    } else {
-      setPhieuDoiSoat([]);
     }
     }
   };
