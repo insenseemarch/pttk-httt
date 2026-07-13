@@ -5,7 +5,11 @@ async function layGiuongDangThue() {
   const { data, error } = await supabase
     .from('ChiTiet')
     .select('MaGiuong, HopDong!inner(TrangThai)')
-    .eq('HopDong.TrangThai', 'Đang hiệu lực');
+    .in('HopDong.TrangThai', [
+      'Đang hiệu lực', 'Chờ kiểm tra', 'Chờ xác nhận đối soát',
+      'Khách đồng ý đối soát (Chờ TT)', 'Chờ thanh toán',
+      'Chờ thanh toán thêm', 'Chờ thanh lý', 'Chờ hoàn cọc', 'Chờ đối soát',
+    ]);
 
   if (error) throw error;
   return new Set((data || []).map((ct) => ct.MaGiuong));
@@ -15,7 +19,11 @@ async function layGiuongDatCoc() {
   const { data, error } = await supabase
     .from('GiuongDatCoc')
     .select('MaGiuong, MaDatCoc, NgayHetHan, DatCoc!inner(TrangThai)')
-    .in('DatCoc.TrangThai', ['Chờ duyệt', 'Chờ xác nhận', 'Chờ thanh toán', 'Đã cọc', 'Đã thanh toán']);
+    .in('DatCoc.TrangThai', [
+      'Đã cọc', 'Đã thanh toán', 'Đặt cọc thành công',
+      // Tương thích dữ liệu cũ nếu migration chưa chạy hết.
+      'DA_XAC_NHAN',
+    ]);
 
   if (error) throw error;
   const map = new Map();
@@ -40,6 +48,12 @@ function xacDinhTrangThaiPhong(phong, giuongs, giuongThue, giuongCoc) {
   if (trong === tong) return 'Trống';
   if (thue > 0) return 'Đang thuê';
   return 'Trống';
+}
+
+function xacDinhTrangThaiGiuong(giuong, giuongThue, giuongCoc) {
+  if (giuongThue.has(giuong.MaGiuong)) return 'Đang thuê';
+  if (giuongCoc.has(giuong.MaGiuong)) return 'Đã đặt cọc';
+  return giuong.TinhTrang === false ? 'Đang sử dụng' : 'Trống';
 }
 
 export async function layThongKePhongGiuong() {
@@ -88,7 +102,7 @@ export async function layDanhSachPhong(boLoc = {}) {
     .from('Phong')
     .select(
       `
-      MaPhong, LoaiPhong, SucChua, GiaThue, TinhTrang, MaCN,
+      MaPhong, LoaiPhong, SucChua, SucChuaToiDa, GioiTinhYeuCau, GiaThue, TinhTrang, MaCN,
       ChiNhanh ( TenCN ),
       Giuong ( MaGiuong, GioiTinhYeuCau, GiaThue, TinhTrang )
     `,
@@ -114,7 +128,7 @@ export async function layDanhSachPhong(boLoc = {}) {
 
   let danhSach = (phongRes.data || []).map((p) => {
     const giuongs = p.Giuong || [];
-    const tong = giuongs.length || p.SucChua || 1;
+    const tong = giuongs.length || p.SucChuaToiDa || p.SucChua || 1;
     let daDung = 0;
     let hetHanCoc = null;
     giuongs.forEach((g) => {
@@ -130,7 +144,8 @@ export async function layDanhSachPhong(boLoc = {}) {
     return {
       maPhong: p.MaPhong,
       loaiPhong: p.LoaiPhong,
-      sucChua: p.SucChua || tong,
+      gioiTinhYeuCau: p.GioiTinhYeuCau || 'Chưa phân loại',
+      sucChua: p.SucChuaToiDa || tong,
       giaThue: dinhDangTien(p.GiaThue),
       giaThueSo: Number(p.GiaThue || 0),
       chiNhanh: p.ChiNhanh?.TenCN || '—',
@@ -141,6 +156,12 @@ export async function layDanhSachPhong(boLoc = {}) {
       soGiuongTrong: tong - daDung,
       hetHanCoc: hetHanCoc ? dinhDangNgay(hetHanCoc) : null,
       soGiuong: giuongs.length,
+      danhSachGiuong: giuongs
+        .map((g) => ({
+          maGiuong: g.MaGiuong,
+          trangThai: xacDinhTrangThaiGiuong(g, giuongThue, giuongCoc),
+        }))
+        .sort((a, b) => Number(a.maGiuong) - Number(b.maGiuong)),
     };
   });
 
