@@ -27,6 +27,8 @@ import DanhSachNhanPhong from './pages/DanhSachNhanPhong';
 import ChiTietNhanPhong from './pages/ChiTietNhanPhong';
 import DanhSachKiemTraLuuTru from './pages/DanhSachKiemTraLuuTru';
 import KiemTraLuuTru from './pages/KiemTraLuuTru';
+import DanhSachLapHopDong from './pages/DanhSachLapHopDong';
+import LapHopDong from './pages/LapHopDong';
 
 import { KHOA_NGUOI_DUNG, ROUTES } from './config/routes';
 
@@ -180,6 +182,8 @@ export default function AppRouter() {
       <Route path={`${ROUTES.nhanPhong}/:maDatCoc`} element={taoTrangStaff(ChiTietNhanPhong)} />
       <Route path={ROUTES.kiemTraLuuTru} element={taoTrangStaff(DanhSachKiemTraLuuTru)} />
       <Route path={`${ROUTES.kiemTraLuuTru}/:maHoSo`} element={taoTrangStaff(KiemTraLuuTru)} />
+      <Route path={ROUTES.lapHopDong} element={taoTrangStaff(DanhSachLapHopDong)} />
+      <Route path={`${ROUTES.lapHopDong}/:maDatCoc`} element={taoTrangStaff(LapHopDong)} />
       <Route path={ROUTES.thongBao} element={taoTrangStaff(ThongBaoViecCanXuLy)} />
 
       <Route path={ROUTES.quanLyTaiKhoan} element={taoTrangStaff(QuanLyTaiKhoan)} />

@@ -13,6 +13,7 @@ export const ROUTES = {
   deposit: '/dat-coc',
   nhanPhong: '/nhan-phong',
   kiemTraLuuTru: '/kiem-tra-luu-tru',
+  lapHopDong: '/lap-hop-dong',
 };
 
 export const KHOA_NGUOI_DUNG = 'homestay_nguoiDung';
