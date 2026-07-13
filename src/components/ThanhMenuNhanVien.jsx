@@ -13,7 +13,20 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
       { key: 'phongGiuong', label: 'Phòng', path: ROUTES.phongGiuong },
       { key: 'hopDong', label: 'Hợp đồng', path: ROUTES.hopDong },
       { key: 'thuChi', label: 'Thu chi', path: ROUTES.thuChi },
-      { key: 'thongBao', label: 'Báo cáo', path: ROUTES.thongBao } // Giả lập Báo cáo = Thông báo tạm thời theo hình
+      { key: 'thongBao', label: 'Báo cáo', path: ROUTES.thongBao }
+    ];
+  } else if (
+    rawRole.includes('sale')
+    || rawRole.includes('kinh doanh')
+    || rawRole.includes('nhân viên sale')
+  ) {
+    menu = [
+      { key: 'dashboard', label: 'Dashboard', path: ROUTES.dashboard },
+      { key: 'nhanPhong', label: 'Nhận phòng', path: ROUTES.nhanPhong },
+      { key: 'phongGiuong', label: 'Phòng/Giường', path: ROUTES.phongGiuong },
+      { key: 'khachHang', label: 'Khách hàng', path: ROUTES.khachHang },
+      { key: 'hopDong', label: 'Hợp đồng', path: ROUTES.hopDong },
+      { key: 'thongBao', label: 'Thông báo', path: ROUTES.thongBao },
     ];
   } else {
     menu = [...MENU_NHAN_VIEN];

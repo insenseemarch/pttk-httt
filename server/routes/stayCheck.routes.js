@@ -4,46 +4,95 @@ import { dinhDangNgay } from '../utils/dinhDang.js';
 
 const router = express.Router();
 
+function parseMaDatCoc(maHoSo) {
+  if (!maHoSo) return null;
+  const raw = String(maHoSo).trim();
+  if (raw.startsWith('PC-')) return Number(raw.replace('PC-', ''));
+  if (/^\d+$/.test(raw)) return Number(raw);
+  return null;
+}
+
+async function layHoSoKiemTra(maDatCoc) {
+  const { data: dc, error } = await supabase
+    .from('DatCoc')
+    .select(`
+      *,
+      KhachHang ( CCCD, HoTen, GioiTinh ),
+      Phong ( MaPhong, LoaiPhong, GioiTinhYeuCau ),
+      NhomThue (
+        MaNhom, CCCD,
+        ThanhVienNhom (
+          CCCD, ThoaDieuKien, TrangThai,
+          KhachHang ( CCCD, HoTen, GioiTinh )
+        )
+      )
+    `)
+    .eq('MaDatCoc', maDatCoc)
+    .maybeSingle();
+
+  if (error) throw error;
+  return dc;
+}
+
+function mapThanhVienKiemTra(dc, idx, kh, extra = {}) {
+  return {
+    id: String(idx + 1).padStart(2, '0'),
+    hoTen: kh?.HoTen || '',
+    truongNhom: String(kh?.CCCD) === String(dc.NhomThue?.CCCD || dc.CCCD),
+    cccd: String(kh?.CCCD || ''),
+    gioiTinh: kh?.GioiTinh || '—',
+    daDoiChieuCCCD: extra.trangThai === 'Đã đối chiếu CCCD',
+    ...extra,
+  };
+}
+
 // GET /api/kiem-tra-luu-tru/:maHoSo
 router.get('/:maHoSo', async (req, res) => {
   try {
-    const { maHoSo } = req.params;
-    if (!maHoSo) {
-      return res.status(400).json({ ok: false, error: 'Thiếu mã hồ sơ đặt cọc' });
+    const maDatCoc = parseMaDatCoc(req.params.maHoSo);
+    if (!maDatCoc) {
+      return res.status(400).json({ ok: false, error: 'Mã hồ sơ không hợp lệ (dùng PC-{maDatCoc})' });
     }
-    
-    // Lấy thông tin hồ sơ đặt cọc
-    const { data: hoSo, error } = await supabase
-      .from('HoSoDatCoc')
-      .select(`
-        *,
-        Phong ( MaPhong, LoaiPhong )
-      `)
-      .eq('MaHoSo', maHoSo)
-      .single();
 
-    if (error) {
-      console.warn('Lỗi lấy hồ sơ kiểm tra lưu trú:', error.message);
+    const hoSo = await layHoSoKiemTra(maDatCoc);
+    if (!hoSo) {
+      return res.status(404).json({ ok: false, error: 'Không tìm thấy hồ sơ đặt cọc' });
+    }
+
+    let danhSachThanhVien = [];
+    const nhom = hoSo.NhomThue;
+
+    if (nhom?.ThanhVienNhom?.length) {
+      danhSachThanhVien = nhom.ThanhVienNhom.map((tv, idx) =>
+        mapThanhVienKiemTra(hoSo, idx, tv.KhachHang, { trangThai: tv.TrangThai }),
+      );
+    } else if (hoSo.KhachHang) {
+      danhSachThanhVien = [
+        mapThanhVienKiemTra(hoSo, 0, hoSo.KhachHang, {
+          trangThai: String(hoSo.LyDoXuLy || '').includes('[CCCD_OK]') ? 'Đã đối chiếu CCCD' : 'Đã ghi nhận',
+        }),
+      ];
     }
 
     const data = {
       thongTinDatCoc: {
-        maHoSo: maHoSo,
-        trangThai: hoSo?.TrangThai || 'Đã duyệt',
-        ngayNhanPhong: hoSo?.NgayNhanPhong ? dinhDangNgay(hoSo.NgayNhanPhong) : '2023-10-15',
-        thoiHanThue: hoSo?.ThoiHanThue || 12,
-        phongDuKien: hoSo?.Phong ? `P.${hoSo.Phong.MaPhong} - ${hoSo.Phong.LoaiPhong}` : 'P.402 - Giường A1',
-        soTienDaCoc: hoSo?.SoTienDaCoc || 2500000,
+        maHoSo: `PC-${maDatCoc}`,
+        maDatCoc,
+        trangThai: hoSo.TrangThai || 'Chờ kiểm tra',
+        ngayNhanPhong: dinhDangNgay(hoSo.DatCocThanhCong || hoSo.ThoiDiemTao),
+        thoiHanThue: hoSo.ThoiHanThue || 6,
+        phongDuKien: hoSo.Phong
+          ? `P.${hoSo.Phong.MaPhong} - ${hoSo.Phong.LoaiPhong}`
+          : 'Chưa xác định',
+        soTienDaCoc: Number(hoSo.SoTienCoc || 0),
         donViTien: 'VNĐ',
-        ghiChuSales: hoSo?.GhiChu || 'Khách hàng mong muốn chuyển vào buổi sáng. Cần kiểm tra kỹ giấy tạm trú do khách là người ngoại tỉnh.'
+        ghiChuSales: hoSo.LyDoXuLy || 'Không có ghi chú.',
+        soGiuongThue: hoSo.SoGiuongThue || 1,
+        gioiTinhYeuCau: hoSo.Phong?.GioiTinhYeuCau || null,
       },
-      danhSachThanhVien: [
-        { id: '01', hoTen: 'Nguyễn Văn An', truongNhom: true, cccd: '001092003841', gioiTinh: 'Nam' },
-        { id: '02', hoTen: 'Lê Thị Bình', truongNhom: false, cccd: '079195000123', gioiTinh: 'Nữ' },
-        { id: '03', hoTen: 'Trần Quang Cường', truongNhom: false, cccd: '048098007721', gioiTinh: 'Nam' },
-        { id: '04', hoTen: 'Phạm Minh Đức', truongNhom: false, cccd: '001099002233', gioiTinh: 'Nam' }
-      ]
+      danhSachThanhVien,
     };
+
     res.json({ ok: true, data });
   } catch (error) {
     console.error('Lỗi khi lấy dữ liệu kiểm tra lưu trú:', error);
@@ -55,11 +104,12 @@ router.get('/:maHoSo', async (req, res) => {
 router.post('/xac-nhan', async (req, res) => {
   try {
     const { maHoSo, ketQua } = req.body;
-    if (!maHoSo || !Array.isArray(ketQua)) {
+    const maDatCoc = parseMaDatCoc(maHoSo);
+    if (!maDatCoc || !Array.isArray(ketQua)) {
       return res.status(400).json({ ok: false, error: 'Thiếu mã hồ sơ hoặc danh sách kết quả kiểm tra' });
     }
 
-    const thanhVienKhongDat = ketQua.filter(tv => !tv.dieuKien);
+    const thanhVienKhongDat = ketQua.filter((tv) => !tv.dieuKien);
 
     if (thanhVienKhongDat.length > 0) {
       return res.json({
@@ -67,13 +117,13 @@ router.post('/xac-nhan', async (req, res) => {
         data: {
           trangThai: 'COMPLIANCE_EXCEPTION',
           message: 'Một số thành viên chưa đáp ứng điều kiện lưu trú.',
-          thanhVienKhongDat: thanhVienKhongDat.map(tv => tv.hoTen),
+          thanhVienKhongDat: thanhVienKhongDat.map((tv) => tv.hoTen),
           soThanhVienConLai: ketQua.length - thanhVienKhongDat.length,
           luaChonXuLy: [
             { loai: 'CONTINUE_PARTIAL', nhan: 'Tiếp tục ký HĐ với các thành viên còn lại' },
-            { loai: 'TERMINATE_REFUND', nhan: 'Dừng thủ tục thuê — Hoàn cọc 80%' }
-          ]
-        }
+            { loai: 'TERMINATE_REFUND', nhan: 'Dừng thủ tục thuê — Hoàn cọc 80%' },
+          ],
+        },
       });
     }
 
@@ -82,9 +132,10 @@ router.post('/xac-nhan', async (req, res) => {
       data: {
         trangThai: 'SUCCESS',
         message: 'Tất cả thành viên đã đạt điều kiện. Chuyển sang lập hợp đồng.',
-        buocTiepTheo: '/contract/draft',
-        maHopDong: `CON-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`
-      }
+        buocTiepTheo: '/hop-dong',
+        maHopDong: `CON-${new Date().getFullYear()}-${Date.now().toString().slice(-4)}`,
+        maDatCoc,
+      },
     });
   } catch (error) {
     console.error('Lỗi khi xác nhận kiểm tra lưu trú:', error);
