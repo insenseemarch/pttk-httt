@@ -207,7 +207,6 @@ export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
         }]);
       }
     }
-    }
   };
 
   const dongModalXem = () => {
