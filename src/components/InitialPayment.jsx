@@ -36,11 +36,11 @@ export default function InitialPayment({ maHopDong = null, hienThongBao, onQuayL
     }
   };
 
-  // 1. Tải danh sách hợp đồng
+  // 1. Tải danh sách hợp đồng chờ thu tiền kỳ đầu
   const taiDanhSachHopDong = async () => {
     setLoadingList(true);
     try {
-      const res = await fetch('/api/hop-dong').then(r => r.json());
+      const res = await fetch('/api/ke-toan/cho-thu').then(r => r.json());
       if (res.ok) {
         setDanhSachHopDong(res.danhSach || []);
       }
@@ -109,7 +109,7 @@ export default function InitialPayment({ maHopDong = null, hienThongBao, onQuayL
           maGiaoDich,
           phuongThuc,
           soTienThucThu: soTienThucThuNum,
-          maKeToan: 'KT-01',
+          maKeToan: nguoiDung?.maNV || null,
           maHopDong: selectedMaHopDong
         })
       });
@@ -196,7 +196,7 @@ export default function InitialPayment({ maHopDong = null, hienThongBao, onQuayL
                 </thead>
                 <tbody>
                   {danhSachHopDong.map((hd) => {
-                    const daThu = hd.daThanhToanDauKy || hd.trangThai === 'Hiệu lực';
+                    const daThu = hd.daThanhToanDauKy || false;
                     return (
                       <tr key={hd.maHopDong} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.2s' }}>
                         <td style={{ padding: '16px' }}><strong>{hd.maHD}</strong></td>
