@@ -60,7 +60,8 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 40px;
+  gap: 18px;
+  padding: 0 32px;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -68,6 +69,7 @@ body {
 }
 
 .logo {
+  flex: 0 0 auto;
   font-size: 20px;
   font-weight: 700;
   color: #8c4f2b;
@@ -79,23 +81,41 @@ body {
 
 .nav-links {
   display: flex;
+  flex: 1 1 auto;
+  justify-content: center;
   list-style: none;
-  gap: 28px;
+  gap: 10px;
   height: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.nav-links::-webkit-scrollbar {
+  display: none;
 }
 
 .nav-links li {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   height: 100%;
   position: relative;
 }
 
 .nav-links a {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 6px;
   text-decoration: none;
   color: var(--text-muted);
   font-weight: 500;
-  font-size: 15px;
+  font-size: 14px;
+  line-height: 1.15;
+  white-space: nowrap;
   transition: color 0.2s ease;
 }
 
@@ -122,8 +142,10 @@ body {
 
 .nav-actions {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
-  gap: 20px;
+  gap: 12px;
+  min-width: max-content;
 }
 
 .notification-btn {
@@ -146,7 +168,8 @@ body {
 .user-profile {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  min-width: 0;
 }
 
 .avatar {
@@ -163,11 +186,61 @@ body {
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
+  white-space: nowrap;
   transition: opacity 0.2s;
 }
 
 .logout-btn:hover {
   opacity: 0.8;
+}
+
+.qt-user-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.qt-user-name {
+  max-width: 150px;
+  overflow: hidden;
+  color: var(--text-main);
+  font-weight: 700;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.qt-user-role {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+@media (max-width: 1360px) {
+  .navbar {
+    padding: 0 24px;
+    gap: 12px;
+  }
+
+  .nav-links {
+    gap: 6px;
+    justify-content: flex-start;
+  }
+
+  .nav-links a {
+    font-size: 13px;
+    padding: 0 4px;
+  }
+
+  .nav-actions {
+    gap: 8px;
+  }
+
+  .logout-btn {
+    font-size: 13px;
+  }
 }
 
 /* App Shell Layout */

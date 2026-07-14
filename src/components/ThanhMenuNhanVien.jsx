@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { MENU_NHAN_VIEN, ROUTES } from '../config/routes';
+import { MENU_NHAN_VIEN, ROUTES, layMenuNhanVienTheoVaiTro } from '../config/routes';
+import { chuanHoaVaiTroNhanVien } from '../utils/nhanVienSession';
 
 export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
   const location = useLocation();
@@ -11,6 +12,7 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
   const [showNotifications, setShowNotifications] = useState(false);
 
   const rawRole = (nguoiDung?.vaiTro || '').toLowerCase();
+  const vaiTroChuan = chuanHoaVaiTroNhanVien(nguoiDung?.vaiTro);
   const apiRole = rawRole.includes('kế toán') || rawRole.includes('ke toan') || rawRole === 'ketoan'
     ? 'KE_TOAN'
     : rawRole.includes('quản lý') || rawRole.includes('quan ly') || rawRole === 'quanly'
@@ -180,6 +182,8 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
     ];
   }
 
+  menu = layMenuNhanVienTheoVaiTro(vaiTroChuan);
+
   if (themMenu) menu.push(...themMenu);
 
   const laActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
@@ -201,7 +205,7 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
             <Link to={item.path}>{item.label}</Link>
           </li>
         ))}
-        {rawRole.includes('admin') && (
+        {rawRole.includes('admin') && !menu.some((item) => item.key === 'quanLyTaiKhoan') && (
           <li className={laActive(ROUTES.quanLyTaiKhoan) ? 'active' : ''}>
             <Link to={ROUTES.quanLyTaiKhoan}>Tài khoản</Link>
           </li>

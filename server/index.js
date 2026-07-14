@@ -276,9 +276,16 @@ async function kiemTraKhachHangDaTonTai(cccd, sdt) {
 async function luuThongTinKhachHang(kh) {
   const cccd = Number(String(kh.cccd || '').replace(/\D/g, ''));
   const sdt = String(kh.sdt || '').replace(/\D/g, '');
+  const diaChi = String(kh.diaChi ?? kh.DiaChi ?? '').trim();
+  const ngaySinh = String(kh.ngaySinh ?? kh.NgaySinh ?? '').trim();
+  const gioiTinh = String(kh.gioiTinh ?? kh.GioiTinh ?? kh.gioiTinhKhachHang ?? '').trim();
+  const quocTich = String(kh.quocTich ?? kh.QuocTich ?? '').trim();
+  const email = String(kh.email ?? kh.Email ?? '').trim();
 
   if (!cccd) throw taoLoiNghiepVu(400, 'CCCD không hợp lệ.');
   if (!sdt) throw taoLoiNghiepVu(400, 'Số điện thoại không hợp lệ.');
+  if (!ngaySinh) throw taoLoiNghiepVu(400, 'Ngày sinh khách hàng là bắt buộc.');
+  if (!gioiTinh) throw taoLoiNghiepVu(400, 'Giới tính khách hàng là bắt buộc.');
 
   await kiemTraKhachHangDaTonTai(cccd, sdt);
 
@@ -287,12 +294,12 @@ async function luuThongTinKhachHang(kh) {
     .insert({
       CCCD: cccd,
       HoTen: kh.hoTen,
-      NgaySinh: kh.ngaySinh,
-      GioiTinh: kh.gioiTinh,
-      QuocTich: kh.quocTich,
-      DiaChi: kh.diaChi?.trim() || null,
+      NgaySinh: ngaySinh || null,
+      GioiTinh: gioiTinh || null,
+      QuocTich: quocTich || 'Việt Nam',
+      DiaChi: diaChi || null,
       SDT: sdt,
-      Email: kh.email,
+      Email: email || null,
       KhaNangTaiChinh: Number(kh.khaNangTaiChinh) || null,
       ThoaDK: true
     })
@@ -300,9 +307,7 @@ async function luuThongTinKhachHang(kh) {
     .single();
 
   if (error) throw error;
-  return data && data.length > 0
-    ? { ...data[0], CCCD: dinhDangCCCD(data[0].CCCD) }
-    : null;
+  return data ? { ...data, CCCD: dinhDangCCCD(data.CCCD) } : null;
 }
 
 async function taoYeuCauThue(yc, cccd, maNV = 101) {
@@ -675,7 +680,14 @@ async function xuLyGuiYeuCauTuVan(req, res) {
 }
 
 async function datLichXemPhong(yc) {
-  const { hoTen, sdt, email, ngayGioHen, ghiChu, maPhong, loaiPhong, maYC, cccd } = yc;
+  const { hoTen, sdt, email, ngayGioHen, ghiChu, maPhong, loaiPhong, maYC, cccd, diaChi, ngaySinh, gioiTinh, maGiuong } = yc;
+  const diaChiKhachHang = String(diaChi ?? yc.DiaChi ?? '').trim();
+  const ngaySinhKhachHang = String(ngaySinh ?? yc.NgaySinh ?? '').trim();
+  const gioiTinhKhachHang = String(gioiTinh ?? yc.GioiTinh ?? '').trim();
+  const maGiuongHen = Number(maGiuong ?? yc.MaGiuong) || null;
+  const ghiChuLichHen = maGiuongHen
+    ? `[MA_GIUONG:${maGiuongHen}]${ghiChu?.trim() ? ` ${ghiChu.trim()}` : ''}`
+    : (ghiChu?.trim() || null);
   const numericCCCD = Number(String(cccd || '').replace(/\D/g, '')) || Number(sdt.replace(/\D/g, '')) || Math.floor(Math.random() * 9000000000) + 1000000000;
   let savedCust = null;
   let savedReq = null;
@@ -689,7 +701,26 @@ async function datLichXemPhong(yc) {
       .maybeSingle();
     if (errYeuCauDaCo) throw errYeuCauDaCo;
     savedReq = yeuCauDaCo ? [yeuCauDaCo] : [];
+    if (yeuCauDaCo?.CCCD) {
+      const thongTinCapNhatKhach = {};
+      if (diaChiKhachHang) thongTinCapNhatKhach.DiaChi = diaChiKhachHang;
+      if (ngaySinhKhachHang) thongTinCapNhatKhach.NgaySinh = ngaySinhKhachHang;
+      if (gioiTinhKhachHang) thongTinCapNhatKhach.GioiTinh = gioiTinhKhachHang;
+      if (email) thongTinCapNhatKhach.Email = email;
+      if (sdt) thongTinCapNhatKhach.SDT = String(sdt).replace(/\D/g, '');
+      if (Object.keys(thongTinCapNhatKhach).length > 0) {
+        const { error: errCapNhatKhach } = await supabase
+          .from('KhachHang')
+          .update(thongTinCapNhatKhach)
+          .eq('CCCD', yeuCauDaCo.CCCD);
+        if (errCapNhatKhach) throw errCapNhatKhach;
+      }
+    }
   } else {
+    if (!ngaySinhKhachHang || !gioiTinhKhachHang) {
+      throw taoLoiNghiepVu(400, 'Vui lòng bổ sung ngày sinh và giới tính khách hàng trước khi đặt lịch hẹn.');
+    }
+
     // 1. Upsert customer
     const { data: upsertedCustomer, error: errCust } = await supabase
       .from('KhachHang')
@@ -698,6 +729,9 @@ async function datLichXemPhong(yc) {
         HoTen: hoTen,
         SDT: sdt,
         Email: email,
+        DiaChi: diaChiKhachHang || null,
+        NgaySinh: ngaySinhKhachHang || null,
+        GioiTinh: gioiTinhKhachHang || null,
         QuocTich: 'Việt Nam',
         ThoaDK: true
       }, { onConflict: 'CCCD' })
@@ -734,7 +768,7 @@ async function datLichXemPhong(yc) {
     .from('LichXemPhong')
     .insert({
       NgayGioHen: chuanHoaNgayGioHenDB(ngayGioHen),
-      GhiChu: ghiChu?.trim() || null,
+      GhiChu: ghiChuLichHen,
       MaPhong: Number(maPhong),
       MaYC: maYCHen,
       KetQua: 'Chưa xem'
@@ -763,7 +797,7 @@ async function xuLyDatLichXemPhong(req, res) {
     res.json({ ok: true, message: 'Đăng ký lịch hẹn xem phòng thành công!', data: ketQua });
   } catch (error) {
     console.error('Lỗi đặt lịch hẹn xem phòng:', error);
-    res.status(500).json({ ok: false, error: error.message });
+    res.status(error.statusCode || 500).json({ ok: false, error: error.message });
   }
 }
 

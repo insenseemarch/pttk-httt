@@ -139,6 +139,20 @@ export default function TiepNhanDangKyThuePage({
                     </select>
                   </div>
                   <div className="input-group">
+                    <label htmlFor="gioiTinhKhachHang">Giới tính khách hàng</label>
+                    <select
+                      id="gioiTinhKhachHang"
+                      name="gioiTinh"
+                      value={formKhachHang.gioiTinh}
+                      onChange={xuLyThayDoiKhachHang}
+                      required
+                    >
+                      <option value="Nam">Nam</option>
+                      <option value="Nữ">Nữ</option>
+                      <option value="Khác">Khác</option>
+                    </select>
+                  </div>
+                  <div className="input-group">
                     <label htmlFor="ngaySinh">Ngày sinh</label>
                     <input
                       type="date"
@@ -146,12 +160,13 @@ export default function TiepNhanDangKyThuePage({
                       name="ngaySinh"
                       value={formKhachHang.ngaySinh}
                       onChange={xuLyThayDoiKhachHang}
+                      required
                     />
                   </div>
                 </div>
 
                 <div className="input-group">
-                  <label htmlFor="diaChi">Địa chỉ cá nhân <span className="optional-label">(không bắt buộc)</span></label>
+                  <label htmlFor="diaChi">Địa chỉ cá nhân</label>
                   <input
                     type="text"
                     id="diaChi"
@@ -238,7 +253,7 @@ export default function TiepNhanDangKyThuePage({
                   </div>
                 </div>
 
-                <div className="input-grid-4">
+                <div className="input-grid-2">
                   <div className="input-group">
                     <label htmlFor="soNguoi">Số người</label>
                     <input
@@ -261,30 +276,6 @@ export default function TiepNhanDangKyThuePage({
                       <option value="Tất cả">Tất cả</option>
                       <option value="Nam">Nam</option>
                       <option value="Nữ">Nữ</option>
-                    </select>
-                  </div>
-                  <div className="input-group">
-                    <label htmlFor="thoiGianVao">Ngày dọn vào</label>
-                    <input
-                      type="date"
-                      id="thoiGianVao"
-                      name="thoiGianVao"
-                      value={formYeuCauThue.thoiGianVao}
-                      onChange={xuLyThayDoiYeuCau}
-                    />
-                  </div>
-                  <div className="input-group">
-                    <label htmlFor="thoiHanThue">Thời hạn thuê</label>
-                    <select
-                      id="thoiHanThue"
-                      name="thoiHanThue"
-                      value={formYeuCauThue.thoiHanThue}
-                      onChange={xuLyThayDoiYeuCau}
-                    >
-                      <option value="1">1 Tháng</option>
-                      <option value="3">3 Tháng</option>
-                      <option value="6">6 Tháng</option>
-                      <option value="12">12 Tháng</option>
                     </select>
                   </div>
                 </div>

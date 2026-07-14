@@ -91,6 +91,7 @@ export async function layDanhSachKhachHang(boLoc = {}) {
         : '—',
       trangThaiHD,
       ngaySinh: dinhDangNgay(kh.NgaySinh),
+      ngaySinhRaw: kh.NgaySinh || '',
       gioiTinh: kh.GioiTinh || '—',
       diaChi: kh.DiaChi || '—',
       maHopDong: hd?.MaHopDong || null,

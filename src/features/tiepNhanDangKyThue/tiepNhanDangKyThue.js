@@ -29,6 +29,8 @@ export function kiemTraThongTinDangKyThue(khachHang, yeuCauThue) {
   if (!khachHang.hoTen.trim()) return 'Vui lòng nhập họ tên khách hàng.';
   if (cccd.length < 9 || cccd.length > 12) return 'CCCD phải có từ 9 đến 12 chữ số.';
   if (sdt.length < 9 || sdt.length > 11) return 'Số điện thoại phải có từ 9 đến 11 chữ số.';
+  if (!String(khachHang.ngaySinh || '').trim()) return 'Vui lòng chọn ngày sinh khách hàng.';
+  if (!String(khachHang.gioiTinh || '').trim()) return 'Vui lòng chọn giới tính khách hàng.';
   if (!yeuCauThue.loaiPhong) return 'Vui lòng chọn hình thức thuê.';
   if (!yeuCauThue.khuVucMongMuon.trim()) return 'Vui lòng nhập khu vực ưu tiên.';
   if (Number(yeuCauThue.soNguoi) < 1) return 'Số người thuê phải lớn hơn 0.';
@@ -73,6 +75,9 @@ export function taoPayloadTiepNhanDangKyThue({
       ...formKhachHang,
       cccd: String(formKhachHang.cccd || '').replace(/\D/g, ''),
       hoTen: formKhachHang.hoTen.trim(),
+      ngaySinh: String(formKhachHang.ngaySinh || '').trim(),
+      gioiTinh: String(formKhachHang.gioiTinh || '').trim(),
+      quocTich: String(formKhachHang.quocTich || '').trim(),
       sdt: String(formKhachHang.sdt || '').replace(/\D/g, ''),
       email: formKhachHang.email.trim(),
       diaChi: String(formKhachHang.diaChi || '').trim(),

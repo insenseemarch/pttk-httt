@@ -4,8 +4,8 @@ import ContractDrafting from './components/ContractDrafting';
 import AssetHandover from './components/AssetHandover';
 import InitialPayment from './components/InitialPayment';
 import ContractLiquidation from './components/ContractLiquidation';
-import { useNavigate } from 'react-router-dom';
-import { ROUTES } from './config/routes';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { ROUTES, layMenuNhanVienTheoVaiTro } from './config/routes';
 import CheckoutContainer from './components/checkout/CheckoutContainer';
 import StaffHopDongPage from './components/contracts/StaffHopDongPage';
 import { useRef } from 'react';
@@ -65,6 +65,7 @@ export default function App({
 } = {}) {
   // Quản lý chuyển màn hình: 'guest_home', 'staff_reception', 'search_vacancy', 'room_detail', 'staff_contracts', 'staff_stay_check', 'staff_contract_draft', 'staff_handover', 'staff_payment', 'staff_liquidation'
   const navigate = useNavigate();
+  const location = useLocation();
   const nguoiDungKhoiTao = nguoiDungDangNhapProp || docNguoiDungDangNhap();
   const boQuaTaiTuDongPhongTrongRef = useRef(false);
 
@@ -392,13 +393,23 @@ export default function App({
   const chonKhachHangChoLichHen = (khachHang) => {
     setKhachHangDaChon(khachHang);
     setYeuCauThueDaLuu(null);
+    const gioiTinhKhach = khachHang.gioiTinh && khachHang.gioiTinh !== '—' ? khachHang.gioiTinh : 'Nam';
     setFormKhachHang(prev => ({
       ...prev,
       cccd: khachHang.cccd || '',
       hoTen: khachHang.hoTen || '',
+      ngaySinh: khachHang.ngaySinhRaw || '',
+      gioiTinh: gioiTinhKhach,
       sdt: khachHang.sdt || '',
       email: khachHang.email || '',
+      diaChi: khachHang.diaChi && khachHang.diaChi !== '—' ? khachHang.diaChi : '',
     }));
+    if (['Nam', 'Nữ'].includes(gioiTinhKhach)) {
+      setFormYeuCauThue(prev => ({
+        ...prev,
+        gioiTinh: gioiTinhKhach,
+      }));
+    }
     setTuKhoaKhachHangLichHen(`${khachHang.hoTen || 'Khách hàng'}${khachHang.sdt ? ` - ${khachHang.sdt}` : ''}`);
     setDanhSachGoiYKhachHang([]);
   };
@@ -415,6 +426,7 @@ export default function App({
       quocTich: 'Việt Nam',
       sdt: '',
       email: '',
+      diaChi: '',
       khaNangTaiChinh: ''
     });
     setCheDoNhanVien(true);
@@ -656,6 +668,25 @@ export default function App({
   };
 
   const layMaPhongDatHen = (room) => Number(room?.maPhong || room?.maId);
+  const layMaGiuongDatHen = (room) => (room?.kieu === 'Giuong' ? Number(room?.maId) : null);
+  const layTenPhongDatHen = (room) => {
+    const maGiuong = layMaGiuongDatHen(room);
+    const maPhong = layMaPhongDatHen(room);
+    return maGiuong ? `Giường ${maGiuong} - Phòng ${maPhong}` : `Phòng ${maPhong}`;
+  };
+  const MA_GIUONG_GHI_CHU_REGEX = /^\[MA_GIUONG:(\d+)\]\s*/;
+  const tachGhiChuLichHen = (ghiChu = '') => {
+    const noiDung = String(ghiChu || '');
+    const match = noiDung.match(MA_GIUONG_GHI_CHU_REGEX);
+    return {
+      maGiuong: match ? Number(match[1]) : null,
+      ghiChuHienThi: match ? noiDung.replace(MA_GIUONG_GHI_CHU_REGEX, '').trim() : noiDung,
+    };
+  };
+  const taoGhiChuLichHen = (ghiChu = '', maGiuong = null) => {
+    const noiDung = String(ghiChu || '').trim();
+    return maGiuong ? `[MA_GIUONG:${maGiuong}]${noiDung ? ` ${noiDung}` : ''}` : noiDung;
+  };
 
   const xuLyXoaPhongLichHen = (room) => {
     const maPhongCanXoa = layMaPhongDatHen(room);
@@ -702,6 +733,9 @@ export default function App({
       if (!customerName || !customerPhone) {
         throw new Error('Vui lòng nhập họ tên và số điện thoại thật của khách hàng.');
       }
+      if (!String(formKhachHang.ngaySinh || '').trim() || !String(formKhachHang.gioiTinh || '').trim()) {
+        throw new Error('Vui lòng nhập ngày sinh và giới tính khách hàng trước khi đặt lịch hẹn.');
+      }
 
       for (const room of danhSachPhongDatHen) {
         const response = await fetch('/api/dat-lich-hen', {
@@ -713,8 +747,12 @@ export default function App({
             sdt: customerPhone,
             email: customerEmail,
             cccd: formKhachHang.cccd || khachHangDaChon?.cccd || '',
+            diaChi: formKhachHang.diaChi || '',
+            ngaySinh: formKhachHang.ngaySinh || '',
+            gioiTinh: formKhachHang.gioiTinh || '',
             ngayGioHen: ngayGioHenCombined,
             maPhong: layMaPhongDatHen(room),
+            maGiuong: layMaGiuongDatHen(room),
             loaiPhong: room.kieu
           })
         });
@@ -741,16 +779,20 @@ export default function App({
       const sdt = lich.YeuCauThue?.KhachHang?.SDT || 'Không có';
       const initials = tenKhach.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
       const ketQuaChuanHoa = lich.KetQua === 'Đã xem' ? 'Đã xem' : 'Chưa xem';
+      const thongTinGhiChu = tachGhiChuLichHen(lich.GhiChu);
       return {
         MaLich: lich.MaLich,
         NgayGioHen: lich.NgayGioHen,
         KetQua: ketQuaChuanHoa,
-        GhiChu: lich.GhiChu || '',
+        GhiChu: thongTinGhiChu.ghiChuHienThi,
         MaPhong: lich.MaPhong,
+        MaGiuong: thongTinGhiChu.maGiuong,
         TenKhach: tenKhach,
         SDT: sdt,
         AvatarName: initials,
-        TenPhongGiuong: `P.${lich.MaPhong} (${lich.MaPhong % 2 === 0 ? 'Dorm A' : 'Dorm B'})`
+        TenPhongGiuong: thongTinGhiChu.maGiuong
+          ? `Giường ${thongTinGhiChu.maGiuong} - Phòng ${lich.MaPhong}`
+          : `Phòng ${lich.MaPhong} (${lich.MaPhong % 2 === 0 ? 'Dorm A' : 'Dorm B'})`
       };
     });
 
@@ -772,10 +814,14 @@ export default function App({
   const capNhatTrangThaiLichHen = async (maLich, trangThaiMoi, ghiChuMoi = '') => {
     try {
       if (typeof maLich === 'number') {
+        const ghiChuLuu = taoGhiChuLichHen(
+          ghiChuMoi,
+          lichHenDangSua?.MaLich === maLich ? lichHenDangSua.MaGiuong : null
+        );
         const res = await fetch('/api/cap-nhat-trang-thai-hen', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ maLich, ketQua: trangThaiMoi, ghiChu: ghiChuMoi })
+          body: JSON.stringify({ maLich, ketQua: trangThaiMoi, ghiChu: ghiChuLuu })
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok || !json.ok) {
@@ -912,6 +958,12 @@ export default function App({
       ...prev,
       [name]: value
     }));
+    if (name === 'gioiTinh') {
+      setFormYeuCauThue(prev => ({
+        ...prev,
+        gioiTinh: ['Nam', 'Nữ'].includes(value) ? value : 'Tất cả',
+      }));
+    }
   };
 
   const xuLyThayDoiYeuCau = (e) => {
@@ -948,7 +1000,12 @@ export default function App({
       return;
     }
 
-    const newFilters = mapYeuCauThueSangBoLoc(formYeuCauThue, danhSachTieuChi);
+    const gioiTinhKhachHang = ['Nam', 'Nữ'].includes(formKhachHang.gioiTinh) ? formKhachHang.gioiTinh : 'Tất cả';
+    const yeuCauThueChoTraCuu = {
+      ...formYeuCauThue,
+      gioiTinh: gioiTinhKhachHang,
+    };
+    const newFilters = mapYeuCauThueSangBoLoc(yeuCauThueChoTraCuu, danhSachTieuChi);
 
     setBoLocTraCuu(newFilters);
     setCheDoNhanVien(true);
@@ -1142,6 +1199,44 @@ export default function App({
     hienThongBao('error', 'Đã từ chối yêu cầu đặt cọc này.');
   };
 
+  const menuNhanVienHienThi = layMenuNhanVienTheoVaiTro(vaiTroNhanVien);
+
+  const xuLyChonMenuNhanVien = (e, item) => {
+    e.preventDefault();
+    setCheDoNhanVien(true);
+
+    if (item.path === ROUTES.tiepNhanDangKyThue) {
+      chuyenTrang('staff_reception');
+    } else if (item.path === ROUTES.phongGiuong) {
+      setTabPhongGiuongNhanVien('danh-sach');
+      chuyenTrang('search_vacancy');
+    } else if (item.path === ROUTES.lichHen) {
+      setTabHopDongNhanVien('danh-sach-hen');
+      chuyenTrang('staff_contracts');
+    } else if (item.path === ROUTES.hopDong) {
+      chuyenTrang('staff_hop_dong');
+    } else if (item.path === ROUTES.checkout) {
+      chuyenTrang('staff_checkout');
+    } else if (item.path === ROUTES.staffPayment) {
+      chuyenTrang('staff_payment');
+    }
+
+    navigate(item.path);
+  };
+
+  const laMenuNhanVienDangHoatDong = (item) => {
+    if (location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)) return true;
+    if (item.path === ROUTES.tiepNhanDangKyThue) return trangHienTai === 'staff_reception';
+    if (item.path === ROUTES.phongGiuong) {
+      return trangHienTai === 'search_vacancy' || (trangHienTai === 'confirm_status' && tabPhongGiuongNhanVien === 'danh-sach');
+    }
+    if (item.path === ROUTES.lichHen) return trangHienTai === 'staff_contracts' && tabHopDongNhanVien === 'danh-sach-hen';
+    if (item.path === ROUTES.hopDong) return trangHienTai === 'staff_hop_dong';
+    if (item.path === ROUTES.checkout) return trangHienTai.startsWith('staff_checkout');
+    if (item.path === ROUTES.staffPayment) return trangHienTai === 'staff_payment';
+    return false;
+  };
+
   // --- RENDER GIAO DIỆN ---
   return (
     <div className="app-shell">
@@ -1179,87 +1274,11 @@ export default function App({
         ) : (
           // Menu dành cho Nhân viên (được phân quyền động)
           <ul className="nav-links">
-            {/* 1. Menu cho SALE */}
-            {vaiTroNhanVien === 'sale' && (
-              <>
-                <li className={trangHienTai === 'dashboard' ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.dashboard); }}>Tổng quan</a>
-                </li>
-                <li className={trangHienTai === 'staff_reception' ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_reception'); navigate(ROUTES.tiepNhanDangKyThue); }}>Tiếp nhận thuê</a>
-                </li>
-                <li className={trangHienTai === 'search_vacancy' || (trangHienTai === 'confirm_status' && tabPhongGiuongNhanVien === 'danh-sach') ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.phongGiuong); }}>Tra cứu phòng/giường</a>
-                </li>
-                <li>
-                  <a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.soDoPhong); }}>Sơ đồ phòng</a>
-                </li>
-                <li className={trangHienTai === 'staff_contracts' && tabHopDongNhanVien === 'danh-sach-hen' ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.lichHen); }}>Lịch hẹn</a>
-                </li>
-                <li>
-                  <a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.thongBao); }}>Thông báo</a>
-                </li>
-                <li className={trangHienTai === 'staff_hop_dong' ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_hop_dong'); }}>Danh sách HĐ</a>
-                </li>
-                <li className={trangHienTai.startsWith('staff_checkout') ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_checkout'); }}>Báo trả phòng</a>
-                </li>
-              </>
-            )}
-
-            {/* 2. Menu cho QUẢN LÝ */}
-            {vaiTroNhanVien === 'quanly' && (
-              <>
-                <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.dashboard); }}>Tổng quan</a></li>
-                <li className={trangHienTai === 'search_vacancy' || (trangHienTai === 'confirm_status' && tabPhongGiuongNhanVien === 'danh-sach') ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.phongGiuong); }}>Tra cứu phòng/giường</a>
-                </li>
-                <li>
-                  <a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.soDoPhong); }}>Sơ đồ phòng</a>
-                </li>
-                <li>
-                  <a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.thongBao); }}>Thông báo</a>
-                </li>
-              </>
-            )}
-
-            {/* 3. Menu cho KẾ TOÁN */}
-            {vaiTroNhanVien === 'ketoan' && (
-              <>
-                <li className={trangHienTai === 'payment_receive' ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('payment_receive'); }}>Tiếp nhận cọc</a>
-                </li>
-                <li className={trangHienTai === 'staff_payment' ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_payment'); }}>Thu tiền đầu kỳ</a>
-                </li>
-                <li className={trangHienTai.startsWith('staff_checkout') ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_checkout'); }}>Đối soát & Hoàn cọc</a>
-                </li>
-              </>
-            )}
-
-            {/* 4. Menu cho TIẾP NHẬN / PHỤ TRÁCH */}
-            {vaiTroNhanVien === 'tiepnhan' && (
-              <>
-                <li className={trangHienTai === 'staff_contract_draft' ? 'active' : ''}>
-                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_contract_draft'); }}>Lập Hợp đồng</a>
-                </li>
-              </>
-            )}
-
-            {/* 5. Menu cho ADMIN */}
-            {vaiTroNhanVien === 'admin' && (
-              <>
-                <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.dashboard); }}>Quản trị hệ thống</a></li>
-              </>
-            )}
-
-            {/* Chung */}
-            {!['sale', 'quanly'].includes(vaiTroNhanVien) && (
-              <li><a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.thongBao); }}>Thông báo</a></li>
-            )}
+            {menuNhanVienHienThi.map((item) => (
+              <li key={item.key} className={laMenuNhanVienDangHoatDong(item) ? 'active' : ''}>
+                <a href="#" onClick={(e) => xuLyChonMenuNhanVien(e, item)}>{item.label}</a>
+              </li>
+            ))}
           </ul>
         )}
 
@@ -2055,7 +2074,7 @@ export default function App({
                   {danhSachPhongDatHen.length > 0 ? (
                     danhSachPhongDatHen.map((room, idx) => (
                       <span key={idx} className="room-tag-badge">
-                        Phòng {room.maPhong || room.maId}
+                        {layTenPhongDatHen(room)}
                         <button type="button" className="btn-remove-tag" onClick={() => xuLyXoaPhongLichHen(room)} aria-label="Xóa">×</button>
                       </span>
                     ))
