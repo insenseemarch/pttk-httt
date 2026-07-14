@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import StayConditionsCheck from './components/StayConditionsCheck';
 import ContractDrafting from './components/ContractDrafting';
 import AssetHandover from './components/AssetHandover';
@@ -7,6 +7,7 @@ import ContractLiquidation from './components/ContractLiquidation';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from './config/routes';
 import CheckoutContainer from './components/checkout/CheckoutContainer';
+import StaffHopDongPage from './components/contracts/StaffHopDongPage';
 import { useRef } from 'react';
 import {
   chuanHoaVaiTroNhanVien,
@@ -1198,6 +1199,12 @@ export default function App({
                 </li>
                 <li>
                   <a href="#" onClick={(e) => { e.preventDefault(); navigate(ROUTES.thongBao); }}>Thông báo</a>
+                </li>
+                <li className={trangHienTai === 'staff_hop_dong' ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_hop_dong'); }}>Danh sách HĐ</a>
+                </li>
+                <li className={trangHienTai.startsWith('staff_checkout') ? 'active' : ''}>
+                  <a href="#" onClick={(e) => { e.preventDefault(); setCheDoNhanVien(true); chuyenTrang('staff_checkout'); }}>Báo trả phòng</a>
                 </li>
               </>
             )}
@@ -2663,7 +2670,7 @@ export default function App({
                   </div>
                   <div className="approve-note-box">
                     <span>📝 Ghi chú từ khách hàng:</span>
-                    <p>"Em đã chuyển cọc trước 1 tháng, nhờ anh/chị giữ chỗ giúp em ạ. Em sẽ dọn vào cuối tuần này."</p>
+                    <p>"Em đã chuyển tiền cọc tương đương 2 tháng tiền thuê, nhờ anh/chị giữ chỗ giúp em ạ. Em sẽ dọn vào cuối tuần này."</p>
                   </div>
                   <div className="approve-warning-box">
                     <span>⚠ Lưu ý nghiệp vụ</span>
@@ -3114,6 +3121,13 @@ export default function App({
         />
       )}
 
+      {trangHienTai === 'staff_hop_dong' && vaiTroNhanVien === 'sale' && (
+        <StaffHopDongPage
+          hienThongBao={hienThongBao}
+          vaiTro={vaiTroNhanVien}
+        />
+      )}
+
       {/* ===========================================================
            2.5 PHÊ DUYỆT YÊU CẦU ĐẶT CỌC (QUẢN LÝ)
       =========================================================== */}
@@ -3289,11 +3303,9 @@ export default function App({
                     background: 'white'
                   }}
                   onClick={() => {
-                    setCheDoNhanVien(true);
-                    setVaiTroNhanVien('quanly');
                     setShowLoginModal(false);
-                    chuyenTrang('staff_checkout');
                     hienThongBao('success', 'Đăng nhập thành công với vai trò Quản lý chi nhánh!');
+                    navigate(ROUTES.dashboard);
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.borderColor = '#3b82f6';

@@ -24,7 +24,14 @@ export async function syncPhongGiuong() {
     .from('GiuongDatCoc')
     .select('MaGiuong, DatCoc!inner(TrangThai)');
   if (err3) throw err3;
-  const activeDatCocStates = ['Chờ duyệt', 'Chờ xác nhận', 'Chờ thanh toán', 'Đã cọc', 'Đã thanh toán', 'Chờ hoàn cọc', 'Chờ thanh lý', 'Chờ đối soát'];
+  // Chỉ đánh dấu giường đã sử dụng khi cọc đã được xác nhận. Các phiếu đang
+  // chờ xử lý dùng KhoaGiuongDatCoc để giữ chỗ, không đổi TinhTrang vật lý.
+  const activeDatCocStates = [
+    'Đã cọc', 'Đã thanh toán', 'Đặt cọc thành công',
+    'Chờ hoàn cọc', 'Chờ thanh lý', 'Chờ đối soát',
+    // Tương thích dữ liệu cũ trước khi chuyển trạng thái sang tiếng Việt.
+    'DA_XAC_NHAN',
+  ];
   const giuongCoc = new Set(
     ctDatCoc
       .filter(ct => activeDatCocStates.includes(ct.DatCoc.TrangThai))

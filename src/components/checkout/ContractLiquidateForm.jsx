@@ -17,20 +17,26 @@ export default function ContractLiquidateForm({
     thuTheTu: false,
   });
   const [ghiChu, setGhiChu] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleToggle = (key) => setChecklist(prev => ({ ...prev, [key]: !prev[key] }));
 
   const clearAdmin = () => sigPadAdmin.current?.clear();
   const clearKhach = () => sigPadKhach.current?.clear();
 
-  const handleFinish = (e) => {
+  const handleFinish = async (e) => {
     e.preventDefault();
     if (sigPadAdmin.current?.isEmpty() || sigPadKhach.current?.isEmpty()) {
       alert("Vui lòng yêu cầu cả Đại diện Quản lý và Khách thuê ký tên đầy đủ!");
       return;
     }
-    // Lấy data URL của chữ ký nếu cần lưu (sigPadAdmin.current.getTrimmedCanvas().toDataURL('image/png'))
-    onSubmit(e);
+    
+    setIsSubmitting(true);
+    try {
+      await onSubmit(e);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -200,14 +206,25 @@ export default function ContractLiquidateForm({
       <div style={{ textAlign: 'center' }}>
         <button 
           onClick={handleFinish}
+          disabled={isSubmitting}
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', width: '100%', 
-            background: '#10b981', color: '#fff', border: 'none', borderRadius: '10px', height: '56px',
-            fontSize: '16px', fontWeight: '700', cursor: 'pointer', boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.2)'
+            background: isSubmitting ? '#94a3b8' : '#10b981', color: '#fff', border: 'none', borderRadius: '10px', height: '56px',
+            fontSize: '16px', fontWeight: '700', cursor: isSubmitting ? 'not-allowed' : 'pointer', boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.2)',
+            transition: 'background 0.2s'
           }}
         >
-          <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>check_circle</span>
-          HOÀN TẤT {isDatCoc ? 'HỦY CỌC' : 'TRẢ PHÒNG'}
+          {isSubmitting ? (
+            <>
+              <span className="material-symbols-outlined" style={{ fontSize: '24px', animation: 'spin 1s linear infinite' }}>sync</span>
+              Vui lòng chờ hệ thống cập nhật trạng thái...
+            </>
+          ) : (
+            <>
+              <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>check_circle</span>
+              HOÀN TẤT {isDatCoc ? 'HỦY CỌC' : 'TRẢ PHÒNG'}
+            </>
+          )}
         </button>
         <p style={{ marginTop: '16px', fontSize: '13.5px', color: '#64748b' }}>
           <strong style={{ color: '#b45309' }}>Lưu ý:</strong> Phòng sẽ được cập nhật trạng thái <strong style={{ color: '#0f172a', background: '#e2e8f0', padding: '2px 6px', borderRadius: '4px' }}>TRỐNG</strong> sau khi hoàn tất

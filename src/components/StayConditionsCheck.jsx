@@ -2,13 +2,18 @@ import { useState, useEffect } from 'react';
 
 // Trang KIỂM TRA ĐIỀU KIỆN LƯU TRÚ (STAY CHECK)
 // Nhân viên đối chiếu định danh và kiểm tra điều kiện lưu trú trước khi lập hợp đồng.
-export default function StayConditionsCheck({ maHoSo = 'DEP-2023-8942', hienThongBao, onQuayLai, onXacNhanThanhCong }) {
+export default function StayConditionsCheck({ maHoSo = null, hienThongBao, onQuayLai, onXacNhanThanhCong }) {
   const [thongTinDatCoc, setThongTinDatCoc] = useState(null);
   const [danhSachThanhVienLuuTru, setDanhSachThanhVienLuuTru] = useState([]);
   const [dangTaiLuuTru, setDangTaiLuuTru] = useState(false);
   const [dangXuLy, setDangXuLy] = useState(false);
+  const [ngoaiLe, setNgoaiLe] = useState(null);
 
   const taiDuLieuKiemTraLuuTru = async (maHoSoCanTai = maHoSo) => {
+    if (!maHoSoCanTai) {
+      hienThongBao('error', 'Thiếu mã hồ sơ cần kiểm tra. Vui lòng chọn hồ sơ từ danh sách.');
+      return;
+    }
     setDangTaiLuuTru(true);
     try {
       const res = await fetch(`/api/kiem-tra-luu-tru/${encodeURIComponent(maHoSoCanTai)}`);
@@ -34,7 +39,7 @@ export default function StayConditionsCheck({ maHoSo = 'DEP-2023-8942', hienThon
   };
 
   useEffect(() => {
-    taiDuLieuKiemTraLuuTru();
+    if (maHoSo) taiDuLieuKiemTraLuuTru();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [maHoSo]);
 
@@ -48,7 +53,7 @@ export default function StayConditionsCheck({ maHoSo = 'DEP-2023-8942', hienThon
     }));
   };
 
-  const xacNhanKiemTraLuuTru = async () => {
+  const guiKetQuaKiemTra = async (luaChon = null) => {
     if (danhSachThanhVienLuuTru.length === 0) {
       hienThongBao('error', 'Chưa có thành viên nào để kiểm tra!');
       return;
@@ -60,23 +65,39 @@ export default function StayConditionsCheck({ maHoSo = 'DEP-2023-8942', hienThon
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           maHoSo: maHoSo,
+          luaChon,
           ketQua: danhSachThanhVienLuuTru.map(tv => ({
             id: tv.id,
+            cccd: tv.cccd,
             hoTen: tv.hoTen,
-            dieuKien: tv.dieuKien
-          }))
-        })
+            dieuKien: tv.dieuKien,
+          })),
+        }),
       });
       const json = await res.json();
-      if (json.ok && json.data.trangThai === 'SUCCESS') {
-        hienThongBao('success', `${json.data.message} (Mã HĐ: ${json.data.maHopDong})`);
-        if (onXacNhanThanhCong) {
-          onXacNhanThanhCong(json.data);
-        }
-      } else if (json.ok && json.data.trangThai === 'COMPLIANCE_EXCEPTION') {
-        hienThongBao('error', `${json.data.message} Thành viên chưa đạt: ${json.data.thanhVienKhongDat.join(', ')}`);
-      } else {
+      if (!json.ok) {
         throw new Error(json.error || 'Lỗi hệ thống');
+      }
+
+      const d = json.data;
+      switch (d.trangThai) {
+        case 'SUCCESS':
+        case 'CONTINUE_PARTIAL':
+          setNgoaiLe(null);
+          hienThongBao('success', d.message);
+          if (onXacNhanThanhCong) onXacNhanThanhCong(d);
+          break;
+        case 'TERMINATED':
+          setNgoaiLe(null);
+          hienThongBao('success', d.message);
+          if (onQuayLai) setTimeout(() => onQuayLai(), 1500);
+          break;
+        case 'COMPLIANCE_EXCEPTION':
+        case 'INDIVIDUAL_REJECT':
+          setNgoaiLe(d);
+          break;
+        default:
+          hienThongBao('error', d.message || 'Kết quả kiểm tra không xác định.');
       }
     } catch (err) {
       console.error('Lỗi khi xác nhận kiểm tra lưu trú:', err);
@@ -85,6 +106,8 @@ export default function StayConditionsCheck({ maHoSo = 'DEP-2023-8942', hienThon
       setDangXuLy(false);
     }
   };
+
+  const xacNhanKiemTraLuuTru = () => guiKetQuaKiemTra(null);
 
   return (
     <div className="stay-check-page">
@@ -217,6 +240,80 @@ export default function StayConditionsCheck({ maHoSo = 'DEP-2023-8942', hienThon
             </div>
           </div>
 
+        </div>
+      )}
+
+      {ngoaiLe && (
+        <div className="np-modal-overlay" onClick={() => { if (!dangXuLy) setNgoaiLe(null); }}>
+          <div className="np-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="np-modal-head">
+              <span className="material-symbols-outlined np-modal-icon">warning</span>
+              <div>
+                <h3>
+                  {ngoaiLe.trangThai === 'INDIVIDUAL_REJECT'
+                    ? 'Khách không đủ điều kiện lưu trú'
+                    : 'Một số thành viên không đủ điều kiện'}
+                </h3>
+                <p>{ngoaiLe.message}</p>
+              </div>
+            </div>
+
+            <div className="np-modal-body">
+              <div className="np-modal-field">
+                <span className="np-modal-label">Thành viên chưa đạt</span>
+                <div className="np-modal-chips">
+                  {(ngoaiLe.thanhVienKhongDat || []).map((ten, i) => (
+                    <span key={i} className="np-chip-fail">{ten}</span>
+                  ))}
+                </div>
+              </div>
+
+              {ngoaiLe.trangThai === 'COMPLIANCE_EXCEPTION' && (
+                <div className="np-modal-summary">
+                  <div>
+                    <span className="np-modal-label">Số thành viên còn lại</span>
+                    <strong>{ngoaiLe.soThanhVienConLai}</strong>
+                  </div>
+                  <div>
+                    <span className="np-modal-label">Số giường/phòng đã đặt</span>
+                    <strong>{ngoaiLe.soGiuongThue}</strong>
+                  </div>
+                </div>
+              )}
+
+              {ngoaiLe.trangThai === 'COMPLIANCE_EXCEPTION' && !ngoaiLe.choPhepTiepTuc && (
+                <div className="np-modal-note np-modal-note--warn">
+                  {ngoaiLe.lyDoKhongChoTiepTuc || 'Không thể tiếp tục ký hợp đồng với danh sách hiện tại.'}
+                </div>
+              )}
+
+              <p className="np-modal-hint">
+                Các thành viên không đạt sẽ không được ký hợp đồng và không được sắp xếp vào ở theo danh sách đã đăng ký.
+              </p>
+            </div>
+
+            <div className="np-modal-actions">
+              <button
+                type="button"
+                className="btn-detail-outline"
+                disabled={dangXuLy}
+                onClick={() => setNgoaiLe(null)}
+              >
+                Đóng
+              </button>
+              {(ngoaiLe.luaChonXuLy || []).map((lc) => (
+                <button
+                  key={lc.loai}
+                  type="button"
+                  className={lc.loai === 'TERMINATE_REFUND' ? 'np-btn-danger' : 'btn-book-filled'}
+                  disabled={dangXuLy}
+                  onClick={() => guiKetQuaKiemTra(lc.loai)}
+                >
+                  {dangXuLy ? 'Đang xử lý...' : lc.nhan}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
 

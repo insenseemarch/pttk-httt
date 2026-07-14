@@ -20,6 +20,15 @@ import QuanLyTaiKhoan from './pages/QuanLyTaiKhoan';
 
 import ThongBaoViecCanXuLy from './pages/ThongBaoViecCanXuLy';
 import ThuChi from './pages/ThuChi';
+import CheckoutPage from './pages/CheckoutPage';
+import InitialPayment from './components/InitialPayment';
+import QuyTrinhDatCoc from './pages/QuyTrinhDatCoc';
+import DanhSachNhanPhong from './pages/DanhSachNhanPhong';
+import ChiTietNhanPhong from './pages/ChiTietNhanPhong';
+import DanhSachKiemTraLuuTru from './pages/DanhSachKiemTraLuuTru';
+import KiemTraLuuTru from './pages/KiemTraLuuTru';
+import DanhSachLapHopDong from './pages/DanhSachLapHopDong';
+import LapHopDong from './pages/LapHopDong';
 
 import { ROUTES } from './config/routes';
 import {
@@ -152,6 +161,25 @@ function taoTrangStaff(Component) {
 
 }
 
+function laQuanLy(nguoiDung) {
+  const r = (nguoiDung?.vaiTro || '').toLowerCase();
+  return r.includes('quản lý') || r.includes('quan ly') || r === 'quanly';
+}
+
+/** Hợp đồng chỉ dành cho Sale — Quản lý dùng Kiểm tra trả phòng */
+function TrangHopDongSale() {
+  return (
+    <TrangBaoVe>
+      {({ nguoiDung, dangXuat }) => {
+        if (laQuanLy(nguoiDung)) {
+          return <Navigate to={ROUTES.dashboard} replace />;
+        }
+        return <DanhSachHopDong nguoiDung={nguoiDung} dangXuat={dangXuat} />;
+      }}
+    </TrangBaoVe>
+  );
+}
+
 
 function TrangPhongGiuong() {
 
@@ -266,13 +294,22 @@ export default function AppRouter() {
 
       <Route path={ROUTES.khachHang} element={taoTrangStaff(DanhSachKhachHang)} />
 
-      <Route path={ROUTES.hopDong} element={taoTrangStaff(DanhSachHopDong)} />
+      <Route path={ROUTES.hopDong} element={<TrangHopDongSale />} />
       <Route path={ROUTES.tiepNhanDangKyThue} element={<TrangTiepNhanDangKyThue />} />
       <Route path={ROUTES.lichHen} element={<TrangLichHen />} />
       <Route path={ROUTES.thuChi} element={taoTrangStaff(ThuChi)} />
+      <Route path={ROUTES.nhanPhong} element={taoTrangStaff(DanhSachNhanPhong)} />
+      <Route path={`${ROUTES.nhanPhong}/:maDatCoc`} element={taoTrangStaff(ChiTietNhanPhong)} />
+      <Route path={ROUTES.kiemTraLuuTru} element={taoTrangStaff(DanhSachKiemTraLuuTru)} />
+      <Route path={`${ROUTES.kiemTraLuuTru}/:maHoSo`} element={taoTrangStaff(KiemTraLuuTru)} />
+      <Route path={ROUTES.lapHopDong} element={taoTrangStaff(DanhSachLapHopDong)} />
+      <Route path={`${ROUTES.lapHopDong}/:maDatCoc`} element={taoTrangStaff(LapHopDong)} />
       <Route path={ROUTES.thongBao} element={taoTrangStaff(ThongBaoViecCanXuLy)} />
 
       <Route path={ROUTES.quanLyTaiKhoan} element={taoTrangStaff(QuanLyTaiKhoan)} />
+      <Route path={ROUTES.checkout} element={taoTrangStaff(CheckoutPage)} />
+      <Route path="/staff-payment" element={taoTrangStaff(InitialPayment)} />
+      <Route path={ROUTES.deposit} element={taoTrangStaff(QuyTrinhDatCoc)} />
 
       <Route path="/*" element={<App />} />
 
@@ -281,4 +318,3 @@ export default function AppRouter() {
   );
 
 }
-
