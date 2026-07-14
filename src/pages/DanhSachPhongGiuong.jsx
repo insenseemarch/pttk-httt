@@ -265,6 +265,60 @@ export default function DanhSachPhongGiuong({ nguoiDung, dangXuat }) {
           </div>
         </div>
       )}
+
+      {phongDangXem && (
+        <div className="qt-modal-overlay" onClick={() => setPhongDangXem(null)}>
+          <div className="qt-room-detail-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="qt-room-detail-head">
+              <div>
+                <h2>Phòng P.{phongDangXem.maPhong}</h2>
+                <p>{phongDangXem.chiNhanh} · Phòng · {phongDangXem.loaiPhong}</p>
+              </div>
+              <button type="button" className="qt-room-detail-close" onClick={() => setPhongDangXem(null)} aria-label="Đóng">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="qt-room-detail-summary">
+              <div>
+                <span>Tình trạng phòng</span>
+                <strong className={`qt-room-state qt-room-state--${layChipTrangThai(phongDangXem.trangThai)}`}>
+                  {phongDangXem.trangThai}
+                </strong>
+              </div>
+              <div>
+                <span>Giá thuê gốc</span>
+                <strong>{phongDangXem.giaThue}{phongDangXem.loaiPhong?.includes('Giường') ? '/giường/tháng' : '/tháng'}</strong>
+              </div>
+              <div>
+                <span>Hiện trạng chỗ</span>
+                <strong>{phongDangXem.hienTrang} (Giường)</strong>
+              </div>
+              <div>
+                <span>Tỷ lệ lấp đầy</span>
+                <strong>{phongDangXem.tyLe}%</strong>
+              </div>
+            </div>
+
+            <div className="qt-room-detail-section">
+              <h3>Chi tiết danh sách giường</h3>
+              {Number(phongDangXem.soGiuong || 0) > 0 ? (
+                <div className="qt-bed-summary">
+                  <span>Tổng giường: {phongDangXem.soGiuong}</span>
+                  <span>Giường trống: {phongDangXem.soGiuongTrong}</span>
+                  {phongDangXem.hetHanCoc && <span>Hết hạn cọc: {phongDangXem.hetHanCoc}</span>}
+                </div>
+              ) : (
+                <p>Phòng này chưa có dữ liệu giường.</p>
+              )}
+            </div>
+
+            <div className="qt-room-detail-footer">
+              <button type="button" className="qt-btn-primary" onClick={() => setPhongDangXem(null)}>Đóng lại</button>
+            </div>
+          </div>
+        </div>
+      )}
     </KhungNhanVien>
   );
 }
