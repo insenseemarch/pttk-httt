@@ -29,6 +29,8 @@ import DanhSachKiemTraLuuTru from './pages/DanhSachKiemTraLuuTru';
 import KiemTraLuuTru from './pages/KiemTraLuuTru';
 import DanhSachLapHopDong from './pages/DanhSachLapHopDong';
 import LapHopDong from './pages/LapHopDong';
+import DanhSachBanGiao from './pages/DanhSachBanGiao';
+import ChiTietBanGiao from './pages/ChiTietBanGiao';
 
 import { ROUTES } from './config/routes';
 import {
@@ -309,6 +311,8 @@ export default function AppRouter() {
       <Route path={ROUTES.quanLyTaiKhoan} element={taoTrangStaff(QuanLyTaiKhoan)} />
       <Route path={ROUTES.checkout} element={taoTrangStaff(CheckoutPage)} />
       <Route path="/staff-payment" element={taoTrangStaff(InitialPayment)} />
+      <Route path={ROUTES.banGiao} element={taoTrangStaff(DanhSachBanGiao)} />
+      <Route path={`${ROUTES.banGiao}/:maHopDong`} element={taoTrangStaff(ChiTietBanGiao)} />
       <Route path={ROUTES.deposit} element={taoTrangStaff(QuyTrinhDatCoc)} />
 
       <Route path="/*" element={<App />} />

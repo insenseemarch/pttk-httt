@@ -54,7 +54,9 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
         NoiDung: data.noiDung,
         TaoLuc: new Date().toISOString(),
         DaDoc: false,
-        MaDatCoc: data.phieuId || null
+        MaDatCoc: data.loaiSuKien === 'ban_giao_phong' ? null : (data.phieuId || null),
+        LoaiSuKien: data.loaiSuKien || null,
+        PhieuId: data.phieuId || null,
       }, ...prev]);
     });
 
@@ -97,11 +99,12 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
     }
     setShowNotifications(false);
     await taiThongBaoDatCoc();
-    // Only navigate to deposit if it has a valid deposit ID
-    if (item.MaDatCoc) {
+
+    if (item.LoaiSuKien === 'ban_giao_phong') {
+      navigate(item.PhieuId ? `${ROUTES.banGiao}/${item.PhieuId}` : ROUTES.banGiao);
+    } else if (item.MaDatCoc) {
       navigate(`${ROUTES.deposit}?phieu=${item.MaDatCoc}`);
     } else {
-      // It's a checkout notification, just stay on current page or navigate to checkout
       navigate(ROUTES.checkout);
     }
   };
@@ -121,6 +124,8 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
       { key: 'dashboard', label: 'Tổng quan', path: ROUTES.dashboard },
       { key: 'phongGiuong', label: 'Tra cứu phòng/giường', path: ROUTES.phongGiuong },
       { key: 'soDoPhong', label: 'Sơ đồ phòng', path: ROUTES.soDoPhong },
+      { key: 'kiemTraLuuTru', label: 'Kiểm tra ĐK lưu trú', path: ROUTES.kiemTraLuuTru },
+      { key: 'banGiao', label: 'Bàn giao phòng', path: ROUTES.banGiao },
       { key: 'thongBao', label: 'Thông báo', path: ROUTES.thongBao },
     ];
   } else if (rawRole.includes('kế toán') || rawRole.includes('ke toan') || rawRole === 'ketoan') {
