@@ -116,6 +116,7 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
     menu = [
       { key: 'dashboard', label: 'Tổng quan', path: ROUTES.dashboard },
       { key: 'tiepNhanDangKyThue', label: 'Tiếp nhận thuê', path: ROUTES.tiepNhanDangKyThue },
+      { key: 'nhanPhong', label: 'Nhận phòng', path: ROUTES.nhanPhong },
       { key: 'phongGiuong', label: 'Tra cứu phòng/giường', path: ROUTES.phongGiuong },
       { key: 'soDoPhong', label: 'Sơ đồ phòng', path: ROUTES.soDoPhong },
       { key: 'lichHen', label: 'Lịch hẹn', path: ROUTES.lichHen },
@@ -148,19 +149,6 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
       { key: 'kiemTraLuuTru', label: 'Kiểm tra ĐK lưu trú', path: ROUTES.kiemTraLuuTru },
       { key: 'checkout', label: 'Kiểm tra trả phòng', path: ROUTES.checkout },
       { key: 'thongBao', label: 'Thông báo', path: ROUTES.thongBao }
-    ];
-  } else if (
-    rawRole.includes('sale')
-    || rawRole.includes('kinh doanh')
-    || rawRole.includes('nhân viên sale')
-  ) {
-    menu = [
-      { key: 'dashboard', label: 'Dashboard', path: ROUTES.dashboard },
-      { key: 'nhanPhong', label: 'Nhận phòng', path: ROUTES.nhanPhong },
-      { key: 'phongGiuong', label: 'Phòng/Giường', path: ROUTES.phongGiuong },
-      { key: 'khachHang', label: 'Khách hàng', path: ROUTES.khachHang },
-      { key: 'hopDong', label: 'Hợp đồng', path: ROUTES.hopDong },
-      { key: 'thongBao', label: 'Thông báo', path: ROUTES.thongBao },
     ];
   } else if (rawRole.includes('phụ trách') || rawRole.includes('phu trach') || rawRole === 'phutrach') {
     menu = [

@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase.js';
 import { dinhDangNgay, dinhDangNgayGio, dinhDangTien } from '../utils/dinhDang.js';
+import { getIO } from '../config/ketNoiSocket.js';
 
 const TRANG_THAI_CHO_GHI_NHAN = ['Đặt cọc thành công', 'Đã cọc', 'Đã thanh toán'];
 const TRANG_THAI_SAU_GHI_NHAN = 'Chờ kiểm tra';
@@ -122,7 +123,7 @@ async function layDatCocDayDu(maDatCoc) {
 }
 
 export async function layDanhSachChoNhanPhong(boLoc = {}) {
-  const { timKiem = '', maCN = '', page = 1, limit = 20 } = boLoc;
+  const { timKiem = '', maCN = '', loaiThue = '', page = 1, limit = 20 } = boLoc;
   const tu = (Number(page) - 1) * Number(limit);
   const den = tu + Number(limit) - 1;
 
@@ -140,6 +141,7 @@ export async function layDanhSachChoNhanPhong(boLoc = {}) {
     .range(tu, den);
 
   if (maCN) query = query.eq('MaCN', Number(maCN));
+  if (loaiThue) query = query.eq('LoaiThue', loaiThue);
 
   const { data, error, count } = await query;
   if (error) throw error;
@@ -381,6 +383,16 @@ async function taoThongBaoChuyenKiemTraDKLuuTru(dc, phong, hoTenKhach) {
   });
 
   if (error) throw error;
+
+  // Emit socket real-time cho Quản lý
+  const io = getIO();
+  if (io) {
+    io.to('role:QUAN_LY').emit('thong_bao_moi', {
+      noiDung,
+      loaiSuKien: 'kiem_tra_luu_tru',
+      phieuId: dc.MaDatCoc,
+    });
+  }
 }
 
 export async function luuNhapNhanPhong(maDatCoc, payload) {

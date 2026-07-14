@@ -39,6 +39,7 @@ export function layMenuNhanVienTheoVaiTro(vaiTro) {
     return [
       { key: 'dashboard', label: 'Tổng quan', path: ROUTES.dashboard },
       { key: 'tiepNhanDangKyThue', label: 'Tiếp nhận thuê', path: ROUTES.tiepNhanDangKyThue },
+      { key: 'nhanPhong', label: 'Nhận phòng', path: ROUTES.nhanPhong },
       { key: 'phongGiuong', label: 'Tra cứu phòng/giường', path: ROUTES.phongGiuong },
       { key: 'soDoPhong', label: 'Sơ đồ phòng', path: ROUTES.soDoPhong },
       { key: 'lichHen', label: 'Lịch hẹn', path: ROUTES.lichHen },

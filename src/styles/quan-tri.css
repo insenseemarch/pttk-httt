@@ -169,9 +169,12 @@
 
 .qt-search-wrap {
   position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .qt-search-wrap input {
+  flex: 1;
   padding-left: 40px;
 }
 
@@ -182,6 +185,7 @@
   transform: translateY(-50%);
   color: #8c7164;
   font-size: 20px;
+  pointer-events: none;
 }
 
 .qt-stats {
@@ -976,12 +980,65 @@
   align-items: flex-end;
 }
 
+/* Label inline (dùng trong flex row, không cần margin-bottom riêng) */
+.qt-label-inline {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #584237;
+  margin-bottom: 6px;
+}
+
+/* Link button bỏ gạch chân */
+a.qt-btn-outline,
+a.qt-btn-primary {
+  text-decoration: none;
+}
+
+/* Custom tooltip — dùng data-tip trên bất kỳ phần tử nào */
+.np-tooltip-wrap {
+  position: relative;
+  display: inline-block;
+}
+[data-tip] {
+  position: relative;
+}
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  background: #1e293b;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  width: 260px;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+  z-index: 999;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+}
+[data-tip]:hover::after {
+  opacity: 1;
+}
+/* Nút: tooltip căn phải */
+.np-tooltip-wrap[data-tip]::after {
+  left: auto;
+  right: 0;
+}
+
 .np-check-label {
-  display: flex;
+  display: flex !important;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 14px;
   cursor: pointer;
+  white-space: nowrap;
+  margin-bottom: 0 !important;
   padding: 10px 0;
 }
 
