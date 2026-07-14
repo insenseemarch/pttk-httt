@@ -18,6 +18,7 @@ export const ROUTES = {
   kiemTraLuuTru: '/kiem-tra-luu-tru',
   lapHopDong: '/lap-hop-dong',
   staffPayment: '/staff-payment',
+  banGiao: '/ban-giao',
 };
 
 export const KHOA_NGUOI_DUNG = 'homestay_nguoiDung';

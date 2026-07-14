@@ -133,21 +133,24 @@ router.post('/xac-nhan-thu-tien', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Thiếu số tiền hoặc mã hợp đồng' });
     }
 
-    // 1. Ghi giao dịch thanh toán
+    // 1. Ghi hóa đơn thu tiền kỳ đầu
+    const homNay = new Date().toISOString().split('T')[0];
     const { data: gd, error: gdError } = await supabase
-      .from('GiaoDichThanhToan')
+      .from('HoaDon')
       .insert([{
         MaHopDong: Number(maHopDong),
         SoTien: Number(soTienThucThu),
-        PhuongThuc: phuongThuc || 'tien-mat',
-        NgayThanhToan: new Date().toISOString(),
-        TrangThai: 'Hoàn thành',
+        NgayLap: homNay,
+        NgayThanhToan: homNay,
+        HinhThucThanhToan: phuongThuc || 'Tiền mặt',
+        TrangThai: 'Đã thanh toán',
+        NVKT: maKeToan ? Number(maKeToan) : null,
       }])
       .select()
       .single();
 
     if (gdError) {
-      console.warn('Lỗi ghi giao dịch:', gdError.message);
+      console.warn('Lỗi ghi hóa đơn:', gdError.message);
     }
 
     // 2. Cập nhật trạng thái HĐ → Hiệu lực
@@ -170,7 +173,7 @@ router.post('/xac-nhan-thu-tien', async (req, res) => {
       });
     }
 
-    const maPhieuThu = gd?.MaGiaoDich || `REC-${Date.now()}`;
+    const maPhieuThu = gd?.MaHD ? `HD-${String(gd.MaHD).padStart(5, '0')}` : `REC-${Date.now()}`;
 
     res.json({
       ok: true,

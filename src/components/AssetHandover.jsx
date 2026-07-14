@@ -1,19 +1,22 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ROUTES } from '../config/routes';
 
 // Trang BÀN GIAO TÀI SẢN (ASSET HANDOVER)
 // Quản lý kiểm kê tài sản, ký biên bản và bàn giao phòng cho khách nhận chính thức.
-export default function AssetHandover({ maGiaoDich = 'PAY-2024-0892', hienThongBao, onQuayLai }) {
+export default function AssetHandover({ maHopDong = null, hienThongBao, onQuayLai, onBanGiaoThanhCong }) {
+  const navigate = useNavigate();
   const [khachHang, setKhachHang] = useState(null);
   const [danhMucTaiSan, setDanhMucTaiSan] = useState([]);
   const [chuKy, setChuKy] = useState({ quanLy: false, khach: false });
-  const [maHopDong, setMaHopDong] = useState('');
   const [dangTai, setDangTai] = useState(false);
   const [dangXuLy, setDangXuLy] = useState(false);
 
-  const taiDuLieuBanGiao = async (maCanTai = maGiaoDich) => {
+  const taiDuLieuBanGiao = async () => {
+    if (!maHopDong) return;
     setDangTai(true);
     try {
-      const res = await fetch(`/api/ban-giao/${encodeURIComponent(maCanTai)}`);
+      const res = await fetch(`/api/ban-giao/hop-dong/${encodeURIComponent(maHopDong)}`);
       const json = await res.json();
       if (json.ok) {
         setKhachHang(json.data.khachHang);
@@ -24,7 +27,6 @@ export default function AssetHandover({ maGiaoDich = 'PAY-2024-0892', hienThongB
             ghiChu: ''
           }))
         );
-        setMaHopDong(json.data.maHopDong || '');
         setChuKy({ quanLy: false, khach: false });
       } else {
         hienThongBao('error', json.error || 'Không tải được dữ liệu bàn giao');
@@ -40,7 +42,7 @@ export default function AssetHandover({ maGiaoDich = 'PAY-2024-0892', hienThongB
   useEffect(() => {
     taiDuLieuBanGiao();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [maGiaoDich]);
+  }, [maHopDong]);
 
   const capNhatKiem = (id) => {
     setDanhMucTaiSan(prev => prev.map(item =>
@@ -66,7 +68,7 @@ export default function AssetHandover({ maGiaoDich = 'PAY-2024-0892', hienThongB
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          maGiaoDich,
+          maHopDong,
           ketQuaTaiSan: danhMucTaiSan.map(item => ({
             id: item.id,
             ten: item.ten,
@@ -74,12 +76,15 @@ export default function AssetHandover({ maGiaoDich = 'PAY-2024-0892', hienThongB
             ghiChu: item.ghiChu
           })),
           chuKy,
-          maQuanLy: 'MANAGER-01'
         })
       });
       const json = await res.json();
       if (json.ok) {
         hienThongBao('success', `${json.data.message} (Mã biên bản: ${json.data.maBienBan})`);
+        setTimeout(() => {
+          if (onBanGiaoThanhCong) onBanGiaoThanhCong();
+          else navigate(ROUTES.banGiao);
+        }, 1500);
       } else {
         throw new Error(json.error || 'Lỗi hệ thống');
       }
@@ -271,14 +276,14 @@ export default function AssetHandover({ maGiaoDich = 'PAY-2024-0892', hienThongB
                   >
                     {chuKy.quanLy ? (
                       <div className="handover-sign-done">
-                        <span className="handover-sign-name">Trần Anh</span>
+                        <span className="handover-sign-name">Quản lý</span>
                         <span className="handover-sign-verified">Đã xác thực chữ ký số</span>
                       </div>
                     ) : (
                       <span className="handover-sign-placeholder">Vùng ký tên quản lý</span>
                     )}
                   </div>
-                  <span className="handover-sign-footer-name">Trần Anh</span>
+                  <span className="handover-sign-footer-name">Đại diện Quản lý</span>
                 </div>
 
                 {/* Khách hàng ký */}
