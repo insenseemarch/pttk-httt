@@ -58,14 +58,16 @@ export default function DanhSachBanGiao({ nguoiDung, dangXuat }) {
       </div>
 
       <div className="qt-filter-card">
-        <div className="qt-field qt-search-wrap" style={{ gridColumn: 'span 2' }}>
+        <div className="qt-field" style={{ gridColumn: 'span 2' }}>
           <label>Tìm kiếm</label>
-          <span className="material-symbols-outlined">search</span>
-          <input
-            placeholder="Tên khách, SĐT, CCCD, mã hợp đồng..."
-            value={boLoc.timKiem}
-            onChange={(e) => setBoLoc((p) => ({ ...p, timKiem: e.target.value }))}
-          />
+          <div className="qt-search-wrap">
+            <span className="material-symbols-outlined">search</span>
+            <input
+              placeholder="Tên khách, SĐT, CCCD, mã hợp đồng..."
+              value={boLoc.timKiem}
+              onChange={(e) => setBoLoc((p) => ({ ...p, timKiem: e.target.value }))}
+            />
+          </div>
         </div>
         <div className="qt-field">
           <label>Chi nhánh</label>
@@ -76,7 +78,14 @@ export default function DanhSachBanGiao({ nguoiDung, dangXuat }) {
             ))}
           </select>
         </div>
-        <button type="button" className="qt-btn-outline" onClick={taiDanhSach}>Làm mới</button>
+        <button
+          type="button"
+          className="qt-btn-outline np-tooltip-wrap"
+          data-tip="Tải lại danh sách hợp đồng chờ bàn giao theo bộ lọc hiện tại."
+          onClick={taiDanhSach}
+        >
+          Làm mới
+        </button>
       </div>
 
       <div className="qt-table-wrap">
@@ -113,13 +122,13 @@ export default function DanhSachBanGiao({ nguoiDung, dangXuat }) {
                 {danhSach.map((item) => (
                   <tr
                     key={item.maHopDong}
-                    style={{ cursor: 'pointer' }}
+                    className="qt-table-row--interactive"
                     onClick={() => navigate(`${ROUTES.banGiao}/${item.maHopDong}`)}
                   >
-                    <td><strong style={{ color: 'var(--primary-color)' }}>{item.maHopDongFmt}</strong></td>
+                    <td><strong className="qt-table-id">{item.maHopDongFmt}</strong></td>
                     <td>
                       <div>{item.hoTen}</div>
-                      <span style={{ fontSize: 12, color: '#64748b' }}>{item.sdt}</span>
+                      <span className="sub">{item.sdt}</span>
                     </td>
                     <td>{item.phong}</td>
                     <td>{item.chiNhanh}</td>
@@ -127,17 +136,27 @@ export default function DanhSachBanGiao({ nguoiDung, dangXuat }) {
                     <td>{item.soGiuong}</td>
                     <td>{item.giaThue}</td>
                     <td>
-                      <span className="qt-chip qt-chip--green">{item.trangThai}</span>
+                      <span
+                        className="qt-chip qt-chip--green np-tooltip-wrap np-tooltip-wrap--below"
+                        data-tip="Hợp đồng đã thu đủ tiền kỳ đầu, chờ quản lý bàn giao phòng/giường và tài sản."
+                      >
+                        {item.trangThai}
+                      </span>
                     </td>
                     <td>
-                      <Link
-                        to={`${ROUTES.banGiao}/${item.maHopDong}`}
-                        className="qt-btn-outline"
-                        style={{ padding: '6px 12px', fontSize: 12, textDecoration: 'none' }}
+                      <div
+                        className="np-tooltip-wrap np-tooltip-wrap--below"
+                        data-tip="Mở biên bản bàn giao: kiểm tra hiện trạng, ghi nhận tài sản (giường, nệm, tủ, chìa khóa/thẻ), hướng dẫn quy định và xác nhận cùng khách."
                         onClick={(e) => e.stopPropagation()}
                       >
-                        Bàn giao
-                      </Link>
+                        <Link
+                          to={`${ROUTES.banGiao}/${item.maHopDong}`}
+                          className="qt-btn-outline"
+                          style={{ padding: '6px 12px', fontSize: 12, textDecoration: 'none' }}
+                        >
+                          Bàn giao
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}
