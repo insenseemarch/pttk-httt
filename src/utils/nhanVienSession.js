@@ -17,6 +17,7 @@ export function chuanHoaVaiTroNhanVien(vaiTro) {
   if (role.includes('quan ly') || role.includes('manager')) return 'quanly';
   if (role.includes('ke toan') || role.includes('account')) return 'ketoan';
   if (role.includes('admin') || role.includes('quan tri')) return 'admin';
+  if (role.includes('phu trach') || role === 'phutrach') return 'phutrach';
   if (role.includes('tiep nhan') || role.includes('hop dong') || role.includes('le tan')) return 'tiepnhan';
   return role.replace(/\s+/g, '');
 }
