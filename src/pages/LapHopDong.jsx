@@ -26,7 +26,7 @@ export default function LapHopDong({ nguoiDung, dangXuat }) {
         hienThongBao={hienThongBao}
         onQuayLai={() => navigate(ROUTES.lapHopDong)}
         onXacNhanThanhCong={() => {
-          setTimeout(() => navigate(ROUTES.lapHopDong), 1500);
+          navigate(ROUTES.lapHopDong);
         }}
       />
     </KhungNhanVien>

@@ -161,10 +161,23 @@ async function dieuChinhGiuongSauTiepTuc(dc, soThanhVienConLai) {
       return data || [];
     })();
 
-  const tatCaMaGiuong = giuongDatCoc.map((g) => Number(g.MaGiuong)).filter(Number.isFinite);
-  const soGiuongCanGiu = Math.min(soThanhVienConLai, tatCaMaGiuong.length);
-  const giuongGiu = tatCaMaGiuong.slice(0, soGiuongCanGiu);
-  const giuongTra = tatCaMaGiuong.slice(soGiuongCanGiu);
+  const tongGiuongHienCo = giuongDatCoc.reduce((s, g) => s + Number(g.SoGiuongCoc || 1), 0);
+  const soGiuongCanGiu = Math.min(soThanhVienConLai, tongGiuongHienCo || giuongDatCoc.length);
+
+  let daGiu = 0;
+  const giuongGiu = [];
+  const giuongTra = [];
+  for (const g of giuongDatCoc) {
+    const ma = Number(g.MaGiuong);
+    const sl = Number(g.SoGiuongCoc || 1);
+    if (!Number.isFinite(ma)) continue;
+    if (daGiu < soGiuongCanGiu) {
+      giuongGiu.push(ma);
+      daGiu += sl;
+    } else {
+      giuongTra.push(ma);
+    }
+  }
 
   if (giuongTra.length) {
     await traGiuongDatCoc(dc.MaDatCoc, giuongTra);
@@ -173,7 +186,7 @@ async function dieuChinhGiuongSauTiepTuc(dc, soThanhVienConLai) {
   return {
     giuongGiu,
     giuongTra,
-    soGiuongThueMoi: giuongGiu.length,
+    soGiuongThueMoi: soGiuongCanGiu,
   };
 }
 
@@ -607,7 +620,7 @@ router.post('/xac-nhan', async (req, res) => {
       await capNhatSoThanhVienDuDieuKien(dc, dsDat.length);
 
       const dieuChinh = await dieuChinhGiuongSauTiepTuc(dc, dsDat.length);
-      if (!laThueNguyenPhong(dc) && dieuChinh.soGiuongThueMoi !== soGiuongThueGoc) {
+      if (!laThueNguyenPhong(dc)) {
         const { error: errSoGiuong } = await supabase
           .from('DatCoc')
           .update({ SoGiuongThue: dieuChinh.soGiuongThueMoi })

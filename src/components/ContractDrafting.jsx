@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import SignatureCanvas from 'react-signature-canvas';
+import ContractPrintModal from './ContractPrintModal';
 
 const QUY_DINH_HOAN_COC = [
   { moTa: 'Đã đặt cọc, chưa ký HĐ', mucHoan: '80%' },
-  { moTa: 'Đã ký HĐ, lưu trú < 6 tháng', mucHoan: '50%' },
-  { moTa: 'Đã ký HĐ, lưu trú > 6 tháng', mucHoan: '70%' },
-  { moTa: 'Hết hạn hợp đồng', mucHoan: '100%' }
+  { moTa: 'Đã ký HĐ, lưu trú dưới 6 tháng', mucHoan: '50%' },
+  { moTa: 'Đã ký HĐ, lưu trú từ 6 tháng trở lên', mucHoan: '70%' },
+  { moTa: 'Hết hạn hợp đồng theo thỏa thuận', mucHoan: '100%' },
 ];
 
 const NOI_QUY_MAC_DINH = [
@@ -14,7 +15,17 @@ const NOI_QUY_MAC_DINH = [
   'Không hút thuốc trong khuôn viên ký túc xá',
   'Không nuôi thú cưng trong phòng',
   'Bảo quản tài sản, chìa khóa và thẻ từ được cấp',
-  'Không tự ý sửa chữa, thay đổi cấu trúc phòng'
+  'Không tự ý sửa chữa, thay đổi cấu trúc phòng',
+  'Không cho người lạ lưu trú qua đêm khi chưa đăng ký',
+  'Báo cáo ngay với quản lý khi phát sinh hư hỏng tài sản hoặc sự cố an toàn',
+];
+
+const DIEU_KHOAN_VI_PHAM = [
+  'Vi phạm nội quy lần 1: nhắc nhở bằng văn bản và yêu cầu khắc phục trong 48 giờ',
+  'Vi phạm nghiêm trọng hoặc tái phạm: có thể chấm dứt hợp đồng và khấu trừ chi phí theo quy định hoàn cọc',
+  'Gây hư hỏng tài sản: bồi thường theo giá trị thực tế sửa chữa hoặc thay thế',
+  'Nợ tiền thuê / điện nước / dịch vụ quá hạn: tạm ngưng dịch vụ và thu hồi theo quy trình đối soát',
+  'Chuyển nhượng giường/phòng cho bên thứ ba khi chưa được quản lý chấp thuận: vi phạm hợp đồng',
 ];
 
 const tinhNgayKetThuc = (ngayBatDau, thoiHanThue) => {
@@ -34,11 +45,11 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
   const [khachHang, setKhachHang] = useState(null);
   const [thongTinThue, setThongTinThue] = useState(null);
   const [bieuPhiDichVu, setBieuPhiDichVu] = useState([]);
-  const [kyThanhToan, setKyThanhToan] = useState('MONTHLY');
-  const [dieuKhoanBoSung, setDieuKhoanBoSung] = useState('');
+  const [kyThanhToan, setKyThanhToan] = useState('Thanh toán hàng tháng');
   const [dangTai, setDangTai] = useState(false);
   const [dangXuLy, setDangXuLy] = useState(false);
   const [khachDaKy, setKhachDaKy] = useState(false);
+  const [hopDongDaKy, setHopDongDaKy] = useState(null);
 
   const sigPadKhach = useRef(null);
 
@@ -60,7 +71,7 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
         setKhachHang(json.data.khachHang);
         setThongTinThue(json.data.thongTinThue);
         setBieuPhiDichVu(json.data.bieuPhiDichVu || []);
-        setKyThanhToan(json.data.thongTinThue?.kyThanhToan || 'MONTHLY');
+        setKyThanhToan(json.data.thongTinThue?.kyThanhToan || 'Thanh toán hàng tháng');
       } else {
         hienThongBao('error', json.error || 'Không tải được dữ liệu lập hợp đồng');
       }
@@ -83,6 +94,21 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
     ));
   };
 
+  const layChuKyKhach = () => {
+    const pad = sigPadKhach.current;
+    if (!pad || pad.isEmpty()) return null;
+    const src = pad.getCanvas();
+    const maxW = 480;
+    const scale = src.width > maxW ? maxW / src.width : 1;
+    const w = Math.max(1, Math.round(src.width * scale));
+    const h = Math.max(1, Math.round(src.height * scale));
+    const tmp = document.createElement('canvas');
+    tmp.width = w;
+    tmp.height = h;
+    tmp.getContext('2d')?.drawImage(src, 0, 0, w, h);
+    return tmp.toDataURL('image/png', 0.85);
+  };
+
   const taoHopDong = async (choKy = true) => {
     if (!khachHang || !thongTinThue) {
       hienThongBao('error', 'Chưa có dữ liệu hợp đồng để lưu!');
@@ -94,31 +120,66 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
     }
     setDangXuLy(true);
     try {
+      const chuKyKhach = choKy ? layChuKyKhach() : null;
+      if (choKy && !chuKyKhach) {
+        hienThongBao('error', 'Không đọc được chữ ký. Vui lòng ký lại.');
+        setDangXuLy(false);
+        return;
+      }
       const res = await fetch('/api/hop-dong/tao-moi', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           maHoSo,
-          khachHang,
-          thongTinThue: { ...thongTinThue, kyThanhToan },
+          khachHang: { cccd: khachHang.cccd, hoTen: khachHang.hoTen },
+          thongTinThue: {
+            ngayBatDau: thongTinThue.ngayBatDau,
+            thoiHanThue: thongTinThue.thoiHanThue,
+            kyThanhToan,
+            phongGiuong: thongTinThue.phongGiuong,
+          },
           bieuPhiDichVu,
-          dieuKhoanBoSung,
+          chuKyKhach,
           choKy,
           khachDaKy: choKy ? khachDaKy : false,
           nguoiThucHien: nguoiDung?.maNV || null,
-        })
+        }),
       });
-      const json = await res.json();
-      if (json.ok) {
-        hienThongBao('success', choKy
-          ? `${json.data.message} (Mã HĐ: ${json.data.maHopDong})`
-          : `Đã lưu bản nháp hợp đồng (Mã HĐ: ${json.data.maHopDong})`);
-        if (choKy && onXacNhanThanhCong) {
-          onXacNhanThanhCong(json.data);
-        }
-      } else {
-        throw new Error(json.error || 'Lỗi hệ thống');
+
+      const raw = await res.text();
+      let json;
+      try {
+        json = raw ? JSON.parse(raw) : {};
+      } catch {
+        throw new Error(
+          res.ok
+            ? 'Phản hồi server không hợp lệ.'
+            : 'Không kết nối được server (có thể server đang restart). Vui lòng thử lại sau vài giây.',
+        );
       }
+
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || `Lỗi HTTP ${res.status}`);
+      }
+
+      if (choKy) {
+          hienThongBao('success', `${json.data.message} (Mã HĐ: ${json.data.maHopDong})`);
+          setHopDongDaKy({
+            maHopDong: json.data.maHopDong,
+            khachHang,
+            thongTinThue: {
+              ...thongTinThue,
+              kyThanhToan,
+              ngayKetThuc: tinhNgayKetThuc(thongTinThue?.ngayBatDau, thongTinThue?.thoiHanThue),
+            },
+            bieuPhiDichVu,
+            chuKyKhach,
+            ngayKy: new Date().toISOString().split('T')[0],
+            kyThanhToan,
+          });
+        } else {
+          hienThongBao('success', `Đã lưu bản nháp hợp đồng (Mã HĐ: ${json.data.maHopDong})`);
+        }
     } catch (err) {
       console.error('Lỗi khi tạo hợp đồng:', err);
       hienThongBao('error', `Lỗi: ${err.message}`);
@@ -126,13 +187,6 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
       setDangXuLy(false);
     }
   };
-
-  const buocLap = [
-    { id: 1, ten: 'Thông tin khách' },
-    { id: 2, ten: 'Lập hợp đồng' },
-    { id: 3, ten: 'Hoàn tất' }
-  ];
-  const buocHienTai = 2;
 
   return (
     <div className="contract-page">
@@ -142,16 +196,6 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
         <p className="page-subtitle" style={{ margin: '4px 0 0 0' }}>
           Đối chiếu thông tin thuê, thiết lập biểu phí dịch vụ và điều khoản trước khi ký hợp đồng điện tử.
         </p>
-      </div>
-
-      {/* Thanh tiến trình các bước */}
-      <div className="contract-steps">
-        {buocLap.map((buoc) => (
-          <div key={buoc.id} className={`contract-step ${buocHienTai >= buoc.id ? 'active' : ''} ${buocHienTai > buoc.id ? 'completed' : ''}`}>
-            <span className="contract-step-num">{buocHienTai > buoc.id ? 'V' : buoc.id}</span>
-            <span className="contract-step-name">{buoc.ten}</span>
-          </div>
-        ))}
       </div>
 
       {dangTai ? (
@@ -171,6 +215,16 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
                 <div className="stay-check-info-block">
                   <span className="stay-check-label">Tên khách hàng</span>
                   <span className="stay-check-value-sm">{khachHang?.hoTen || '—'}</span>
+                </div>
+                <div className="stay-check-info-block">
+                  <span className="stay-check-label">CCCD</span>
+                  <span className="stay-check-value-sm">{khachHang?.cccd || '—'}</span>
+                </div>
+                <div className="stay-check-info-block">
+                  <span className="stay-check-label">Loại thuê</span>
+                  <span className="stay-check-value-sm">
+                    {thongTinThue?.loaiThueLabel || (thongTinThue?.loaiThue === 'Thuê nguyên phòng' ? 'Thuê nguyên phòng' : 'Thuê theo giường') || '—'}
+                  </span>
                 </div>
                 <div className="stay-check-info-block">
                   <span className="stay-check-label">Phòng / Giường</span>
@@ -205,12 +259,14 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
                   <span className="stay-check-value-sm">{thongTinThue?.ngayDatCoc || '—'}</span>
                 </div>
                 <div className="stay-check-info-block">
-                  <span className="stay-check-label">Số giường</span>
+                  <span className="stay-check-label">Số giường thuê</span>
                   <span className="stay-check-value-sm">{String(thongTinThue?.soGiuong || 0).padStart(2, '0')}</span>
                 </div>
                 <div className="stay-check-info-block">
                   <span className="stay-check-label">Giá thuê cơ bản</span>
-                  <span className="stay-check-room">{Number(thongTinThue?.giaThueCoBan || 0).toLocaleString('vi-VN')} VNĐ / tháng</span>
+                  <span className="stay-check-room">
+                    {Number(thongTinThue?.giaThueCoBan || 0).toLocaleString('vi-VN')} VNĐ / tháng
+                  </span>
                 </div>
                 <div className="stay-check-info-block contract-info-full">
                   <span className="stay-check-label">Kỳ thanh toán</span>
@@ -219,9 +275,9 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
                     value={kyThanhToan}
                     onChange={(e) => setKyThanhToan(e.target.value)}
                   >
-                    <option value="MONTHLY">Thanh toán hàng tháng</option>
-                    <option value="QUARTERLY">Thanh toán 3 tháng / kỳ</option>
-                    <option value="BIANNUAL">Thanh toán 6 tháng / kỳ</option>
+                    <option value="Thanh toán hàng tháng">Thanh toán hàng tháng</option>
+                    <option value="Thanh toán 3 tháng / kỳ">Thanh toán 3 tháng / kỳ</option>
+                    <option value="Thanh toán 6 tháng / kỳ">Thanh toán 6 tháng / kỳ</option>
                   </select>
                 </div>
               </div>
@@ -275,7 +331,7 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
 
             <div className="stay-check-card">
               <div className="stay-check-card-head">
-                <h2 className="stay-check-card-title" style={{ fontSize: '15px' }}>Điều khoản & quy định bổ sung</h2>
+                <h2 className="stay-check-card-title" style={{ fontSize: '15px' }}>Điều khoản & quy định áp dụng</h2>
               </div>
               <div className="contract-rule-list" style={{ marginBottom: '14px' }}>
                 <span className="stay-check-label" style={{ display: 'block', marginBottom: '10px' }}>
@@ -299,12 +355,23 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
                   </label>
                 ))}
               </div>
-              <textarea
-                className="contract-terms-textarea"
-                placeholder="Nhập các quy định riêng, mức phạt vi phạm nội quy phòng hoặc các thỏa thuận đặc biệt khác giữa hai bên..."
-                value={dieuKhoanBoSung}
-                onChange={(e) => setDieuKhoanBoSung(e.target.value)}
-              ></textarea>
+              <div className="contract-rule-list">
+                <span className="stay-check-label" style={{ display: 'block', marginBottom: '10px' }}>
+                  Điều khoản xử lý vi phạm
+                </span>
+                {DIEU_KHOAN_VI_PHAM.map((dieuKhoan, idx) => (
+                  <div
+                    key={idx}
+                    className="contract-rule-row"
+                    style={{ justifyContent: 'flex-start', gap: '10px' }}
+                  >
+                    <span className="contract-rule-label">{idx + 1}. {dieuKhoan}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="contract-rule-note" style={{ marginTop: '12px' }}>
+                * Toàn bộ nội quy và điều khoản trên sẽ được tự động ghi vào hợp đồng điện tử khi ký.
+              </p>
             </div>
 
             <div className="stay-check-card">
@@ -313,7 +380,14 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
               </div>
               <div className="np-sign-head">
                 <span className="stay-check-label">Người thuê: {khachHang?.hoTen || '—'}</span>
-                <button type="button" className="np-sign-clear" onClick={xoaChuKy}>Xóa chữ ký</button>
+                <button
+                  type="button"
+                  className="np-sign-clear np-tooltip-wrap"
+                  data-tip="Xóa chữ ký hiện tại để khách ký lại từ đầu."
+                  onClick={xoaChuKy}
+                >
+                  Xóa chữ ký
+                </button>
               </div>
               <div className="np-sign-box">
                 <SignatureCanvas
@@ -330,33 +404,62 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
             </div>
 
             <div className="contract-actions">
-              <button
-                type="button"
-                className="btn-book-filled"
-                disabled={dangXuLy || !khachDaKy}
-                onClick={() => taoHopDong(true)}
+              <div
+                className="np-tooltip-wrap contract-action-tip"
+                data-tip={
+                  khachDaKy
+                    ? 'Lưu hợp đồng đã ký, chuyển hồ sơ sang kế toán thu tiền kỳ đầu. Có thể in / lưu PDF ngay sau khi thành công.'
+                    : 'Yêu cầu khách ký xác nhận trên ô chữ ký trước khi hoàn tất lập hợp đồng.'
+                }
               >
-                {dangXuLy ? 'Đang xử lý...' : 'Xác nhận ký hợp đồng'}
-              </button>
-              <button
-                type="button"
-                className="btn-detail-outline"
-                disabled={dangXuLy}
-                onClick={() => taoHopDong(false)}
+                <button
+                  type="button"
+                  className="btn-book-filled"
+                  disabled={dangXuLy || !khachDaKy}
+                  onClick={() => taoHopDong(true)}
+                >
+                  {dangXuLy ? 'Đang xử lý...' : 'Xác nhận ký hợp đồng'}
+                </button>
+              </div>
+              <div
+                className="np-tooltip-wrap contract-action-tip"
+                data-tip="Lưu tạm nội dung hợp đồng (trạng thái Nháp). Chưa chuyển kế toán, chưa cập nhật trạng thái phiếu cọc."
               >
-                Lưu bản nháp
-              </button>
-              <button
-                type="button"
-                className="btn-detail-outline"
-                onClick={onQuayLai}
+                <button
+                  type="button"
+                  className="btn-detail-outline"
+                  disabled={dangXuLy}
+                  onClick={() => taoHopDong(false)}
+                >
+                  Lưu bản nháp
+                </button>
+              </div>
+              <div
+                className="np-tooltip-wrap contract-action-tip"
+                data-tip="Quay về danh sách hồ sơ chờ lập hợp đồng. Dữ liệu chưa lưu sẽ mất."
               >
-                Quay lại
-              </button>
+                <button
+                  type="button"
+                  className="btn-detail-outline"
+                  onClick={onQuayLai}
+                >
+                  Quay lại
+                </button>
+              </div>
             </div>
           </div>
 
         </div>
+      )}
+
+      {hopDongDaKy && (
+        <ContractPrintModal
+          data={hopDongDaKy}
+          onDong={() => {
+            setHopDongDaKy(null);
+            onXacNhanThanhCong?.(hopDongDaKy);
+          }}
+        />
       )}
 
     </div>

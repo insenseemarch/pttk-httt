@@ -12,6 +12,15 @@ export default function DanhSachLapHopDong({ nguoiDung, dangXuat }) {
   const [loiTai, setLoiTai] = useState('');
   const [boLoc, setBoLoc] = useState({ timKiem: '', maCN: '' });
 
+  const laDieuChinh = (trangThai) => String(trangThai || '').includes('điều chỉnh');
+
+  const layTooltipLapHD = (item) => {
+    if (laDieuChinh(item.trangThai)) {
+      return 'Hồ sơ nhóm điều chỉnh: một số thành viên không đạt. Lập HĐ với số giường đã giảm, đối chiếu thông tin và cho khách ký.';
+    }
+    return 'Mở hồ sơ để đối chiếu thông tin thuê, biểu phí và hướng dẫn khách ký hợp đồng điện tử.';
+  };
+
   useEffect(() => {
     fetch('/api/chi-nhanh').then((r) => r.json()).then((res) => {
       if (res.ok) setChiNhanh(res.data);
@@ -20,6 +29,7 @@ export default function DanhSachLapHopDong({ nguoiDung, dangXuat }) {
 
   useEffect(() => {
     taiDanhSach();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boLoc]);
 
   const taiDanhSach = async () => {
@@ -58,14 +68,16 @@ export default function DanhSachLapHopDong({ nguoiDung, dangXuat }) {
       </div>
 
       <div className="qt-filter-card">
-        <div className="qt-field qt-search-wrap" style={{ gridColumn: 'span 2' }}>
+        <div className="qt-field" style={{ gridColumn: 'span 2' }}>
           <label>Tìm kiếm</label>
-          <span className="material-symbols-outlined">search</span>
-          <input
-            placeholder="Tên, SĐT, CCCD, mã phiếu cọc..."
-            value={boLoc.timKiem}
-            onChange={(e) => setBoLoc((p) => ({ ...p, timKiem: e.target.value }))}
-          />
+          <div className="qt-search-wrap">
+            <span className="material-symbols-outlined">search</span>
+            <input
+              placeholder="Tên, SĐT, CCCD, mã phiếu cọc..."
+              value={boLoc.timKiem}
+              onChange={(e) => setBoLoc((p) => ({ ...p, timKiem: e.target.value }))}
+            />
+          </div>
         </div>
         <div className="qt-field">
           <label>Chi nhánh</label>
@@ -76,7 +88,14 @@ export default function DanhSachLapHopDong({ nguoiDung, dangXuat }) {
             ))}
           </select>
         </div>
-        <button type="button" className="qt-btn-outline" onClick={taiDanhSach}>Làm mới</button>
+        <button
+          type="button"
+          className="qt-btn-outline np-tooltip-wrap"
+          data-tip="Tải lại danh sách hồ sơ chờ lập hợp đồng theo bộ lọc hiện tại."
+          onClick={taiDanhSach}
+        >
+          Làm mới
+        </button>
       </div>
 
       <div className="qt-table-wrap">
@@ -113,13 +132,13 @@ export default function DanhSachLapHopDong({ nguoiDung, dangXuat }) {
                 {danhSach.map((item) => (
                   <tr
                     key={item.maDatCoc}
-                    style={{ cursor: 'pointer' }}
+                    className="qt-table-row--interactive"
                     onClick={() => navigate(`${ROUTES.lapHopDong}/${item.maDatCoc}`)}
                   >
-                    <td><strong style={{ color: 'var(--primary-color)' }}>{item.maPhieu}</strong></td>
+                    <td><strong className="qt-table-id">{item.maPhieu}</strong></td>
                     <td>
                       <div>{item.hoTen}</div>
-                      <span style={{ fontSize: 12, color: '#64748b' }}>{item.sdt}</span>
+                      <span className="sub">{item.sdt}</span>
                     </td>
                     <td>{item.phong}</td>
                     <td>{item.chiNhanh}</td>
@@ -132,17 +151,30 @@ export default function DanhSachLapHopDong({ nguoiDung, dangXuat }) {
                     </td>
                     <td>{item.soTienCocFmt}</td>
                     <td>
-                      <span className="qt-chip qt-chip--orange">{item.trangThai}</span>
+                      <span
+                        className="qt-chip qt-chip--orange np-tooltip-wrap np-tooltip-wrap--below"
+                        data-tip={
+                          laDieuChinh(item.trangThai)
+                            ? 'Nhóm thuê một phần đạt điều kiện — số giường đã được điều chỉnh sau kiểm tra lưu trú.'
+                            : 'Hồ sơ đã đạt kiểm tra điều kiện lưu trú, chờ lập và ký hợp đồng.'
+                        }
+                      >
+                        {item.trangThai}
+                      </span>
                     </td>
                     <td>
-                      <Link
-                        to={`${ROUTES.lapHopDong}/${item.maDatCoc}`}
-                        className="qt-btn-outline"
-                        style={{ padding: '6px 12px', fontSize: 12, textDecoration: 'none' }}
+                      <div
+                        className="np-tooltip-wrap np-tooltip-wrap--below"
+                        data-tip={layTooltipLapHD(item)}
                         onClick={(e) => e.stopPropagation()}
                       >
-                        Lập HĐ
-                      </Link>
+                        <Link
+                          to={`${ROUTES.lapHopDong}/${item.maDatCoc}`}
+                          className="qt-btn-outline qt-btn-sm qt-table-action"
+                        >
+                          Lập HĐ
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 ))}
