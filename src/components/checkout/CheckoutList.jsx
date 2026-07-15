@@ -28,7 +28,7 @@ export default function CheckoutList({
           <button
             type="button"
             className="btn-book-filled"
-            style={{ padding: '6px 12px', fontSize: '12px', height: '34px', borderRadius: '6px', width: '160px', backgroundColor: 'var(--primary-color)', borderColor: 'var(--primary-color)' }}
+            style={{ padding: '6px 12px', fontSize: '12px', height: '34px', borderRadius: '6px', width: '100%', backgroundColor: 'var(--primary-color)', borderColor: 'var(--primary-color)' }}
             onClick={() => onAction(item.maSo, 'create')}
           >
             {isItemDatCoc ? 'Tiếp nhận hủy cọc' : 'Tiếp nhận trả phòng'}
@@ -54,7 +54,7 @@ export default function CheckoutList({
           <button
             type="button"
             className="btn-book-filled"
-            style={{ padding: '6px 12px', fontSize: '12px', height: '34px', borderRadius: '6px', backgroundColor: 'var(--primary-color)', borderColor: 'var(--primary-color)', width: '160px' }}
+            style={{ padding: '6px 12px', fontSize: '12px', height: '34px', borderRadius: '6px', backgroundColor: 'var(--primary-color)', borderColor: 'var(--primary-color)', width: '100%' }}
             onClick={() => onAction(item.maSo, 'inspect')}
           >
             {isItemDatCoc ? 'Xác nhận hủy cọc' : 'Kiểm tra phòng'}
@@ -65,7 +65,7 @@ export default function CheckoutList({
           <button
             type="button"
             className="btn-book-filled"
-            style={{ padding: '6px 12px', fontSize: '12px', height: '34px', borderRadius: '6px', backgroundColor: 'var(--primary-color)', borderColor: 'var(--primary-color)', width: '160px' }}
+            style={{ padding: '6px 12px', fontSize: '12px', height: '34px', borderRadius: '6px', backgroundColor: 'var(--primary-color)', borderColor: 'var(--primary-color)', width: '100%' }}
             onClick={() => onAction(item.maSo, 'confirm')}
           >
             Xác nhận đối soát
@@ -76,7 +76,7 @@ export default function CheckoutList({
           <button
             type="button"
             className="btn-book-filled"
-            style={{ padding: '6px 12px', fontSize: '12px', height: '34px', borderRadius: '6px', backgroundColor: 'var(--primary-color)', borderColor: 'var(--primary-color)', width: '160px' }}
+            style={{ padding: '6px 12px', fontSize: '12px', height: '34px', borderRadius: '6px', backgroundColor: 'var(--primary-color)', borderColor: 'var(--primary-color)', width: '100%' }}
             onClick={() => onAction(item.maSo, 'liquidate')}
           >
             {isItemDatCoc ? 'Thanh lý phiếu cọc' : 'Thanh lý hợp đồng'}
@@ -105,7 +105,7 @@ export default function CheckoutList({
               backgroundColor: biTranhChap ? '#ef4444' : 'var(--primary-color)', 
               borderColor: biTranhChap ? '#ef4444' : 'var(--primary-color)', 
               boxShadow: biTranhChap ? '0 4px 10px rgba(239, 68, 68, 0.2)' : 'none',
-              width: '160px',
+              width: '100%',
               color: '#ffffff',
               cursor: 'pointer'
             }}
@@ -136,7 +136,7 @@ export default function CheckoutList({
           <button
             type="button"
             className="btn-book-filled"
-            style={{ padding: '6px 12px', fontSize: '12px', height: '34px', borderRadius: '6px', backgroundColor: 'var(--primary-color)', borderColor: 'var(--primary-color)', width: '160px' }}
+            style={{ padding: '6px 12px', fontSize: '12px', height: '34px', borderRadius: '6px', backgroundColor: 'var(--primary-color)', borderColor: 'var(--primary-color)', width: '100%' }}
             onClick={() => onAction(item.maSo, 'payout')}
           >
             {labelButton}
@@ -272,15 +272,15 @@ export default function CheckoutList({
         </div>
 
         <div className="table-responsive">
-          <table className="appointments-table">
+          <table className="appointments-table checkout-table">
             <thead>
               <tr>
-                <th style={{ width: '130px', whiteSpace: 'nowrap' }}>Mã số chứng từ</th>
-                <th style={{ minWidth: '160px' }}>Khách hàng</th>
-                <th style={{ minWidth: '220px' }}>Phòng và chi nhánh</th>
-                <th style={{ width: '140px', whiteSpace: 'nowrap' }}>Tiền đặt cọc</th>
-                <th style={{ width: '180px', whiteSpace: 'nowrap' }}>Trạng thái xử lý</th>
-                <th style={{ textAlign: 'right', paddingRight: '12px', width: '170px', whiteSpace: 'nowrap' }}>Thao tác</th>
+                <th style={{ width: '12%', whiteSpace: 'nowrap' }}>Mã số chứng từ</th>
+                <th style={{ width: '18%' }}>Khách hàng</th>
+                <th style={{ width: '25%' }}>Phòng và chi nhánh</th>
+                <th style={{ width: '15%', whiteSpace: 'nowrap' }}>Tiền đặt cọc</th>
+                <th style={{ width: '15%', whiteSpace: 'nowrap' }}>Trạng thái xử lý</th>
+                <th style={{ textAlign: 'right', paddingRight: '12px', width: '15%', whiteSpace: 'nowrap' }}>Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -312,13 +312,13 @@ export default function CheckoutList({
                           • {item.trangThai}
                         </span>
                       </td>
-                      <td style={{ textAlign: 'right', paddingRight: '12px', width: '170px', minWidth: '170px', whiteSpace: 'nowrap' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end' }}>
+                      <td style={{ textAlign: 'right', paddingRight: '12px', width: '15%', whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end', width: '100%' }}>
                           {canAct && layNutHanhDong(item)}
                           <button
                             type="button"
                             className="btn-detail-outline"
-                            style={{ padding: '6px 12px', fontSize: '12px', height: '34px', borderRadius: '6px', width: '160px' }}
+                            style={{ padding: '6px 12px', fontSize: '12px', height: '34px', borderRadius: '6px', width: '100%' }}
                             onClick={() => onAction(item.maSo, item.trangThai === 'Hiệu lực' ? 'view_contract' : 'view_request')}
                           >
                             Xem phiếu

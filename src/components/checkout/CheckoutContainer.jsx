@@ -10,8 +10,10 @@ import PayoutForm from './PayoutForm';
 import ViewRequestDetails from './ViewRequestDetails';
 import ViewContractDetails from './ViewContractDetails';
 import { tinhTyLeHoanCoc, chuanHoaLoaiHinhTraPhong } from '../../utils/tinhTyLeHoanCoc';
+import { useSearchParams } from 'react-router-dom';
 
 export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTrang, loggedRole }) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [danhSachQuyetToan, setDanhSachQuyetToan] = useState([]);
   const [hoSoDangChon, setHoSoDangChon] = useState(null);
   const [buocHienTai, setBuocHienTai] = useState('list');
@@ -55,6 +57,29 @@ export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTra
   useEffect(() => {
     taiDanhSachQuyetToan();
   }, []);
+
+  useEffect(() => {
+    const step = searchParams.get('step');
+    const id = searchParams.get('id');
+
+    if (step && id) {
+      if (!hoSoDangChon || hoSoDangChon.maSo !== id || buocHienTai !== step) {
+        moChiTietQuyetToan(id, step);
+      }
+    } else {
+      if (buocHienTai !== 'list') {
+        setBuocHienTai('list');
+        setHoSoDangChon(null);
+      }
+    }
+  }, [searchParams]);
+
+  const goToList = () => {
+    setSearchParams({});
+    setBuocHienTai('list');
+    setHoSoDangChon(null);
+  };
+
 
   const chuanHoaTenChuTaiKhoan = (ten) => {
     if (!ten) return '';
@@ -108,11 +133,17 @@ export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTra
         napFormTuChiTiet(resData.data);
       } else {
         hienThongBao('error', resData.error || 'Không tải được chi tiết đối soát!');
+        setSearchParams({});
       }
     } catch (err) {
       console.error('Lỗi khi tải chi tiết đối soát:', err);
       hienThongBao('error', 'Không tải được chi tiết đối soát!');
+      setSearchParams({});
     }
+  };
+
+  const handleAction = (maSo, buocTiepTheo) => {
+    setSearchParams({ step: buocTiepTheo, id: maSo });
   };
 
   const xuLyThayDoiInput = (e) => {
@@ -143,7 +174,7 @@ export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTra
       if (resData.ok) {
         hienThongBao('success', 'Đã tiếp nhận yêu cầu trả phòng thành công!');
         taiDanhSachQuyetToan();
-        setBuocHienTai('list');
+        goToList();
       } else {
         hienThongBao('error', resData.error || 'Lỗi tiếp nhận yêu cầu!');
       }
@@ -171,7 +202,7 @@ export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTra
       if (resData.ok) {
         hienThongBao('success', 'Đã ghi nhận kết quả kiểm tra phòng thành công!');
         taiDanhSachQuyetToan();
-        setBuocHienTai('list');
+        goToList();
       } else {
         hienThongBao('error', resData.error || 'Lỗi kiểm tra phòng!');
       }
@@ -200,7 +231,7 @@ export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTra
       if (resData.ok) {
         hienThongBao('success', 'Đã lưu và gửi phiếu đối soát cho Quản lý duyệt!');
         taiDanhSachQuyetToan();
-        setBuocHienTai('list');
+        goToList();
       } else {
         hienThongBao('error', resData.error || 'Lỗi lập phiếu đối soát!');
       }
@@ -229,7 +260,7 @@ export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTra
             : 'Đã ghi nhận tranh chấp, chuyển lại phòng Kế toán đối chiếu!'
         );
         taiDanhSachQuyetToan();
-        setBuocHienTai('list');
+        goToList();
       } else {
         hienThongBao('error', resData.error || 'Lỗi xác nhận đối soát!');
       }
@@ -250,7 +281,7 @@ export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTra
       if (resData.ok) {
         hienThongBao('success', 'Đã ký biên bản thanh lý hợp đồng và bàn giao phòng thành công!');
         taiDanhSachQuyetToan();
-        setBuocHienTai('list');
+        goToList();
       } else {
         hienThongBao('error', resData.error || 'Lỗi thanh lý hợp đồng!');
       }
@@ -279,7 +310,7 @@ export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTra
       if (resData.ok) {
         hienThongBao('success', 'Đã ghi nhận giao dịch hoàn tất! Đóng hồ sơ trả phòng.');
         taiDanhSachQuyetToan();
-        setBuocHienTai('list');
+        goToList();
       } else {
         hienThongBao('error', resData.error || 'Lỗi xác nhận giao dịch!');
       }
@@ -374,7 +405,7 @@ export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTra
     return {
       breadcrumbs: [
         { text: 'Nhân viên', action: () => { setCheDoNhanVien(true); chuyenTrang('staff_reception'); } },
-        { text: nhanVaiCoBan, action: () => setBuocHienTai('list') },
+        { text: nhanVaiCoBan, action: goToList },
         { text: tenBuoc, active: true }
       ],
       title: tieuDeBuoc,
@@ -420,7 +451,7 @@ export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTra
         {buocHienTai !== 'list' && (
           <button
             type="button"
-            onClick={() => setBuocHienTai('list')}
+            onClick={goToList}
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -460,8 +491,8 @@ export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTra
           checkoutSearch={tuKhoaTimKiem}
           setCheckoutSearch={setTuKhoaTimKiem}
           checkoutRole={loggedRole}
-          setCheckoutRole={() => {}}
-          onAction={moChiTietQuyetToan}
+          setCheckoutRole={() => { }}
+          onAction={handleAction}
           taiDanhSachQuyetToan={taiDanhSachQuyetToan}
         />
       )}
@@ -472,7 +503,7 @@ export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTra
           formValues={formQuyetToan}
           onChange={xuLyThayDoiInput}
           onSubmit={guiYeuCauTraPhong}
-          onCancel={() => setBuocHienTai('list')}
+          onCancel={goToList}
         />
       )}
 
@@ -483,7 +514,7 @@ export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTra
           onChange={xuLyThayDoiInput}
           onCheckboxChange={xuLyThayDoiCheckbox}
           onSubmit={guiKetQuaKiemPhong}
-          onCancel={() => setBuocHienTai('list')}
+          onCancel={goToList}
         />
       )}
 
@@ -494,7 +525,7 @@ export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTra
           onChange={xuLyThayDoiInput}
           setFormCheckout={setFormQuyetToan}
           onSubmit={lapPhieuDoiSoat}
-          onCancel={() => setBuocHienTai('list')}
+          onCancel={goToList}
         />
       )}
 
@@ -509,7 +540,7 @@ export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTra
         <ContractLiquidateForm
           selectedItem={hoSoDangChon}
           onSubmit={kyBienBanThanhLy}
-          onCancel={() => setBuocHienTai('list')}
+          onCancel={goToList}
         />
       )}
 
@@ -519,21 +550,21 @@ export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTra
           formValues={formQuyetToan}
           onChange={xuLyThayDoiInput}
           onSubmit={ghiNhanThanhToan}
-          onCancel={() => setBuocHienTai('list')}
+          onCancel={goToList}
         />
       )}
 
       {buocHienTai === 'view_request' && hoSoDangChon && (
         <ViewRequestDetails
           selectedItem={hoSoDangChon}
-          onClose={() => setBuocHienTai('list')}
+          onClose={goToList}
         />
       )}
 
       {buocHienTai === 'view_contract' && hoSoDangChon && (
         <ViewContractDetails
           selectedItem={hoSoDangChon}
-          onClose={() => setBuocHienTai('list')}
+          onClose={goToList}
         />
       )}
     </div>

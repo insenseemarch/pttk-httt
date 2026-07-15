@@ -3232,7 +3232,7 @@ h1.page-title {
   font-size: 14px;
 }
 
-.appointments-table:not(.confirm-history-table) {
+.appointments-table:not(.confirm-history-table):not(.checkout-table) {
   min-width: 1240px;
   table-layout: fixed;
 }
@@ -3253,38 +3253,38 @@ h1.page-title {
   letter-spacing: 0.05em;
 }
 
-.appointments-table:not(.confirm-history-table) th:nth-child(1),
-.appointments-table:not(.confirm-history-table) td:nth-child(1) {
+.appointments-table:not(.confirm-history-table):not(.checkout-table) th:nth-child(1),
+.appointments-table:not(.confirm-history-table):not(.checkout-table) td:nth-child(1) {
   width: 70px;
 }
 
-.appointments-table:not(.confirm-history-table) th:nth-child(2),
-.appointments-table:not(.confirm-history-table) td:nth-child(2) {
+.appointments-table:not(.confirm-history-table):not(.checkout-table) th:nth-child(2),
+.appointments-table:not(.confirm-history-table):not(.checkout-table) td:nth-child(2) {
   width: 240px;
 }
 
-.appointments-table:not(.confirm-history-table) th:nth-child(3),
-.appointments-table:not(.confirm-history-table) td:nth-child(3) {
+.appointments-table:not(.confirm-history-table):not(.checkout-table) th:nth-child(3),
+.appointments-table:not(.confirm-history-table):not(.checkout-table) td:nth-child(3) {
   width: 230px;
 }
 
-.appointments-table:not(.confirm-history-table) th:nth-child(4),
-.appointments-table:not(.confirm-history-table) td:nth-child(4) {
+.appointments-table:not(.confirm-history-table):not(.checkout-table) th:nth-child(4),
+.appointments-table:not(.confirm-history-table):not(.checkout-table) td:nth-child(4) {
   width: 180px;
 }
 
-.appointments-table:not(.confirm-history-table) th:nth-child(5),
-.appointments-table:not(.confirm-history-table) td:nth-child(5) {
+.appointments-table:not(.confirm-history-table):not(.checkout-table) th:nth-child(5),
+.appointments-table:not(.confirm-history-table):not(.checkout-table) td:nth-child(5) {
   width: 140px;
 }
 
-.appointments-table:not(.confirm-history-table) th:nth-child(6),
-.appointments-table:not(.confirm-history-table) td:nth-child(6) {
+.appointments-table:not(.confirm-history-table):not(.checkout-table) th:nth-child(6),
+.appointments-table:not(.confirm-history-table):not(.checkout-table) td:nth-child(6) {
   width: 130px;
 }
 
-.appointments-table:not(.confirm-history-table) th:nth-child(7),
-.appointments-table:not(.confirm-history-table) td:nth-child(7) {
+.appointments-table:not(.confirm-history-table):not(.checkout-table) th:nth-child(7),
+.appointments-table:not(.confirm-history-table):not(.checkout-table) td:nth-child(7) {
   width: 250px;
 }
 
