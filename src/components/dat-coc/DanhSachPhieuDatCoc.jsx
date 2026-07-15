@@ -59,7 +59,8 @@ export default function DanhSachPhieuDatCoc({
         </div>
       )}
       {filteredItems.map((item) => {
-        const maMau = maMauTrangThai(item.TrangThai);
+        const trangThaiHienThi = item.TrangThaiHienThiDatCoc || item.TrangThai;
+        const maMau = maMauTrangThai(trangThaiHienThi);
         return (
           <span
             key={item.MaDatCoc}
@@ -80,7 +81,7 @@ export default function DanhSachPhieuDatCoc({
                     {item.KhachHang?.HoTen || `Khách hàng ${item.CCCD}`}
                   </strong>
                   <span className={`d-badge d-badge-${maMau}`} style={{ flexShrink: 0 }}>
-                    {LABELS[item.TrangThai] || item.TrangThai}
+                    {LABELS[trangThaiHienThi] || trangThaiHienThi}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '8px' }}>

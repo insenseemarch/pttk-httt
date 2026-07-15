@@ -61,6 +61,16 @@ const TRANG_THAI_HIEN_THI_THEO_VAI_TRO = Object.freeze({
   ],
 });
 
+function laPhieuDaHoanTatDatCoc(phieu) {
+  return Boolean(phieu?.DatCocThanhCong)
+    || phieu?.TrangThai === TRANG_THAI_COC.DA_XAC_NHAN;
+}
+
+function laPhieuDuocTheoDoiTheoVaiTro(phieu, vaiTro) {
+  const trangThaiDuocXem = TRANG_THAI_HIEN_THI_THEO_VAI_TRO[vaiTro] || [];
+  return trangThaiDuocXem.includes(phieu?.TrangThai) || laPhieuDaHoanTatDatCoc(phieu);
+}
+
 function chuanHoaVaiTro(value) {
   const role = String(value || '').toLowerCase();
   if (role === 'ke_toan' || role.includes('kế toán') || role.includes('ke toan') || role.includes('ketoan')) return 'KE_TOAN';
@@ -499,8 +509,7 @@ function kiemTraQuyen(user, expected) {
 }
 
 function kiemTraQuyenXemPhieu(user, phieu) {
-  const trangThaiDuocXem = TRANG_THAI_HIEN_THI_THEO_VAI_TRO[user.vaiTro] || [];
-  if (!trangThaiDuocXem.includes(phieu.TrangThai)) {
+  if (!laPhieuDuocTheoDoiTheoVaiTro(phieu, user.vaiTro)) {
     camTruyCap('Phiếu không thuộc phạm vi xử lý hoặc theo dõi của vai trò hiện tại');
   }
   if (user.vaiTro === 'SALE' && Number(phieu.NVSale) !== Number(user.maNV)) {
@@ -563,17 +572,17 @@ router.get('/phieu', async (req, res) => {
     const user = nguoiDung(req);
     let query = supabase
       .from('DatCoc')
-      .select('MaDatCoc, ThoiDiemTao, CapNhatLuc, SoTienCoc, HanThanhToan, TrangThai, CCCD, MaPhong, MaCN, NVSale, SoGiuongThue, LyDoXuLy, KhachHang(HoTen, SDT)', { count: 'exact' })
+      .select('MaDatCoc, ThoiDiemTao, CapNhatLuc, DatCocThanhCong, SoTienCoc, HanThanhToan, TrangThai, CCCD, MaPhong, MaCN, NVSale, SoGiuongThue, LyDoXuLy, KhachHang(HoTen, SDT)')
       .order('ThoiDiemTao', { ascending: false });
-    query = query.in('TrangThai', TRANG_THAI_HIEN_THI_THEO_VAI_TRO[user.vaiTro] || []);
     if (user.vaiTro === 'SALE') {
       query = query.eq('NVSale', user.maNV || -1);
     }
     if (req.query.trangThai) query = query.eq('TrangThai', req.query.trangThai);
-    const { data, error, count } = await query;
+    const { data, error } = await query;
     if (error) throw error;
-    const phieuKemYeuCauThue = await ganYeuCauThueGanNhat(data || []);
-    const branchIds = [...new Set((data || []).map((item) => item.MaCN).filter(Boolean))];
+    const phieuTheoVaiTro = (data || []).filter((item) => laPhieuDuocTheoDoiTheoVaiTro(item, user.vaiTro));
+    const phieuKemYeuCauThue = await ganYeuCauThueGanNhat(phieuTheoVaiTro);
+    const branchIds = [...new Set(phieuTheoVaiTro.map((item) => item.MaCN).filter(Boolean))];
     const branches = branchIds.length
       ? await supabase.from('ChiNhanh').select('MaCN, TenCN').in('MaCN', branchIds)
       : { data: [] };
@@ -586,7 +595,7 @@ router.get('/phieu', async (req, res) => {
         CCCD: dinhDangCCCD(item.CCCD),
         ChiNhanh: branchMap.get(item.MaCN) || null,
       })),
-      total: count || 0,
+      total: phieuTheoVaiTro.length,
     });
   } catch (error) {
     loi(res, 500, error.message);

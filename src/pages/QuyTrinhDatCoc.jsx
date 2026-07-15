@@ -60,13 +60,16 @@ function dinhDangCCCD(value) {
 
 function chuanHoaPhieuTuAPI(phieu) {
   if (!phieu) return phieu;
+  const trangThai = maTrangThai(phieu.TrangThai);
+  const daHoanTatDatCoc = Boolean(phieu.DatCocThanhCong) || trangThai === 'DA_XAC_NHAN';
   return {
     ...phieu,
     CCCD: dinhDangCCCD(phieu.CCCD),
     KhachHang: phieu.KhachHang
       ? { ...phieu.KhachHang, CCCD: dinhDangCCCD(phieu.KhachHang.CCCD ?? phieu.CCCD) }
       : phieu.KhachHang,
-    TrangThai: maTrangThai(phieu.TrangThai),
+    TrangThai: trangThai,
+    TrangThaiHienThiDatCoc: daHoanTatDatCoc ? 'DA_XAC_NHAN' : trangThai,
     lichSu: (phieu.lichSu || []).map((item) => ({
       ...item,
       TrangThaiCu: maTrangThai(item.TrangThaiCu),
@@ -243,7 +246,10 @@ function layHanhDongChoVaiTro(role, status) {
 
 function locTheoTab(item, tab, role) {
   if (tab === 'ALL') return true;
-  if (tab === 'KET_THUC') return ['DA_XAC_NHAN', 'QUA_HAN_TU_DONG_HUY'].includes(item.TrangThai);
+  if (tab === 'KET_THUC') {
+    return item.TrangThaiHienThiDatCoc === 'DA_XAC_NHAN'
+      || item.TrangThai === 'QUA_HAN_TU_DONG_HUY';
+  }
   
   if (role === 'SALE') {
     if (tab === 'KHAO_SAT') return ['MOI', 'CHO_KIEM_TRA_PHONG', 'HET_CHO', 'CON_TRONG_CHO_GUI_KE_TOAN'].includes(item.TrangThai);
@@ -785,7 +791,7 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
           max-width: 1440px;
           margin: 0 auto;
           padding: 32px 24px;
-          font-family: inherit;
+          font-family: 'Plus Jakarta Sans', 'Inter', 'Segoe UI', Arial, sans-serif;
           color: #1e293b;
           background: #f8fafc;
           min-height: 100vh;
@@ -841,7 +847,7 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
           padding: 10px 20px;
           border-radius: 10px;
           font-size: 13.5px;
-          font-weight: 700;
+          font-weight: 500;
           color: #64748b;
           background: transparent;
           cursor: pointer;
@@ -850,6 +856,7 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
         .d-tabs button.active {
           background: #ffffff;
           color: #f26a21;
+          font-weight: 600;
           box-shadow: 0 4px 10px rgba(242, 106, 33, 0.08), 0 1px 3px rgba(0, 0, 0, 0.03);
         }
         .d-tabs button:hover:not(.active) {
@@ -1398,7 +1405,7 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
           color: #ffffff;
           border: none;
           font-size: 14px;
-          font-weight: 800;
+          font-weight: 600;
           padding: 12px 24px;
           border-radius: 12px;
           cursor: pointer;
@@ -1425,7 +1432,7 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
           color: #64748b;
           border: 1.5px solid #cbd5e1;
           font-size: 14px;
-          font-weight: 800;
+          font-weight: 600;
           padding: 11px 22px;
           border-radius: 12px;
           cursor: pointer;
@@ -1559,7 +1566,7 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
           border: 1.5px solid #e2e8f0;
           background: #ffffff;
           color: #64748b;
-          font-weight: 800;
+          font-weight: 600;
           font-size: 14px;
           cursor: pointer;
           display: flex;
@@ -1720,8 +1727,8 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
                     <small>QUY TRÌNH XỬ LÝ PHIẾU ĐẶT CỌC</small>
                     <h2>Khách hàng: {selected.KhachHang?.HoTen || 'Chưa cập nhật họ tên'}</h2>
                   </div>
-                  <span className={`d-badge d-badge-${maMauTrangThai(selected.TrangThai)}`} style={{ fontSize: '12px', padding: '8px 16px' }}>
-                    {LABELS[selected.TrangThai] || selected.TrangThai}
+                  <span className={`d-badge d-badge-${maMauTrangThai(selected.TrangThaiHienThiDatCoc)}`} style={{ fontSize: '12px', padding: '8px 16px' }}>
+                    {LABELS[selected.TrangThaiHienThiDatCoc] || selected.TrangThaiHienThiDatCoc}
                   </span>
                 </div>
 
@@ -1753,12 +1760,15 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
                 )}
 
                 {/* Success Details confirmed */}
-                {selected.TrangThai === 'DA_XAC_NHAN' && selected.DatCocThanhCong && (
+                {selected.DatCocThanhCong && (
                   <div className="d-success-confirmed-card">
                     <span className="material-symbols-outlined">verified</span>
                     <div>
                       <small>Đã nhận thanh toán và Xác nhận giữ chỗ thành công</small>
                       <strong>Thời điểm đặt cọc thành công: {dateTime(selected.DatCocThanhCong)}</strong>
+                      {selected.TrangThai !== 'DA_XAC_NHAN' && (
+                        <small>Giai đoạn hiện tại của hồ sơ: {selected.TrangThai}</small>
+                      )}
                     </div>
                   </div>
                 )}
@@ -1874,7 +1884,7 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
                       Xem sơ đồ trực quan ↗
                     </a>
                     {role === 'SALE' && selected.TrangThai === 'HET_CHO' && (
-                      <button type="button" style={{ border: 'none', background: 'transparent', fontSize: '13px', color: '#f26a21', fontWeight: '800', cursor: 'pointer' }} onClick={editSelection}>
+                      <button type="button" style={{ border: 'none', background: 'transparent', fontSize: '13px', color: '#f26a21', fontWeight: '600', cursor: 'pointer' }} onClick={editSelection}>
                         Đổi phòng và giường giữ chỗ
                       </button>
                     )}
