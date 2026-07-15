@@ -3707,7 +3707,7 @@ export default function App({
         <ContractDrafting
           hienThongBao={hienThongBao}
           onQuayLai={() => { setCheDoNhanVien(true); chuyenTrang('staff_stay_check'); }}
-          onXacNhanThanhCong={() => { hienThongBao('success', 'Lập hợp đồng xong! Chuyển sang thanh toán đầu kỳ...'); setTimeout(() => chuyenTrang('staff_payment'), 1500); }}
+          onXacNhanThanhCong={() => { hienThongBao('success', 'Lập hợp đồng xong! Chuyển sang thu tiền kỳ đầu...'); setTimeout(() => chuyenTrang('staff_payment'), 1500); }}
         />
       )}
 

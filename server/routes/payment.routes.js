@@ -2,11 +2,41 @@ import express from 'express';
 import { supabase } from '../config/supabase.js';
 import { getIO } from '../config/ketNoiSocket.js';
 import { dinhDangNgay } from '../utils/dinhDang.js';
+import { tinhKhoanThuDauKy, uocTinhTongCanThu } from '../utils/thuTienDauKy.js';
 
 const router = express.Router();
 
 const TRANG_THAI_CHO_THU = 'Chờ thanh toán';
 const TRANG_THAI_SAU_THU = 'Hiệu lực';
+const LOAI_HOA_DON_THU_DAU_KY = 'Thu dau ky';
+const LOAI_THONG_BAO_BAN_GIAO = 'Bàn giao phòng';
+
+function chuanHoaPhuongThuc(phuongThuc) {
+  if (phuongThuc === 'chuyen-khoan') return 'Chuyển khoản';
+  if (phuongThuc === 'Tiền mặt' || phuongThuc === 'Chuyển khoản') return phuongThuc;
+  return 'Tiền mặt';
+}
+
+function taoChiTietThuDauKy({ danhSachKhoanThu, soNguoi, soLuongXe, tongCanThu, tongThucThu }) {
+  return {
+    soNguoi,
+    soLuongXe,
+    tongCanThu,
+    tongThucThu,
+    khoanThu: (danhSachKhoanThu || []).map((k) => ({
+      id: k.id || null,
+      ten: k.ten || 'Khoản thu',
+      donGia: k.donGia != null ? Number(k.donGia) : null,
+      soLuong: k.soLuong != null ? Number(k.soLuong) : null,
+      soTien: Number(k.soTien || 0),
+      kyTinh: k.kyTinh || null,
+    })),
+  };
+}
+
+function dinhDangMaPhieuThu(maHD) {
+  return `PT-${String(maHD).padStart(5, '0')}`;
+}
 
 // GET /api/ke-toan/cho-thu — danh sách HĐ đang chờ thu tiền kỳ đầu
 router.get('/cho-thu', async (req, res) => {
@@ -17,12 +47,13 @@ router.get('/cho-thu', async (req, res) => {
         MaHopDong,
         TrangThai,
         GiaThue,
-        PhiDichVu,
+        BieuPhiDichVu,
         NgayGioBD,
         NgayGioKT,
         KyThanhToan,
-        KhachHang ( HoTen, SDT ),
+        KhachHang ( HoTen, SDT, CCCD ),
         ChiTiet (
+          SoLuong,
           Giuong (
             Phong ( MaPhong, LoaiPhong, ChiNhanh ( TenCN ) )
           )
@@ -35,18 +66,25 @@ router.get('/cho-thu', async (req, res) => {
 
     const danhSach = (data || []).map((hd) => {
       const phong = hd.ChiTiet?.[0]?.Giuong?.Phong;
+      const soNguoi = (hd.ChiTiet || []).reduce((s, ct) => s + Number(ct.SoLuong || 1), 0);
+      const bieuPhi = Array.isArray(hd.BieuPhiDichVu) ? hd.BieuPhiDichVu : [];
+      const giaThueNum = Number(hd.GiaThue || 0);
+      const tongCanThuNum = uocTinhTongCanThu({ giaThue: giaThueNum, bieuPhi, soNguoi, soLuongXe: 1 });
       return {
         maHopDong: hd.MaHopDong,
         maHD: `HD-${String(hd.MaHopDong).padStart(5, '0')}`,
         trangThai: hd.TrangThai,
         hoTen: hd.KhachHang?.HoTen || '—',
         sdt: hd.KhachHang?.SDT || '',
+        cccd: hd.KhachHang?.CCCD ? String(hd.KhachHang.CCCD) : '—',
         phong: phong ? `P.${phong.MaPhong} — ${phong.LoaiPhong}` : '—',
         chiNhanh: phong?.ChiNhanh?.TenCN || '',
         ngayBatDau: hd.NgayGioBD ? dinhDangNgay(hd.NgayGioBD) : '—',
-        giaThue: Number(hd.GiaThue || 0).toLocaleString('vi-VN') + 'đ',
-        giaThueNum: Number(hd.GiaThue || 0),
-        phiDichVu: Number(hd.PhiDichVu || 0),
+        giaThue: giaThueNum.toLocaleString('vi-VN') + 'đ',
+        giaThueNum,
+        soNguoi,
+        tongCanThu: tongCanThuNum.toLocaleString('vi-VN') + 'đ',
+        tongCanThuNum,
       };
     });
 
@@ -70,11 +108,11 @@ router.get('/chi-tiet-thanh-toan/:maHopDong', async (req, res) => {
       .select(`
         MaHopDong,
         GiaThue,
-        PhiDichVu,
+        BieuPhiDichVu,
         NgayGioBD,
         KyThanhToan,
         TrangThai,
-        KhachHang ( HoTen, SDT ),
+        KhachHang ( HoTen, SDT, CCCD ),
         ChiTiet (
           SoLuong,
           Giuong ( Phong ( MaPhong, LoaiPhong ) )
@@ -90,32 +128,35 @@ router.get('/chi-tiet-thanh-toan/:maHopDong', async (req, res) => {
     const phong = hd.ChiTiet?.[0]?.Giuong?.Phong;
     const soNguoi = (hd.ChiTiet || []).reduce((s, ct) => s + Number(ct.SoLuong || 1), 0);
     const giaThue = Number(hd.GiaThue || 0);
-    const phiDichVu = Number(hd.PhiDichVu || 0);
-    const tongTien = giaThue + phiDichVu;
+    const bieuPhi = Array.isArray(hd.BieuPhiDichVu) ? hd.BieuPhiDichVu : [];
+    const soLuongXe = Math.max(0, Number(req.query.soLuongXe ?? 1) || 0);
 
-    const danhSachKhoanThu = [
-      { ten: 'Tiền thuê kỳ đầu (1 tháng)', kyTinh: `${hd.KyThanhToan || 'Hàng tháng'}`, soTien: giaThue },
-    ];
-    if (phiDichVu > 0) {
-      danhSachKhoanThu.push({ ten: 'Phí dịch vụ', kyTinh: 'Theo hợp đồng', soTien: phiDichVu });
-    }
+    const { danhSachKhoanThu, tongTienPhaiThu, soLuongXeMacDinh } = tinhKhoanThuDauKy({
+      giaThue,
+      kyThanhToan: hd.KyThanhToan,
+      bieuPhi,
+      soNguoi,
+      soLuongXe,
+    });
 
     res.json({
       ok: true,
       data: {
-        maGiaoDich: `PAY-${new Date().getFullYear()}-${hd.MaHopDong}`,
         maHopDong: hd.MaHopDong,
         khachHang: {
           tenKhach: hd.KhachHang?.HoTen || '—',
+          cccd: hd.KhachHang?.CCCD ? String(hd.KhachHang.CCCD) : '—',
+          sdt: hd.KhachHang?.SDT || '—',
           phong: phong ? `P.${phong.MaPhong} — ${phong.LoaiPhong}` : '—',
           soNguoi,
           ngayBatDau: hd.NgayGioBD ? dinhDangNgay(hd.NgayGioBD) : '—',
-          kyThanhToan: `Kỳ đầu — ${new Date().toLocaleDateString('vi-VN', { month: 'long', year: 'numeric' })}`,
+          kyThanhToan: hd.KyThanhToan || 'Thanh toán hàng tháng',
         },
         danhSachKhoanThu,
-        tongTienPhaiThu: tongTien,
+        soLuongXeMacDinh,
+        tongTienPhaiThu,
         donViTien: 'VNĐ',
-        ghiChuQuanLy: 'Khách đã ký hợp đồng. Kế toán thu đủ tiền kỳ đầu trước khi bàn giao phòng.',
+        ghiChuQuanLy: 'Khách đã ký hợp đồng. Kế toán thu tiền thuê kỳ đầu và các phí cố định (nước, internet, gửi xe) trước khi bàn giao phòng. Tiền điện thu theo chỉ số kWh ở các kỳ sau.',
       },
     });
   } catch (error) {
@@ -127,61 +168,148 @@ router.get('/chi-tiet-thanh-toan/:maHopDong', async (req, res) => {
 // POST /api/ke-toan/xac-nhan-thu-tien
 router.post('/xac-nhan-thu-tien', async (req, res) => {
   try {
-    const { maGiaoDich, phuongThuc, soTienThucThu, maKeToan, maHopDong } = req.body;
+    const { phuongThuc, soTienThucThu, maKeToan, maHopDong, soLuongXe } = req.body;
+    const maHDNum = Number(maHopDong);
+    const soTienNum = Number(soTienThucThu);
+    const soXeNum = Math.max(0, Math.min(20, Number(soLuongXe ?? 1) || 0));
 
-    if (!soTienThucThu || !maHopDong) {
-      return res.status(400).json({ ok: false, error: 'Thiếu số tiền hoặc mã hợp đồng' });
+    if (!maHDNum || !soTienNum || soTienNum <= 0) {
+      return res.status(400).json({ ok: false, error: 'Thiếu số tiền hoặc mã hợp đồng không hợp lệ' });
     }
 
-    // 1. Ghi hóa đơn thu tiền kỳ đầu
+    const { data: hd, error: errHD } = await supabase
+      .from('HopDong')
+      .select(`
+        MaHopDong,
+        MaDatCoc,
+        NVQL,
+        TrangThai,
+        GiaThue,
+        BieuPhiDichVu,
+        KyThanhToan,
+        ChiTiet ( SoLuong )
+      `)
+      .eq('MaHopDong', maHDNum)
+      .single();
+
+    if (errHD || !hd) {
+      return res.status(404).json({ ok: false, error: 'Không tìm thấy hợp đồng' });
+    }
+
+    if (hd.TrangThai !== TRANG_THAI_CHO_THU) {
+      return res.status(409).json({
+        ok: false,
+        error: `Hợp đồng không ở trạng thái "${TRANG_THAI_CHO_THU}" (hiện tại: ${hd.TrangThai || '—'})`,
+      });
+    }
+
+    const { data: phieuDaCo } = await supabase
+      .from('HoaDon')
+      .select('MaHD')
+      .eq('MaHopDong', maHDNum)
+      .eq('LoaiHoaDon', LOAI_HOA_DON_THU_DAU_KY)
+      .maybeSingle();
+
+    if (phieuDaCo) {
+      return res.status(409).json({
+        ok: false,
+        error: `Hợp đồng đã có phiếu thu kỳ đầu (${dinhDangMaPhieuThu(phieuDaCo.MaHD)})`,
+      });
+    }
+
+    const soNguoi = (hd.ChiTiet || []).reduce((s, ct) => s + Number(ct.SoLuong || 1), 0);
+    const bieuPhi = Array.isArray(hd.BieuPhiDichVu) ? hd.BieuPhiDichVu : [];
+    const { danhSachKhoanThu, tongTienPhaiThu } = tinhKhoanThuDauKy({
+      giaThue: Number(hd.GiaThue || 0),
+      kyThanhToan: hd.KyThanhToan,
+      bieuPhi,
+      soNguoi,
+      soLuongXe: soXeNum,
+    });
+
+    if (soTienNum < tongTienPhaiThu) {
+      return res.status(400).json({
+        ok: false,
+        error: `Số tiền thu chưa đủ. Cần tối thiểu ${tongTienPhaiThu.toLocaleString('vi-VN')}đ`,
+      });
+    }
+
     const homNay = new Date().toISOString().split('T')[0];
+    const chiTiet = taoChiTietThuDauKy({
+      danhSachKhoanThu,
+      soNguoi,
+      soLuongXe: soXeNum,
+      tongCanThu: tongTienPhaiThu,
+      tongThucThu: soTienNum,
+    });
+
     const { data: gd, error: gdError } = await supabase
       .from('HoaDon')
       .insert([{
-        MaHopDong: Number(maHopDong),
-        SoTien: Number(soTienThucThu),
+        MaHopDong: maHDNum,
+        SoTien: soTienNum,
         NgayLap: homNay,
         NgayThanhToan: homNay,
-        HinhThucThanhToan: phuongThuc || 'Tiền mặt',
+        HinhThucThanhToan: chuanHoaPhuongThuc(phuongThuc),
         TrangThai: 'Đã thanh toán',
+        LoaiHoaDon: LOAI_HOA_DON_THU_DAU_KY,
+        ChiTiet: chiTiet,
         NVKT: maKeToan ? Number(maKeToan) : null,
       }])
       .select()
       .single();
 
-    if (gdError) {
-      console.warn('Lỗi ghi hóa đơn:', gdError.message);
+    if (gdError || !gd) {
+      console.error('Lỗi ghi HoaDon:', gdError?.message);
+      return res.status(500).json({ ok: false, error: gdError?.message || 'Không ghi được hóa đơn' });
     }
 
-    // 2. Cập nhật trạng thái HĐ → Hiệu lực
-    const { error: hdError } = await supabase
+    const { data: hdUpdated, error: hdError } = await supabase
       .from('HopDong')
       .update({ TrangThai: TRANG_THAI_SAU_THU })
-      .eq('MaHopDong', Number(maHopDong));
+      .eq('MaHopDong', maHDNum)
+      .eq('TrangThai', TRANG_THAI_CHO_THU)
+      .select('MaHopDong')
+      .maybeSingle();
 
-    if (hdError) {
-      console.warn('Lỗi cập nhật trạng thái HĐ:', hdError.message);
-    }
-
-    // 3. Gửi thông báo cho Quản lý để bàn giao phòng
-    const io = getIO();
-    if (io) {
-      io.to('role:QUAN_LY').emit('thong_bao_moi', {
-        noiDung: `Kế toán đã thu đủ tiền kỳ đầu cho HĐ-${String(maHopDong).padStart(5, '0')}. Vui lòng tiến hành bàn giao phòng.`,
-        loaiSuKien: 'ban_giao_phong',
-        phieuId: maHopDong,
+    if (hdError || !hdUpdated) {
+      await supabase.from('HoaDon').delete().eq('MaHD', gd.MaHD);
+      return res.status(409).json({
+        ok: false,
+        error: 'Không cập nhật được trạng thái hợp đồng. Đã huỷ phiếu thu vừa tạo.',
       });
     }
 
-    const maPhieuThu = gd?.MaHD ? `HD-${String(gd.MaHD).padStart(5, '0')}` : `REC-${Date.now()}`;
+    const noiDungQuanLy = `Kế toán đã thu đủ tiền kỳ đầu cho HĐ-${String(maHDNum).padStart(5, '0')} (Mã HĐ: ${maHDNum}). Vui lòng tiến hành bàn giao phòng.`;
+
+    await supabase.from('ThongBao').insert({
+      MaDatCoc: hd.MaDatCoc || null,
+      NguoiNhan: hd.NVQL || null,
+      VaiTroNhan: 'Quản lý',
+      NoiDung: noiDungQuanLy,
+      DaDoc: false,
+      LoaiThongBao: LOAI_THONG_BAO_BAN_GIAO,
+    });
+
+    const io = getIO();
+    if (io) {
+      io.to('role:QUAN_LY').emit('thong_bao_moi', {
+        noiDung: noiDungQuanLy,
+        loaiSuKien: LOAI_THONG_BAO_BAN_GIAO,
+        phieuId: maHDNum,
+      });
+    }
+
+    const maPhieuThu = dinhDangMaPhieuThu(gd.MaHD);
 
     res.json({
       ok: true,
       data: {
         maPhieuThu,
-        maGiaoDich,
-        phuongThuc: phuongThuc || 'tien-mat',
-        soTienThucThu: Number(soTienThucThu),
+        maHoaDon: gd.MaHD,
+        phuongThuc: chuanHoaPhuongThuc(phuongThuc),
+        soTienThucThu: soTienNum,
+        tongCanThu: tongTienPhaiThu,
         message: 'Xác nhận thu tiền thành công. Đã thông báo Quản lý chuẩn bị bàn giao phòng.',
       },
     });

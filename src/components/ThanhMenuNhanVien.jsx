@@ -4,6 +4,13 @@ import { io } from 'socket.io-client';
 import { MENU_NHAN_VIEN, ROUTES, layMenuNhanVienTheoVaiTro } from '../config/routes';
 import { chuanHoaVaiTroNhanVien } from '../utils/nhanVienSession';
 
+function trichMaHopDongTuThongBao(item) {
+  if (item?.MaHopDong) return Number(item.MaHopDong);
+  if (item?.PhieuId && !item?.MaDatCoc) return Number(item.PhieuId);
+  const m = String(item?.NoiDung || '').match(/Mã HĐ:\s*(\d+)/i);
+  return m ? Number(m[1]) : null;
+}
+
 export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -56,8 +63,13 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
         NoiDung: data.noiDung,
         TaoLuc: new Date().toISOString(),
         DaDoc: false,
-        MaDatCoc: data.loaiSuKien === 'ban_giao_phong' ? null : (data.phieuId || null),
+        MaDatCoc: data.loaiSuKien === 'ban_giao_phong'
+          || data.loaiSuKien === 'Bàn giao phòng'
+          || data.loaiSuKien === 'Thu tiền kỳ đầu'
+          ? null
+          : (data.phieuId || null),
         LoaiSuKien: data.loaiSuKien || null,
+        LoaiThongBao: data.loaiSuKien || null,
         PhieuId: data.phieuId || null,
       }, ...prev]);
     });
@@ -105,12 +117,28 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
     const loai = item.LoaiThongBao || item.LoaiSuKien || '';
     const phieuId = item.MaDatCoc || item.PhieuId;
 
-    if (loai === 'ban_giao_phong') {
-      navigate(phieuId ? `${ROUTES.banGiao}/${phieuId}` : ROUTES.banGiao);
+    if (loai === 'ban_giao_phong' || loai === 'Bàn giao phòng') {
+      const maHopDong = trichMaHopDongTuThongBao(item);
+      navigate(maHopDong ? `${ROUTES.banGiao}/${maHopDong}` : ROUTES.banGiao);
+    } else if (
+      loai === 'Thu tiền kỳ đầu'
+      || loai === 'Chờ thu tiền đầu kỳ'
+      || loai === 'Thu dau ky'
+      || loai === 'thu_dau_ky'
+    ) {
+      const maHopDong = trichMaHopDongTuThongBao(item);
+      navigate(maHopDong ? `${ROUTES.thuTienDauKy}/${maHopDong}` : ROUTES.thuTienDauKy);
     } else if (loai === 'Chờ kiểm tra' || loai === 'kiem_tra_luu_tru') {
       navigate(phieuId ? `${ROUTES.kiemTraLuuTru}/${phieuId}` : ROUTES.kiemTraLuuTru);
     } else if (loai === 'Chờ lập hợp đồng') {
       navigate(phieuId ? `${ROUTES.lapHopDong}/${phieuId}` : ROUTES.lapHopDong);
+    } else if (
+      apiRole === 'KE_TOAN'
+      && !loai
+      && /đã ký hợp đồng/i.test(item.NoiDung || '')
+    ) {
+      const maHopDong = trichMaHopDongTuThongBao(item);
+      navigate(maHopDong ? `${ROUTES.thuTienDauKy}/${maHopDong}` : ROUTES.thuTienDauKy);
     } else if (phieuId) {
       navigate(`${ROUTES.deposit}?phieu=${phieuId}`);
     } else {
@@ -143,7 +171,7 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
       { key: 'dashboard', label: 'Tổng quan', path: ROUTES.dashboard },
       { key: 'phongGiuong', label: 'Phòng và Giường', path: ROUTES.phongGiuong },
       { key: 'deposit', label: 'Đặt cọc', path: ROUTES.deposit },
-      { key: 'staffPayment', label: 'Thu tiền đầu kỳ', path: '/staff-payment' },
+      { key: 'staffPayment', label: 'Thu tiền kỳ đầu', path: ROUTES.thuTienDauKy },
       { key: 'checkout', label: 'Đối soát và Hoàn cọc', path: ROUTES.checkout },
       { key: 'thuChi', label: 'Thu chi', path: ROUTES.thuChi },
       { key: 'thongBao', label: 'Báo cáo', path: ROUTES.thongBao }

@@ -1,14 +1,5 @@
 import { useState, useEffect } from 'react';
 
-function rutGonNhanLuaChon(loai, nhan) {
-  if (loai === 'CONTINUE_PARTIAL') {
-    const so = nhan.match(/(\d+)/)?.[1];
-    return so ? `Tiếp tục ký HĐ với ${so} thành viên` : nhan;
-  }
-  if (loai === 'TERMINATE_REFUND') return 'Dừng thuê — Hoàn cọc 80%';
-  return nhan;
-}
-
 // Trang KIỂM TRA ĐIỀU KIỆN LƯU TRÚ (STAY CHECK)
 // Nhân viên đối chiếu định danh và kiểm tra điều kiện lưu trú trước khi lập hợp đồng.
 export default function StayConditionsCheck({ maHoSo = null, hienThongBao, onQuayLai, onXacNhanThanhCong }) {
@@ -300,13 +291,11 @@ export default function StayConditionsCheck({ maHoSo = null, hienThongBao, onQua
               {ngoaiLe.trangThai === 'COMPLIANCE_EXCEPTION' && (
                 <div className="np-modal-summary">
                   <div>
-                    <span className="np-modal-label">Thành viên còn lại</span>
+                    <span className="np-modal-label">Số thành viên còn lại</span>
                     <strong>{ngoaiLe.soThanhVienConLai}</strong>
                   </div>
                   <div>
-                    <span className="np-modal-label">
-                      {ngoaiLe.laThuNguyenPhong ? 'Giường trong phòng' : 'Giường đã đặt'}
-                    </span>
+                    <span className="np-modal-label">Số giường/phòng đã đặt</span>
                     <strong>{ngoaiLe.soGiuongThue}</strong>
                   </div>
                 </div>
@@ -319,24 +308,11 @@ export default function StayConditionsCheck({ maHoSo = null, hienThongBao, onQua
               )}
 
               <p className="np-modal-hint">
-                {ngoaiLe.laThuNguyenPhong
-                  ? 'Thuê nguyên phòng: nhóm vẫn ký HĐ với toàn bộ phòng. Thành viên không đạt sẽ không được ký hợp đồng và không được sắp xếp vào ở.'
-                  : 'Thuê giường ghép: hệ thống sẽ trả lại giường thừa và cập nhật sức chứa phòng. Thành viên không đạt sẽ không được ký hợp đồng và không được sắp xếp vào ở.'}
+                Các thành viên không đạt sẽ không được ký hợp đồng và không được sắp xếp vào ở theo danh sách đã đăng ký.
               </p>
             </div>
 
             <div className="np-modal-actions">
-              {(ngoaiLe.luaChonXuLy || []).map((lc) => (
-                <button
-                  key={lc.loai}
-                  type="button"
-                  className={lc.loai === 'TERMINATE_REFUND' ? 'np-btn-danger' : 'btn-book-filled'}
-                  disabled={dangXuLy}
-                  onClick={() => guiKetQuaKiemTra(lc.loai)}
-                >
-                  {dangXuLy ? 'Đang xử lý...' : rutGonNhanLuaChon(lc.loai, lc.nhan)}
-                </button>
-              ))}
               <button
                 type="button"
                 className="btn-detail-outline"
@@ -345,6 +321,17 @@ export default function StayConditionsCheck({ maHoSo = null, hienThongBao, onQua
               >
                 Đóng
               </button>
+              {(ngoaiLe.luaChonXuLy || []).map((lc) => (
+                <button
+                  key={lc.loai}
+                  type="button"
+                  className={lc.loai === 'TERMINATE_REFUND' ? 'np-btn-danger' : 'btn-book-filled'}
+                  disabled={dangXuLy}
+                  onClick={() => guiKetQuaKiemTra(lc.loai)}
+                >
+                  {dangXuLy ? 'Đang xử lý...' : lc.nhan}
+                </button>
+              ))}
             </div>
           </div>
         </div>

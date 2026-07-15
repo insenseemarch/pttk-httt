@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import App from './App';
 
@@ -21,7 +21,6 @@ import QuanLyTaiKhoan from './pages/QuanLyTaiKhoan';
 import ThongBaoViecCanXuLy from './pages/ThongBaoViecCanXuLy';
 import ThuChi from './pages/ThuChi';
 import CheckoutPage from './pages/CheckoutPage';
-import InitialPayment from './components/InitialPayment';
 import QuyTrinhDatCoc from './pages/QuyTrinhDatCoc';
 import DanhSachNhanPhong from './pages/DanhSachNhanPhong';
 import ChiTietNhanPhong from './pages/ChiTietNhanPhong';
@@ -29,6 +28,8 @@ import DanhSachKiemTraLuuTru from './pages/DanhSachKiemTraLuuTru';
 import KiemTraLuuTru from './pages/KiemTraLuuTru';
 import DanhSachLapHopDong from './pages/DanhSachLapHopDong';
 import LapHopDong from './pages/LapHopDong';
+import DanhSachThuTienDauKy from './pages/DanhSachThuTienDauKy';
+import ThuTienDauKy from './pages/ThuTienDauKy';
 import DanhSachBanGiao from './pages/DanhSachBanGiao';
 import ChiTietBanGiao from './pages/ChiTietBanGiao';
 
@@ -279,6 +280,16 @@ function TrangLichHen() {
 
 
 
+function ChuyenHuongThuTienKyDauCu() {
+  const { maHopDong } = useParams();
+  return (
+    <Navigate
+      to={maHopDong ? `${ROUTES.thuTienDauKy}/${maHopDong}` : ROUTES.thuTienDauKy}
+      replace
+    />
+  );
+}
+
 export default function AppRouter() {
 
   return (
@@ -310,7 +321,12 @@ export default function AppRouter() {
 
       <Route path={ROUTES.quanLyTaiKhoan} element={taoTrangStaff(QuanLyTaiKhoan)} />
       <Route path={ROUTES.checkout} element={taoTrangStaff(CheckoutPage)} />
-      <Route path="/staff-payment" element={taoTrangStaff(InitialPayment)} />
+      <Route path={ROUTES.thuTienDauKy} element={taoTrangStaff(DanhSachThuTienDauKy)} />
+      <Route path={`${ROUTES.thuTienDauKy}/:maHopDong`} element={taoTrangStaff(ThuTienDauKy)} />
+      <Route path="/thu-tien-dau-ky" element={<ChuyenHuongThuTienKyDauCu />} />
+      <Route path="/thu-tien-dau-ky/:maHopDong" element={<ChuyenHuongThuTienKyDauCu />} />
+      <Route path="/staff-payment" element={<ChuyenHuongThuTienKyDauCu />} />
+      <Route path="/staff-payment/:maHopDong" element={<ChuyenHuongThuTienKyDauCu />} />
       <Route path={ROUTES.banGiao} element={taoTrangStaff(DanhSachBanGiao)} />
       <Route path={`${ROUTES.banGiao}/:maHopDong`} element={taoTrangStaff(ChiTietBanGiao)} />
       <Route path={ROUTES.deposit} element={taoTrangStaff(QuyTrinhDatCoc)} />

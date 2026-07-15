@@ -1,5 +1,6 @@
 import express from 'express';
 import { supabase } from '../config/supabase.js';
+import { getIO } from '../config/ketNoiSocket.js';
 import { dinhDangNgay, dinhDangTien } from '../utils/dinhDang.js';
 import {
   QUY_DINH_HOAN_COC,
@@ -19,6 +20,7 @@ const TRANG_THAI_CHO_LAP = [
   'Chờ xác nhận', // legacy — giữ tương thích hồ sơ cũ
 ];
 const TRANG_THAI_SAU_KY = 'Chờ thanh toán'; // đã ký HĐ, chờ kế toán thu tiền kỳ đầu
+const LOAI_THONG_BAO_THU_DAU_KY = 'Thu tiền kỳ đầu';
 
 const PHI_DICH_VU_MAC_DINH = [
   { id: 'elec', ten: 'Tiền điện', donVi: 'VNĐ/kWh', gia: 3500 },
@@ -367,13 +369,25 @@ router.post('/tao-moi', async (req, res) => {
         GhiChu: `Đã lập & khách ký hợp đồng (Mã HĐ: ${newHopDong.MaHopDong}) — chuyển kế toán thu tiền kỳ đầu.`,
       });
 
+      const noiDungKeToan = `[PC-${maDatCoc}] ${dc.KhachHang?.HoTen || 'Khách hàng'} đã ký hợp đồng (Mã HĐ: ${newHopDong.MaHopDong}). Vui lòng thu tiền kỳ đầu.`;
+
       await supabase.from('ThongBao').insert({
         MaDatCoc: maDatCoc,
         NguoiNhan: dc.NVKT || null,
         VaiTroNhan: 'Kế toán',
-        NoiDung: `[PC-${maDatCoc}] ${dc.KhachHang?.HoTen || 'Khách hàng'} đã ký hợp đồng (Mã HĐ: ${newHopDong.MaHopDong}). Vui lòng tính & thu các khoản kỳ đầu.`,
+        NoiDung: noiDungKeToan,
         DaDoc: false,
+        LoaiThongBao: LOAI_THONG_BAO_THU_DAU_KY,
       });
+
+      const io = getIO();
+      if (io) {
+        io.to('role:KE_TOAN').emit('thong_bao_moi', {
+          noiDung: noiDungKeToan,
+          loaiSuKien: LOAI_THONG_BAO_THU_DAU_KY,
+          phieuId: newHopDong.MaHopDong,
+        });
+      }
     }
 
     res.status(201).json({

@@ -5364,10 +5364,11 @@ h1.page-title {
    ===================================================== */
 
 .payment-page {
-  max-width: 1200px;
+  width: 100%;
+  max-width: 1180px;
   margin: 0 auto;
-  padding: 32px 40px 60px;
-  min-height: calc(100vh - 70px);
+  padding: 8px 0 48px;
+  min-height: auto;
 }
 
 /* Breadcrumb */
@@ -5425,30 +5426,51 @@ h1.page-title {
 /* Grid bố cục 2 cột */
 .payment-grid {
   display: grid;
-  grid-template-columns: 1fr 360px;
+  grid-template-columns: minmax(0, 1fr) 340px;
   gap: 24px;
   align-items: start;
 }
 
-.payment-left { display: flex; flex-direction: column; gap: 20px; }
-.payment-right { display: flex; flex-direction: column; gap: 16px; }
+.payment-left {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.payment-right {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  position: sticky;
+  top: 16px;
+  align-self: start;
+}
+
+.payment-left .stay-check-card,
+.payment-right .stay-check-card,
+.payment-right .payment-guide-card {
+  width: 100%;
+  box-sizing: border-box;
+}
 
 /* Thẻ thông tin hợp đồng */
 .payment-contract-card { border-radius: 14px; }
 
 .payment-contract-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .payment-contract-pair {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 20px;
 }
 
-.payment-contract-full { grid-column: 1 / -1; }
+.payment-contract-full { width: 100%; }
 
 .payment-contract-field {
   display: flex;
@@ -5485,11 +5507,82 @@ h1.page-title {
 }
 
 /* Bảng các khoản thu */
-.payment-items-card { border-radius: 14px; overflow: hidden; }
+.payment-items-card.stay-check-card {
+  padding: 24px 24px 0;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.payment-items-card .stay-check-card-head {
+  margin-bottom: 0;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.payment-items-table-wrap {
+  overflow-x: auto;
+}
+
+.payment-items-total-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 -24px;
+  padding: 20px 24px 22px;
+  background: linear-gradient(180deg, #fff7ed 0%, #ffedd5 100%);
+  border-top: 2px solid #fed7aa;
+  border-radius: 0 0 13px 13px;
+}
+
+.payment-items-total-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.payment-items-total-amount {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--primary-color);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.payment-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 14px;
+}
 
 .payment-items-table th,
 .payment-items-table td {
-  padding: 14px 20px;
+  padding: 14px 24px;
+  border-bottom: 1px solid #f1f5f9;
+  vertical-align: middle;
+}
+
+.payment-items-table th {
+  background-color: #f8fafc;
+  font-weight: 700;
+  color: #475569;
+  text-transform: uppercase;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+
+.payment-items-table th:first-child,
+.payment-items-table td:first-child {
+  text-align: left;
+  width: auto;
+}
+
+.payment-items-table th:last-child,
+.payment-items-table td:last-child {
+  text-align: right;
+  width: 160px;
+  white-space: nowrap;
 }
 
 .payment-item-row td { vertical-align: top; }
@@ -5514,18 +5607,25 @@ h1.page-title {
 .payment-total-row { background-color: #fff7ed; }
 
 .payment-total-row td {
-  padding: 20px;
+  padding: 18px 24px;
   border-top: 2px solid #fed7aa;
+  border-bottom: none;
+  vertical-align: middle;
 }
 
-.payment-total-label { font-size: 16px; font-weight: 700; color: var(--text-main); }
+.payment-total-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+}
 
 .payment-total-amount {
   display: block;
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 800;
   color: var(--primary-color);
   line-height: 1.2;
+  text-align: right;
 }
 
 .payment-total-text {
@@ -5534,6 +5634,70 @@ h1.page-title {
   color: var(--text-muted);
   font-style: italic;
   margin-top: 4px;
+}
+
+.payment-qty-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.payment-qty-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+.payment-qty-input {
+  width: 72px;
+  padding: 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  text-align: center;
+}
+
+.payment-qty-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(242, 106, 33, 0.12);
+}
+
+/* Panel nhập liệu / giao dịch */
+.payment-action-card { border-radius: 14px; }
+
+.payment-action-body,
+.payment-input-body {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding-top: 4px;
+}
+
+.payment-method-selector,
+.payment-method-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.payment-method-tip {
+  display: block;
+  width: 100%;
+}
+
+.payment-action-card .payment-method-btn {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.payment-action-card .np-tooltip-wrap {
+  display: block;
+  width: 100%;
 }
 
 /* Panel nhập liệu */
@@ -5557,8 +5721,6 @@ h1.page-title {
 }
 
 /* Radio phương thức thanh toán */
-.payment-method-list { display: flex; flex-direction: column; gap: 10px; }
-
 .payment-method-btn {
   display: flex;
   align-items: center;
@@ -5644,8 +5806,9 @@ h1.page-title {
 /* Chênh lệch */
 .payment-diff-row {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
+  gap: 8px;
   padding: 8px 12px;
   border-radius: 8px;
   font-size: 13px;
@@ -5735,14 +5898,20 @@ h1.page-title {
 /* Responsive */
 @media (max-width: 1000px) {
   .payment-grid { grid-template-columns: 1fr; }
-  .payment-page { padding: 24px 20px 48px; }
+  .payment-page { padding: 0 0 40px; }
   .payment-header { flex-direction: column; align-items: flex-start; }
+  .payment-right { position: static; }
+  .payment-items-table-wrap {
+    margin: 0;
+    width: 100%;
+  }
 }
 
 @media (max-width: 600px) {
-  .payment-contract-grid { grid-template-columns: 1fr; }
-  .payment-contract-pair { grid-template-columns: 1fr 1fr; }
+  .payment-contract-pair { grid-template-columns: 1fr; }
   .payment-amount-input { font-size: 20px; }
+  .payment-items-table th:last-child,
+  .payment-items-table td:last-child { width: 120px; }
 }
 
 /* =====================================================
