@@ -104,6 +104,10 @@ function laySoTienNumber(value) {
   return digits ? Number(digits) : null;
 }
 
+function chuanHoaCCCD(value) {
+  return String(value ?? '').replace(/\D/g, '');
+}
+
 const TU_KHOA_TIEN_ICH = {
   'yen tinh': ['yen tinh', 'quiet', 'rieng tu'],
   'gui xe': ['gui xe', 'giu xe', 'de xe', 'bai xe'],
@@ -445,7 +449,7 @@ async function kiemTraKhachHangDaTonTai(cccd, sdt) {
 }
 
 async function luuThongTinKhachHang(kh) {
-  const cccd = Number(String(kh.cccd || '').replace(/\D/g, ''));
+  const cccd = chuanHoaCCCD(kh.cccd);
   const sdt = String(kh.sdt || '').replace(/\D/g, '');
   const diaChi = String(kh.diaChi ?? kh.DiaChi ?? '').trim();
   const ngaySinh = String(kh.ngaySinh ?? kh.NgaySinh ?? '').trim();
@@ -500,7 +504,7 @@ async function taoYeuCauThue(yc, cccd, maNV = 101) {
       TrangThai: true,
       NgayTao: new Date().toISOString(),
       MaNV: maNV,
-      CCCD: Number(cccd)
+      CCCD: chuanHoaCCCD(cccd)
     })
     .select();
 
@@ -821,7 +825,7 @@ async function phongConKhaDungChoYeuCau(maPhong, yeuCauThue) {
 }
 
 async function khachDaDatCocPhong(cccd, maPhong) {
-  const cccdSo = Number(String(cccd || '').replace(/\D/g, ''));
+  const cccdSo = chuanHoaCCCD(cccd);
   const maPhongSo = Number(maPhong);
   if (!cccdSo || !maPhongSo) return false;
   const { data, error } = await supabase
@@ -989,7 +993,7 @@ async function layThongKeTongHop() {
 
 async function luuYeuCauTuVan(yc) {
   const { hoTen, sdt, email, noiDung } = yc;
-  const numericCCCD = Number(sdt.replace(/\D/g, '')) || Math.floor(Math.random() * 9000000000) + 1000000000;
+  const numericCCCD = chuanHoaCCCD(sdt) || String(Math.floor(Math.random() * 9000000000) + 1000000000);
 
   const { data: savedCust, error: errCust } = await supabase
     .from('KhachHang')
@@ -1005,7 +1009,6 @@ async function luuYeuCauTuVan(yc) {
   if (errCust) throw errCust;
 
   const thoiGianThueDate = tinhNgayKetThuc(new Date().toISOString().split('T')[0], 6);
-
   const { data: savedReq, error: errReq } = await supabase
     .from('YeuCauThue')
     .insert({
@@ -1070,7 +1073,7 @@ async function datLichXemPhong(yc) {
   const ghiChuLichHen = maGiuongHen
     ? `[MA_GIUONG:${maGiuongHen}]${ghiChu?.trim() ? ` ${ghiChu.trim()}` : ''}`
     : (ghiChu?.trim() || null);
-  const numericCCCD = Number(String(cccd || '').replace(/\D/g, '')) || Number(sdt.replace(/\D/g, '')) || Math.floor(Math.random() * 9000000000) + 1000000000;
+  const numericCCCD = chuanHoaCCCD(cccd) || chuanHoaCCCD(sdt) || String(Math.floor(Math.random() * 9000000000) + 1000000000);
   let savedCust = null;
   let savedReq = null;
   let maYCHen = Number(maYC) || null;

@@ -2,6 +2,7 @@ import express from 'express';
 import { supabase } from '../config/supabase.js';
 import { getIO } from '../config/ketNoiSocket.js';
 import { dinhDangCCCD } from '../utils/dinhDang.js';
+import { chuanHoaLoaiThue, ganYeuCauThueGanNhat, layYeuCauThueGanNhat } from '../services/yeuCauThue.js';
 
 const router = express.Router();
 
@@ -38,6 +39,27 @@ const ACTIVE_LOCK_STATES = [
 ];
 
 const BANG_THONG_BAO = 'ThongBao';
+
+const TRANG_THAI_HIEN_THI_THEO_VAI_TRO = Object.freeze({
+  SALE: Object.values(TRANG_THAI_COC),
+  QUAN_LY: [
+    TRANG_THAI_COC.CHO_KIEM_TRA_PHONG,
+    TRANG_THAI_COC.HET_CHO,
+    TRANG_THAI_COC.CON_TRONG_CHO_GUI_KE_TOAN,
+    TRANG_THAI_COC.CHO_XAC_NHAN_THANH_TOAN,
+    TRANG_THAI_COC.TU_CHOI_CHUNG_TU,
+    TRANG_THAI_COC.DA_XAC_NHAN,
+    TRANG_THAI_COC.QUA_HAN_TU_DONG_HUY,
+  ],
+  KE_TOAN: [
+    TRANG_THAI_COC.CHO_TINH_COC,
+    TRANG_THAI_COC.CHO_THANH_TOAN,
+    TRANG_THAI_COC.CHO_XAC_NHAN_THANH_TOAN,
+    TRANG_THAI_COC.TU_CHOI_CHUNG_TU,
+    TRANG_THAI_COC.DA_XAC_NHAN,
+    TRANG_THAI_COC.QUA_HAN_TU_DONG_HUY,
+  ],
+});
 
 function chuanHoaVaiTro(value) {
   const role = String(value || '').toLowerCase();
@@ -83,6 +105,22 @@ function chuanHoaThongTinTuyChon(value) {
   return normalized || null;
 }
 
+function chuanHoaCCCD12So(value) {
+  const digits = String(value ?? '').replace(/\D/g, '');
+  if (!/^\d{12}$/.test(digits)) {
+    throw new Error('Số CCCD phải có đúng 12 chữ số');
+  }
+  return digits;
+}
+
+function tinhThoiHanThue(thoiGianVao, thoiGianThue) {
+  const start = new Date(thoiGianVao);
+  const end = new Date(thoiGianThue);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) return 6;
+  const months = Math.round((end.getTime() - start.getTime()) / (30.4375 * 24 * 60 * 60 * 1000));
+  return Math.min(60, Math.max(1, months || 6));
+}
+
 function thongBaoLoiDuLieu(error) {
   const raw = `${error?.message || ''} ${error?.details || ''} ${error?.constraint || ''}`;
   if (error?.code === '23505' || raw.includes('duplicate key value')) {
@@ -112,7 +150,7 @@ async function layPhieu(maDatCoc) {
     .select(`
       *,
       KhachHang (*),
-      GiuongDatCoc (MaGiuong, SoGiuongCoc, Giuong (MaGiuong, MaPhong, GiaThue, TinhTrang, Phong (MaPhong, LoaiPhong, SucChuaConLai, SucChuaToiDa, GiaThue, MaCN)))
+      GiuongDatCoc (MaGiuong, SoGiuongCoc, Giuong (MaGiuong, MaPhong, GiaThue, TinhTrang, Phong (MaPhong, LoaiPhong, SucChuaConLai, SucChuaToiDa, GiaThue, MaCN, ThongTinLoaiPhong:LoaiPhong(MaLoaiPhong, TenLoaiPhong))))
     `)
     .eq('MaDatCoc', Number(maDatCoc))
     .single();
@@ -123,8 +161,11 @@ async function layPhieu(maDatCoc) {
   const { data: nhanVienSale } = data.NVSale
     ? await supabase.from('NhanVien').select('HoTen').eq('MaNV', data.NVSale).maybeSingle()
     : { data: null };
+  const yeuCauThue = await layYeuCauThueGanNhat(data.CCCD);
   return {
     ...data,
+    LoaiThue: yeuCauThue?.LoaiThue || null,
+    YeuCauThue: yeuCauThue,
     CCCD: dinhDangCCCD(data.CCCD),
     KhachHang: data.KhachHang
       ? { ...data.KhachHang, CCCD: dinhDangCCCD(data.KhachHang.CCCD ?? data.CCCD) }
@@ -173,13 +214,19 @@ async function guiThongBao(phieu, trangThaiMoi, noiDung) {
       noiDung: noiDung,
       loaiSuKien: trangThaiMoi
     });
+    const roomsCapNhat = ['role:QUAN_LY', 'role:KE_TOAN'];
+    if (phieu.NVSale) roomsCapNhat.push(`sale:${phieu.NVSale}`);
+    else roomsCapNhat.push('role:SALE');
+    io.to(roomsCapNhat).emit('dat_coc_cap_nhat', {
+      phieuId: phieu.MaDatCoc,
+      trangThai: trangThaiMoi,
+    });
     console.log(`[Socket] Broadcasted thong_bao_moi to room: ${room}`);
   }
 }
 
 async function danhDauYeuCauThueDaTaoDatCoc(cccd, maNV) {
-  const targetCCCD = Number(cccd);
-  if (!Number.isFinite(targetCCCD)) return null;
+  const targetCCCD = chuanHoaCCCD12So(cccd);
 
   const { data: yeuCauGanNhat, error: searchError } = await supabase
     .from('YeuCauThue')
@@ -246,9 +293,36 @@ async function capNhatTrangThai(phieu, trangThaiMoi, user, ghiChu, fields = {}) 
   return data;
 }
 
+async function themChungTu(chungTu) {
+  const { error } = await supabase.from('ChungTuDatCoc').insert(chungTu);
+  if (error) throw error;
+  return true;
+}
+
 async function giaiPhongKhoa(maDatCoc) {
   const { error } = await supabase.from('KhoaGiuongDatCoc').delete().eq('MaDatCoc', maDatCoc);
   if (error) throw error;
+}
+
+async function capNhatSucChuaPhongTuGiuong(maPhong) {
+  const maPhongSo = Number(maPhong);
+  if (!Number.isFinite(maPhongSo)) return;
+
+  const { data: giuongs, error: bedError } = await supabase
+    .from('Giuong')
+    .select('MaGiuong, TinhTrang')
+    .eq('MaPhong', maPhongSo);
+  if (bedError) throw bedError;
+
+  const sucChuaConLai = (giuongs || []).filter((giuong) => giuong.TinhTrang === true).length;
+  const { error: roomError } = await supabase
+    .from('Phong')
+    .update({
+      SucChuaConLai: sucChuaConLai,
+      TinhTrang: sucChuaConLai > 0,
+    })
+    .eq('MaPhong', maPhongSo);
+  if (roomError) throw roomError;
 }
 
 async function khoaGiuong(maDatCoc, maGiuongs) {
@@ -320,28 +394,117 @@ async function kiemTraLuaChonGiuong({ maDatCoc = null, maPhong, maGiuongs, loaiT
   return { phong, selectedBeds };
 }
 
+async function layHoSoTaoPhieuTheoCCCD(cccd) {
+  const targetCCCD = chuanHoaCCCD12So(cccd);
+  const { data: khachHang, error: customerError } = await supabase
+    .from('KhachHang')
+    .select('*')
+    .eq('CCCD', targetCCCD)
+    .maybeSingle();
+  if (customerError) throw customerError;
+  if (!khachHang) throw new Error('Không tìm thấy khách hàng theo số CCCD này');
+
+  const { data: yeuCauThue, error: requestError } = await supabase
+    .from('YeuCauThue')
+    .select('*, ThongTinLoaiPhong:LoaiPhong(MaLoaiPhong, TenLoaiPhong)')
+    .eq('CCCD', targetCCCD)
+    .order('NgayTao', { ascending: false, nullsFirst: false })
+    .order('MaYC', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (requestError) throw requestError;
+  if (!yeuCauThue) throw new Error('Khách hàng chưa có yêu cầu thuê để lập phiếu đặt cọc');
+
+  const loaiThue = chuanHoaLoaiThue(yeuCauThue.LoaiThue);
+  if (!loaiThue) throw new Error('Yêu cầu thuê chưa có loại thuê hợp lệ');
+  const soNguoiDuKien = Math.max(1, Number(yeuCauThue.SoNguoiDuKien) || 1);
+  const { data: lichXemPhong, error: appointmentError } = await supabase
+    .from('LichXemPhong')
+    .select('MaLich, MaYC, MaPhong, NgayGioHen, KetQua, GhiChu')
+    .eq('MaYC', yeuCauThue.MaYC)
+    .not('MaPhong', 'is', null)
+    .order('NgayGioHen', { ascending: false, nullsFirst: false })
+    .order('MaLich', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (appointmentError) throw appointmentError;
+  if (!lichXemPhong?.MaPhong) {
+    throw new Error('Yêu cầu thuê chưa có phòng đã chọn trong lịch xem phòng');
+  }
+
+  const { data: phong, error: roomError } = await supabase
+    .from('Phong')
+    .select(`
+      MaPhong, LoaiPhong, SucChuaConLai, SucChuaToiDa, GioiTinhYeuCau,
+      GiaThue, TienIch, ChiPhiTienIch, TinhTrang, MaCN,
+      ChiNhanh(MaCN, TenCN, DiaChi),
+      ThongTinLoaiPhong:LoaiPhong(MaLoaiPhong, TenLoaiPhong),
+      Giuong(MaGiuong, MaPhong, GioiTinhYeuCau, GiaThue, TinhTrang)
+    `)
+    .eq('MaPhong', Number(lichXemPhong.MaPhong))
+    .maybeSingle();
+  if (roomError) throw roomError;
+  if (!phong) throw new Error('Phòng đã chọn trong yêu cầu thuê không còn tồn tại');
+
+  const allBeds = [...(phong.Giuong || [])].sort((left, right) => Number(left.MaGiuong) - Number(right.MaGiuong));
+  const bedIds = allBeds.map((bed) => Number(bed.MaGiuong));
+  const lockResult = bedIds.length
+    ? await supabase.from('KhoaGiuongDatCoc').select('MaGiuong, MaDatCoc').in('MaGiuong', bedIds)
+    : { data: [], error: null };
+  if (lockResult.error) throw lockResult.error;
+  const lockedIds = new Set((lockResult.data || []).map((item) => Number(item.MaGiuong)));
+  const bedsWithState = allBeds.map((bed) => ({
+    ...bed,
+    dangKhoa: lockedIds.has(Number(bed.MaGiuong)),
+  }));
+  const availableBeds = bedsWithState.filter((bed) => bed.TinhTrang && !bed.dangKhoa);
+
+  const customerGender = String(khachHang.GioiTinh || '').trim();
+  const roomGender = String(phong.GioiTinhYeuCau || '').trim();
+  if (customerGender && roomGender && ['Nam', 'Nữ'].includes(roomGender) && customerGender !== roomGender) {
+    throw new Error(`Phòng đã chọn dành cho khách ${roomGender}, không phù hợp với khách ${customerGender}`);
+  }
+
+  let maGiuongsMacDinh;
+  if (loaiThue === 'Thuê nguyên phòng') {
+    const capacity = Number(phong.SucChuaToiDa || allBeds.length);
+    if (!allBeds.length || allBeds.length !== capacity || availableBeds.length !== capacity) {
+      throw new Error('Phòng đã chọn không còn đủ toàn bộ giường để thuê nguyên phòng');
+    }
+    maGiuongsMacDinh = availableBeds.map((bed) => Number(bed.MaGiuong));
+  } else {
+    if (availableBeds.length < soNguoiDuKien) {
+      throw new Error(`Phòng đã chọn chỉ còn ${availableBeds.length} giường, không đủ ${soNguoiDuKien} người dự kiến`);
+    }
+    maGiuongsMacDinh = availableBeds.slice(0, soNguoiDuKien).map((bed) => Number(bed.MaGiuong));
+  }
+
+  return {
+    khachHang: { ...khachHang, CCCD: dinhDangCCCD(khachHang.CCCD) },
+    yeuCauThue: {
+      ...yeuCauThue,
+      CCCD: dinhDangCCCD(yeuCauThue.CCCD),
+      LoaiThue: loaiThue,
+      SoNguoiDuKien: soNguoiDuKien,
+      ThoiHanThue: tinhThoiHanThue(yeuCauThue.ThoiGianVao, yeuCauThue.ThoiGianThue),
+    },
+    lichXemPhong,
+    phong: { ...phong, Giuong: bedsWithState },
+    maGiuongsMacDinh,
+  };
+}
+
 function kiemTraQuyen(user, expected) {
   if (user.vaiTro !== expected) throw new Error(`Chức năng này chỉ dành cho ${expected}`);
 }
 
 function kiemTraQuyenXemPhieu(user, phieu) {
+  const trangThaiDuocXem = TRANG_THAI_HIEN_THI_THEO_VAI_TRO[user.vaiTro] || [];
+  if (!trangThaiDuocXem.includes(phieu.TrangThai)) {
+    camTruyCap('Phiếu không thuộc phạm vi xử lý hoặc theo dõi của vai trò hiện tại');
+  }
   if (user.vaiTro === 'SALE' && Number(phieu.NVSale) !== Number(user.maNV)) {
     camTruyCap('Bạn không phụ trách phiếu đặt cọc này');
-  }
-  if (user.vaiTro === 'QUAN_LY' && ![
-    TRANG_THAI_COC.CHO_KIEM_TRA_PHONG,
-    TRANG_THAI_COC.CHO_XAC_NHAN_THANH_TOAN,
-    TRANG_THAI_COC.DA_XAC_NHAN,
-    TRANG_THAI_COC.QUA_HAN_TU_DONG_HUY
-  ].includes(phieu.TrangThai)) {
-    camTruyCap('Phiếu không thuộc phạm vi xử lý hoặc theo dõi của Quản lý');
-  }
-  if (user.vaiTro === 'KE_TOAN' && ![
-    TRANG_THAI_COC.CHO_TINH_COC,
-    TRANG_THAI_COC.DA_XAC_NHAN,
-    TRANG_THAI_COC.QUA_HAN_TU_DONG_HUY
-  ].includes(phieu.TrangThai)) {
-    camTruyCap('Phiếu không thuộc phạm vi xử lý hoặc theo dõi của Kế toán');
   }
 }
 
@@ -349,7 +512,7 @@ router.get('/phong-giuong-trong', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('Phong')
-      .select('MaPhong, LoaiPhong, SucChuaConLai, SucChuaToiDa, GioiTinhYeuCau, GiaThue, MaCN, ChiNhanh(TenCN), Giuong(MaGiuong, GiaThue, TinhTrang)')
+      .select('MaPhong, LoaiPhong, SucChuaConLai, SucChuaToiDa, GioiTinhYeuCau, GiaThue, MaCN, ChiNhanh(TenCN), ThongTinLoaiPhong:LoaiPhong(MaLoaiPhong, TenLoaiPhong), Giuong(MaGiuong, GiaThue, TinhTrang)')
       .order('MaPhong');
     if (error) throw error;
     const [khoaTamRes, phieuDangGiuRes] = await Promise.all([
@@ -384,32 +547,32 @@ router.get('/phong-giuong-trong', async (req, res) => {
   }
 });
 
+router.get('/ho-so-tao-phieu/:cccd', async (req, res) => {
+  try {
+    const user = nguoiDung(req);
+    kiemTraQuyen(user, 'SALE');
+    const data = await layHoSoTaoPhieuTheoCCCD(req.params.cccd);
+    res.json({ ok: true, data });
+  } catch (error) {
+    loi(res, error.status || 400, thongBaoLoiDuLieu(error));
+  }
+});
+
 router.get('/phieu', async (req, res) => {
   try {
     const user = nguoiDung(req);
     let query = supabase
       .from('DatCoc')
-      .select('MaDatCoc, ThoiDiemTao, CapNhatLuc, SoTienCoc, HanThanhToan, TrangThai, CCCD, MaPhong, MaCN, NVSale, LoaiThue, SoGiuongThue, LyDoXuLy, KhachHang(HoTen, SDT)', { count: 'exact' })
+      .select('MaDatCoc, ThoiDiemTao, CapNhatLuc, SoTienCoc, HanThanhToan, TrangThai, CCCD, MaPhong, MaCN, NVSale, SoGiuongThue, LyDoXuLy, KhachHang(HoTen, SDT)', { count: 'exact' })
       .order('ThoiDiemTao', { ascending: false });
-    if (user.vaiTro === 'SALE' && user.maNV) {
-      query = query.eq('NVSale', user.maNV);
-    } else if (user.vaiTro === 'QUAN_LY') {
-      query = query.in('TrangThai', [
-        TRANG_THAI_COC.CHO_KIEM_TRA_PHONG,
-        TRANG_THAI_COC.CHO_XAC_NHAN_THANH_TOAN,
-        TRANG_THAI_COC.DA_XAC_NHAN,
-        TRANG_THAI_COC.QUA_HAN_TU_DONG_HUY
-      ]);
-    } else if (user.vaiTro === 'KE_TOAN') {
-      query = query.in('TrangThai', [
-        TRANG_THAI_COC.CHO_TINH_COC,
-        TRANG_THAI_COC.DA_XAC_NHAN,
-        TRANG_THAI_COC.QUA_HAN_TU_DONG_HUY
-      ]);
+    query = query.in('TrangThai', TRANG_THAI_HIEN_THI_THEO_VAI_TRO[user.vaiTro] || []);
+    if (user.vaiTro === 'SALE') {
+      query = query.eq('NVSale', user.maNV || -1);
     }
     if (req.query.trangThai) query = query.eq('TrangThai', req.query.trangThai);
     const { data, error, count } = await query;
     if (error) throw error;
+    const phieuKemYeuCauThue = await ganYeuCauThueGanNhat(data || []);
     const branchIds = [...new Set((data || []).map((item) => item.MaCN).filter(Boolean))];
     const branches = branchIds.length
       ? await supabase.from('ChiNhanh').select('MaCN, TenCN').in('MaCN', branchIds)
@@ -418,7 +581,7 @@ router.get('/phieu', async (req, res) => {
     const branchMap = new Map((branches.data || []).map((item) => [item.MaCN, item]));
     res.json({
       ok: true,
-      data: (data || []).map((item) => ({
+      data: phieuKemYeuCauThue.map((item) => ({
         ...item,
         CCCD: dinhDangCCCD(item.CCCD),
         ChiNhanh: branchMap.get(item.MaCN) || null,
@@ -451,116 +614,56 @@ router.post('/phieu', async (req, res) => {
   try {
     const user = nguoiDung(req);
     kiemTraQuyen(user, 'SALE');
-    const {
-      cccd,
-      loaiThue = 'Thuê giường lẻ',
-      maPhong,
-      maCN,
-      maGiuongs = [],
-      hoTen,
-      sdt,
-      email,
-      diaChi,
-      gioiTinh,
-      quocTich,
-      khaNangTaiChinh,
-      thoiHanThue = 6
-    } = req.body;
-    if (!cccd || !maPhong || !maGiuongs.length) return loi(res, 400, 'Thiếu khách hàng hoặc lựa chọn phòng/giường');
-    const rentalMonths = Number(thoiHanThue);
-    if (!Number.isInteger(rentalMonths) || rentalMonths < 6 || rentalMonths > 12) {
-      return loi(res, 400, 'Thời hạn thuê phải từ 6 đến 12 tháng');
-    }
-    const targetCCCD = Number(cccd);
-    if (Number.isNaN(targetCCCD) || !/^\d{6,12}$/.test(String(cccd).trim())) {
-      return loi(res, 400, 'Số CCCD/Hộ chiếu phải chứa từ 6 đến 12 chữ số.');
-    }
-    if (!hoTen || !hoTen.trim()) return loi(res, 400, 'Vui lòng nhập họ và tên khách thuê');
-    if (!sdt || !/^\d{9,11}$/.test(sdt.trim())) return loi(res, 400, 'Số điện thoại không hợp lệ (bắt buộc từ 9 đến 11 số)');
-    if (!gioiTinh || !gioiTinh.trim()) return loi(res, 400, 'Vui lòng chọn giới tính');
-    if (!['Nam', 'Nữ'].includes(gioiTinh.trim())) return loi(res, 400, 'Giới tính chỉ được chọn Nam hoặc Nữ');
-    if (!quocTich || !quocTich.trim()) return loi(res, 400, 'Vui lòng nhập quốc tịch');
-    
-    // Check if customer profile exists
-    const { data: customer, error: customerError } = await supabase
-      .from('KhachHang')
-      .select('CCCD')
-      .eq('CCCD', targetCCCD)
-      .maybeSingle();
-    if (customerError) throw customerError;
-
-    if (!customer) {
-      const { error: customerCreateError } = await supabase
-        .from('KhachHang')
-        .insert({
-          CCCD: targetCCCD,
-          HoTen: hoTen || 'Chưa cập nhật họ tên',
-          SDT: chuanHoaThongTinTuyChon(sdt),
-          Email: chuanHoaThongTinTuyChon(email),
-          DiaChi: diaChi || null,
-          GioiTinh: gioiTinh || null,
-          QuocTich: quocTich || 'Việt Nam',
-          KhaNangTaiChinh: khaNangTaiChinh ? Number(khaNangTaiChinh) : null,
-          ThoaDK: false,
-        });
-      if (customerCreateError) throw customerCreateError;
-    } else {
-      const updates = {};
-      if (hoTen) updates.HoTen = hoTen;
-      if (chuanHoaThongTinTuyChon(sdt)) updates.SDT = chuanHoaThongTinTuyChon(sdt);
-      if (chuanHoaThongTinTuyChon(email)) updates.Email = chuanHoaThongTinTuyChon(email);
-      if (diaChi) updates.DiaChi = diaChi;
-      if (gioiTinh) updates.GioiTinh = gioiTinh;
-      if (quocTich) updates.QuocTich = quocTich;
-      if (khaNangTaiChinh) updates.KhaNangTaiChinh = Number(khaNangTaiChinh);
-      
-      if (Object.keys(updates).length > 0) {
-        const { error: customerUpdateError } = await supabase
-          .from('KhachHang')
-          .update(updates)
-          .eq('CCCD', targetCCCD);
-        if (customerUpdateError) throw customerUpdateError;
-      }
+    const { cccd, maYC, maGiuongs = [] } = req.body || {};
+    const hoSo = await layHoSoTaoPhieuTheoCCCD(cccd);
+    const { khachHang, yeuCauThue, phong, maGiuongsMacDinh } = hoSo;
+    if (maYC && Number(maYC) !== Number(yeuCauThue.MaYC)) {
+      throw new Error('Yêu cầu thuê vừa thay đổi. Vui lòng nhập lại CCCD để tải dữ liệu mới nhất');
     }
 
-    const selection = await kiemTraLuaChonGiuong({ maPhong, maGiuongs, loaiThue, gioiTinh });
-    let insertResult = await supabase.from('DatCoc').insert({
+    const targetCCCD = chuanHoaCCCD12So(cccd);
+    const loaiThue = yeuCauThue.LoaiThue;
+    const soNguoiDuKien = Number(yeuCauThue.SoNguoiDuKien || 1);
+    const requestedBedIds = [...new Set((maGiuongs || []).map(Number).filter(Number.isFinite))];
+    const selectedBedIds = loaiThue === 'Thuê nguyên phòng' ? maGiuongsMacDinh : requestedBedIds;
+    if (!selectedBedIds.length) throw new Error('Vui lòng chọn ít nhất một giường');
+    if (loaiThue === 'Thuê giường lẻ' && selectedBedIds.length < soNguoiDuKien) {
+      throw new Error(`Thuê giường lẻ phải chọn ít nhất ${soNguoiDuKien} giường theo số người dự kiến`);
+    }
+
+    const selection = await kiemTraLuaChonGiuong({
+      maPhong: phong.MaPhong,
+      maGiuongs: selectedBedIds,
+      loaiThue,
+      gioiTinh: khachHang.GioiTinh,
+    });
+    const insertResult = await supabase.from('DatCoc').insert({
       CCCD: targetCCCD,
       ThoiDiemTao: new Date().toISOString(),
       TrangThai: TRANG_THAI_COC.MOI,
-      LoaiThue: loaiThue,
-      MaPhong: Number(maPhong),
-      MaCN: Number(selection.phong.MaCN || maCN),
+      MaPhong: Number(phong.MaPhong),
+      MaCN: Number(selection.phong.MaCN || phong.MaCN),
       NVSale: user.maNV,
-      SoGiuongThue: maGiuongs.length,
+      SoGiuongThue: selectedBedIds.length,
       SoTienCoc: 0,
-      ThoiHanThue: rentalMonths,
+      ThoiHanThue: Number(yeuCauThue.ThoiHanThue || 6),
     }).select().single();
-
-    if (insertResult.error && insertResult.error.message.includes('column "ThoiHanThue" of relation "DatCoc" does not exist')) {
-      // Fallback: Retry without ThoiHanThue column
-      insertResult = await supabase.from('DatCoc').insert({
-        CCCD: targetCCCD,
-        ThoiDiemTao: new Date().toISOString(),
-        TrangThai: TRANG_THAI_COC.MOI,
-        LoaiThue: loaiThue,
-        MaPhong: Number(maPhong),
-        MaCN: Number(selection.phong.MaCN || maCN),
-        NVSale: user.maNV,
-        SoGiuongThue: maGiuongs.length,
-        SoTienCoc: 0,
-      }).select().single();
-    }
-
     if (insertResult.error) throw insertResult.error;
     const data = insertResult.data;
-    const rows = maGiuongs.map((MaGiuong) => ({ MaGiuong: Number(MaGiuong), MaDatCoc: data.MaDatCoc, SoGiuongCoc: 1 }));
+    const rows = selectedBedIds.map((MaGiuong) => ({
+      MaGiuong: Number(MaGiuong),
+      MaDatCoc: data.MaDatCoc,
+      SoGiuongCoc: 1,
+    }));
     const { error: bedError } = await supabase.from('GiuongDatCoc').insert(rows);
-    if (bedError) throw bedError;
+    if (bedError) {
+      await supabase.from('DatCoc').delete().eq('MaDatCoc', data.MaDatCoc);
+      throw bedError;
+    }
     await ghiLichSu({ ...data, TrangThai: null }, TRANG_THAI_COC.MOI, user, null);
     const maYCDaTaoDatCoc = await danhDauYeuCauThueDaTaoDatCoc(targetCCCD, user.maNV);
-    await khoaLichHenSauKhiDatCoc(maYCDaTaoDatCoc, maPhong);
-    res.status(201).json({ ok: true, data: { ...data, CCCD: dinhDangCCCD(data.CCCD) } });
+    await khoaLichHenSauKhiDatCoc(maYCDaTaoDatCoc, phong.MaPhong);
+    res.status(201).json({ ok: true, data: { ...data, LoaiThue: loaiThue, CCCD: dinhDangCCCD(data.CCCD) } });
   } catch (error) {
     loi(res, 400, thongBaoLoiDuLieu(error));
   }
@@ -583,11 +686,7 @@ router.patch('/phieu/:id/khach-hang', async (req, res) => {
     const khaNangTaiChinh = khachHang.KhaNangTaiChinh === '' || khachHang.KhaNangTaiChinh == null
       ? null
       : Number(khachHang.KhaNangTaiChinh);
-    const newCCCD = Number(khachHang.CCCD);
-
-    if (!newCCCD || !/^\d{6,12}$/.test(String(khachHang.CCCD).trim())) {
-      throw new Error('Số CCCD/Hộ chiếu phải chứa từ 6 đến 12 chữ số.');
-    }
+    const newCCCD = chuanHoaCCCD12So(khachHang.CCCD);
     if (!hoTen) throw new Error('Họ và tên khách thuê không được để trống');
     if (!sdt || !/^\d{9,11}$/.test(sdt)) throw new Error('Số điện thoại không hợp lệ (bắt buộc từ 9 đến 11 chữ số)');
     if (!khachHang.GioiTinh || !String(khachHang.GioiTinh).trim()) throw new Error('Vui lòng chọn giới tính');
@@ -610,7 +709,7 @@ router.patch('/phieu/:id/khach-hang', async (req, res) => {
     };
 
     let savedData;
-    const oldCCCD = Number(phieu.CCCD);
+    const oldCCCD = chuanHoaCCCD12So(phieu.CCCD);
 
     if (newCCCD !== oldCCCD) {
       // Check if new CCCD already exists
@@ -674,7 +773,7 @@ router.post('/phieu/:id/hanh-dong', async (req, res) => {
     const user = nguoiDung(req);
     const phieu = await layPhieu(req.params.id);
     const {
-      hanhDong, ghiChu, maGiuongs = [], maPhong, maCN, loaiThue,
+      hanhDong, ghiChu, maGiuongs = [], maPhong, maCN,
       hinhThucThanhToan = 'Chuyển khoản', maGiaoDich, hinhAnhDataUrl,
       soTienThucNhan, xacNhanDaNhanTien, soTienCoc,
     } = req.body;
@@ -687,7 +786,8 @@ router.post('/phieu/:id/hanh-dong', async (req, res) => {
       if (![TRANG_THAI_COC.MOI, TRANG_THAI_COC.HET_CHO].includes(phieu.TrangThai)) throw new Error('Phiếu không ở trạng thái có thể gửi kiểm tra');
       const beds = maGiuongs.length ? maGiuongs.map(Number) : phieu.GiuongDatCoc.map((item) => item.MaGiuong);
       const targetRoom = Number(maPhong || phieu.MaPhong);
-      const targetType = loaiThue || phieu.LoaiThue;
+      const targetType = phieu.LoaiThue;
+      if (!targetType) throw new Error('Không tìm thấy loại thuê trong yêu cầu thuê của khách hàng');
       const selection = await kiemTraLuaChonGiuong({
         maDatCoc: phieu.MaDatCoc,
         maPhong: targetRoom,
@@ -703,7 +803,6 @@ router.post('/phieu/:id/hanh-dong', async (req, res) => {
         fields.SoGiuongThue = beds.length;
         fields.MaPhong = targetRoom;
         fields.MaCN = Number(selection.phong.MaCN || maCN || phieu.MaCN);
-        fields.LoaiThue = targetType;
       }
       next = TRANG_THAI_COC.CHO_KIEM_TRA_PHONG;
       notification = `Phiếu #${phieu.MaDatCoc} đang chờ kiểm tra phòng/giường.`;
@@ -769,7 +868,7 @@ router.post('/phieu/:id/hanh-dong', async (req, res) => {
       if (phieu.HanThanhToan && new Date(phieu.HanThanhToan) <= new Date()) throw new Error('Yêu cầu thanh toán đã quá hạn');
       const receiptCode = taoMaPhieuThu(phieu.MaDatCoc);
       const receiverName = paymentType === 'Tiền mặt' ? await layTenNhanVien(user.maNV) : null;
-      const { error } = await supabase.from('ChungTuDatCoc').insert({
+      await themChungTu({
         MaDatCoc: phieu.MaDatCoc,
         LoaiThanhToan: paymentType,
         MaPhieuThu: receiptCode,
@@ -780,7 +879,6 @@ router.post('/phieu/:id/hanh-dong', async (req, res) => {
         NguoiTaiLen: user.maNV,
         TrangThai: 'Chờ xác nhận',
       });
-      if (error) throw error;
       fields.HinhThucThanhToan = paymentType;
       next = TRANG_THAI_COC.CHO_XAC_NHAN_THANH_TOAN;
       notification = `Phiếu #${phieu.MaDatCoc} có chứng từ thanh toán cần xác nhận.`;
@@ -804,6 +902,14 @@ router.post('/phieu/:id/hanh-dong', async (req, res) => {
       const bedIds = phieu.GiuongDatCoc.map((item) => item.MaGiuong);
       const { error } = await supabase.from('Giuong').update({ TinhTrang: false }).in('MaGiuong', bedIds);
       if (error) throw error;
+      const roomIds = [...new Set(
+        phieu.GiuongDatCoc
+          .map((item) => Number(item.Giuong?.MaPhong || phieu.MaPhong))
+          .filter(Number.isFinite),
+      )];
+      for (const roomId of roomIds) {
+        await capNhatSucChuaPhongTuGiuong(roomId);
+      }
       await giaiPhongKhoa(phieu.MaDatCoc);
       fields = { NVQL: user.maNV, DatCocThanhCong: new Date().toISOString() };
       next = TRANG_THAI_COC.DA_XAC_NHAN;
@@ -843,7 +949,7 @@ router.post('/phieu/:id/hanh-dong', async (req, res) => {
 router.get('/notifications', async (req, res) => {
   try {
     const user = nguoiDung(req);
-    let query = supabase.from(BANG_THONG_BAO).select('*').order('TaoLuc', { ascending: false }).limit(50);
+    let query = supabase.from(BANG_THONG_BAO).select('*').in('LoaiThongBao', ['dat_coc', 'Đặt cọc']).order('TaoLuc', { ascending: false }).limit(50);
     query = user.vaiTro === 'SALE'
       ? query.eq('NguoiNhan', user.maNV)
       : query.eq('VaiTroNhan', vaiTroDatabase(user.vaiTro));
@@ -858,7 +964,7 @@ router.get('/notifications', async (req, res) => {
 router.patch('/notifications/mark-all-read', async (req, res) => {
   try {
     const user = nguoiDung(req);
-    let query = supabase.from(BANG_THONG_BAO).update({ DaDoc: true });
+    let query = supabase.from(BANG_THONG_BAO).update({ DaDoc: true }).in('LoaiThongBao', ['dat_coc', 'Đặt cọc']);
     query = user.vaiTro === 'SALE'
       ? query.eq('NguoiNhan', user.maNV)
       : query.eq('VaiTroNhan', vaiTroDatabase(user.vaiTro));
@@ -873,7 +979,7 @@ router.patch('/notifications/mark-all-read', async (req, res) => {
 router.patch('/notifications/:id/read', async (req, res) => {
   try {
     const user = nguoiDung(req);
-    let query = supabase.from(BANG_THONG_BAO).update({ DaDoc: true }).eq('MaThongBao', Number(req.params.id));
+    let query = supabase.from(BANG_THONG_BAO).update({ DaDoc: true }).in('LoaiThongBao', ['dat_coc', 'Đặt cọc']).eq('MaThongBao', Number(req.params.id));
     query = user.vaiTro === 'SALE'
       ? query.eq('NguoiNhan', user.maNV)
       : query.eq('VaiTroNhan', vaiTroDatabase(user.vaiTro));

@@ -1,6 +1,6 @@
 import { supabase } from './config/supabase.js';
 
-const DEMO_CCCDS = Array.from({ length: 10 }, (_, index) => 88072026001 + index);
+const DEMO_CCCDS = Array.from({ length: 10 }, (_, index) => String(88072026001 + index).padStart(12, '0'));
 
 const CUSTOMERS = [
   ['Nguyễn Minh Anh', 'Nữ', 'Việt Nam'],
@@ -71,7 +71,7 @@ async function cleanupPreviousDemo() {
     assertNoError(await supabase.from('Giuong').update({ TinhTrang: true }).in('MaGiuong', bedIds), 'Khôi phục giường demo');
   }
 
-  for (const table of ['ThongBaoDatCoc', 'LichSuDatCoc', 'ChungTuDatCoc', 'KhoaGiuongDatCoc', 'GiuongDatCoc']) {
+  for (const table of ['ThongBao', 'LichSuDatCoc', 'ChungTuDatCoc', 'KhoaGiuongDatCoc', 'GiuongDatCoc']) {
     assertNoError(await supabase.from(table).delete().in('MaDatCoc', ids), `Xóa ${table} demo cũ`);
   }
   assertNoError(await supabase.from('DatCoc').delete().in('MaDatCoc', ids), 'Xóa phiếu demo cũ');
@@ -148,7 +148,6 @@ async function seedDeposits(beds) {
       TrangThai: databaseStatus(config.state),
       NVQL: config.manager || null,
       NVKT: config.accountant || null,
-      LoaiThue: 'Thuê giường lẻ',
       MaPhong: bed.MaPhong,
       MaCN: bed.Phong?.MaCN,
       NVSale: config.sale,
@@ -193,11 +192,12 @@ async function seedDeposits(beds) {
       : config.state === 'CHO_TINH_COC'
         ? { VaiTroNhan: 'Kế toán' }
         : { NguoiNhan: config.sale };
-    assertNoError(await supabase.from('ThongBaoDatCoc').insert({
+    assertNoError(await supabase.from('ThongBao').insert({
       MaDatCoc: deposit.MaDatCoc,
       ...recipient,
       NoiDung: `[DEMO] Phiếu #${deposit.MaDatCoc}: ${config.note}`,
       DaDoc: index % 3 === 0,
+      LoaiThongBao: 'Đặt cọc',
     }), `Tạo thông báo phiếu ${deposit.MaDatCoc}`);
     summary.push({ id: deposit.MaDatCoc, customer: CUSTOMERS[index][0], state: config.state, bed: bed.MaGiuong, sale: config.sale });
   }

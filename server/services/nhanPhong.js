@@ -1,6 +1,7 @@
 import { supabase } from '../config/supabase.js';
 import { dinhDangNgay, dinhDangNgayGio, dinhDangTien } from '../utils/dinhDang.js';
 import { getIO } from '../config/ketNoiSocket.js';
+import { layYeuCauThueGanNhat } from './yeuCauThue.js';
 
 const TRANG_THAI_CHO_GHI_NHAN = ['Đặt cọc thành công'];
 const TRANG_THAI_SAU_GHI_NHAN = 'Chờ kiểm tra';
@@ -91,17 +92,6 @@ function mapThanhVien(tv, kh, cccdTruongNhom = null) {
   };
 }
 
-async function layYeuCauThueGanNhat(cccd) {
-  const { data } = await supabase
-    .from('YeuCauThue')
-    .select('MaYC, ThoiGianVao, SoNguoiDuKien, GioiTinh, KhuVucMongMuon')
-    .eq('CCCD', Number(cccd))
-    .order('NgayTao', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return data;
-}
-
 async function layDatCocDayDu(maDatCoc) {
   const { data, error } = await supabase
     .from('DatCoc')
@@ -126,7 +116,9 @@ async function layDatCocDayDu(maDatCoc) {
     .maybeSingle();
 
   if (error) throw error;
-  return data;
+  if (!data) return null;
+  const yeuCauThue = await layYeuCauThueGanNhat(data.CCCD);
+  return { ...data, LoaiThue: yeuCauThue?.LoaiThue || null, YeuCauThue: yeuCauThue };
 }
 
 export async function layDanhSachChoNhanPhong(boLoc = {}) {
@@ -137,7 +129,7 @@ export async function layDanhSachChoNhanPhong(boLoc = {}) {
   let query = supabase
     .from('DatCoc')
     .select(`
-      MaDatCoc, ThoiDiemTao, DatCocThanhCong, SoTienCoc, TrangThai, LoaiThue, SoGiuongThue, MaCN, CCCD, MaNhom,
+      MaDatCoc, ThoiDiemTao, DatCocThanhCong, SoTienCoc, TrangThai, SoGiuongThue, MaCN, CCCD, MaNhom,
       KhachHang ( CCCD, HoTen, SDT ),
       Phong ( MaPhong, LoaiPhong ( TenLoaiPhong ), ChiNhanh ( TenCN ) ),
       ChiNhanh ( TenCN ),
@@ -148,8 +140,6 @@ export async function layDanhSachChoNhanPhong(boLoc = {}) {
     .range(tu, den);
 
   if (maCN) query = query.eq('MaCN', Number(maCN));
-  if (loaiThue) query = query.eq('LoaiThue', loaiThue);
-
   const { data, error, count } = await query;
   if (error) throw error;
 
@@ -158,6 +148,7 @@ export async function layDanhSachChoNhanPhong(boLoc = {}) {
     const yc = await layYeuCauThueGanNhat(dc.CCCD);
     const soNguoiDuKien = Number(yc?.SoNguoiDuKien || 1);
     const laThuNhom = soNguoiDuKien > 1;
+    const loaiThueTuYeuCau = yc?.LoaiThue || null;
     return {
       maDatCoc: dc.MaDatCoc,
       maPhieu: `PC-${dc.MaDatCoc}`,
@@ -169,7 +160,7 @@ export async function layDanhSachChoNhanPhong(boLoc = {}) {
       maCN: dc.MaCN,
       soGiuongThue: dc.SoGiuongThue || 1,
       soNguoiDuKien,
-      loaiThue: dc.LoaiThue || 'Thuê giường lẻ',
+      loaiThue: loaiThueTuYeuCau,
       soTienCoc: Number(dc.SoTienCoc || 0),
       soTienCocFmt: dinhDangTien(dc.SoTienCoc),
       trangThai: dc.TrangThai,
@@ -178,6 +169,10 @@ export async function layDanhSachChoNhanPhong(boLoc = {}) {
       laThuNhom,
     };
   }));
+
+  if (loaiThue) {
+    ketQua = ketQua.filter((item) => item.loaiThue === loaiThue);
+  }
 
   if (timKiem.trim()) {
     const q = timKiem.trim().toLowerCase();
@@ -192,7 +187,7 @@ export async function layDanhSachChoNhanPhong(boLoc = {}) {
 
   return {
     danhSach: ketQua,
-    tong: count || ketQua.length,
+    tong: loaiThue ? ketQua.length : (count || ketQua.length),
     trang: Number(page),
     gioiHan: Number(limit),
   };
@@ -213,12 +208,13 @@ export async function layChiTietNhanPhong(maDatCoc) {
   const soNguoiDuKien = Number(yc?.SoNguoiDuKien || 1);
   const laThuNhom = soNguoiDuKien > 1;
   const gioiHanNguoi = soNguoiDuKien;
+  const loaiThueTuYeuCau = yc?.LoaiThue || null;
 
   return {
     maDatCoc: dc.MaDatCoc,
     maPhieu: `PC-${dc.MaDatCoc}`,
     trangThai: dc.TrangThai,
-    loaiThue: dc.LoaiThue || 'Thuê giường lẻ',
+    loaiThue: loaiThueTuYeuCau,
     soGiuongThue,
     soNguoiDuKien,
     gioiHanNguoi,
@@ -274,7 +270,7 @@ async function upsertKhachHang(kh) {
 
   const tenNguoi = kh.hoTen?.trim() || `CCCD ${kh.cccd}`;
   const payload = {
-    CCCD: Number(kh.cccd),
+    CCCD: String(kh.cccd),
     HoTen: kh.hoTen.trim(),
     NgaySinh: kh.ngaySinh || null,
     GioiTinh: kh.gioiTinh || null,
@@ -288,11 +284,11 @@ async function upsertKhachHang(kh) {
   const { data: existing } = await supabase
     .from('KhachHang')
     .select('CCCD')
-    .eq('CCCD', Number(kh.cccd))
+    .eq('CCCD', String(kh.cccd))
     .maybeSingle();
 
   if (existing) {
-    const { error } = await supabase.from('KhachHang').update(payload).eq('CCCD', Number(kh.cccd));
+    const { error } = await supabase.from('KhachHang').update(payload).eq('CCCD', String(kh.cccd));
     if (error) throw chuanHoaLoiDB(error, tenNguoi);
   } else {
     const { error } = await supabase.from('KhachHang').insert(payload);
@@ -443,7 +439,7 @@ export async function luuNhapNhanPhong(maDatCoc, payload) {
 
   await supabase
     .from('DatCoc')
-    .update({ CCCD: Number(khachChinh.cccd), LyDoXuLy: lyDoXuLy })
+    .update({ CCCD: String(khachChinh.cccd), LyDoXuLy: lyDoXuLy })
     .eq('MaDatCoc', maDatCoc);
 
   if (laThuNhom) {
@@ -456,7 +452,7 @@ export async function luuNhapNhanPhong(maDatCoc, payload) {
       await supabase
         .from('ThanhVienNhom')
         .upsert({
-          CCCD: Number(tv.cccd),
+          CCCD: String(tv.cccd),
           MaNhom: maNhom,
           TrangThai: trangThaiTV,
           ThoaDieuKien: null,
@@ -466,7 +462,7 @@ export async function luuNhapNhanPhong(maDatCoc, payload) {
 
     await supabase
       .from('NhomThue')
-      .update({ SoThanhVienDangKy: tatCaThanhVien.length, CCCD: Number(khachChinh.cccd) })
+      .update({ SoThanhVienDangKy: tatCaThanhVien.length, CCCD: String(khachChinh.cccd) })
       .eq('MaNhom', maNhom);
   }
 
@@ -525,7 +521,7 @@ export async function xoaThanhVienNhom(maDatCoc, cccd) {
     .from('ThanhVienNhom')
     .delete()
     .eq('MaNhom', dc.MaNhom)
-    .eq('CCCD', Number(cccd));
+    .eq('CCCD', String(cccd));
 
   if (error) throw error;
 

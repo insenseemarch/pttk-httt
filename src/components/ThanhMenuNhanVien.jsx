@@ -11,6 +11,19 @@ function trichMaHopDongTuThongBao(item) {
   return m ? Number(m[1]) : null;
 }
 
+const CUA_SO_CHONG_LAP_SOCKET_MS = 5000;
+
+function khoaNoiDungThongBao(thongBao = {}) {
+  const maPhieu = thongBao.MaDatCoc ?? thongBao.PhieuId ?? thongBao.phieuId ?? '';
+  const noiDung = String(thongBao.NoiDung ?? thongBao.noiDung ?? '').trim().replace(/\s+/g, ' ');
+  return `${maPhieu}|${noiDung}`;
+}
+
+function laThongBaoTamDaCoBanLuu(thongBaoTam, thongBaoDaLuu) {
+  const khoaTam = khoaNoiDungThongBao(thongBaoTam);
+  return Boolean(khoaTam) && thongBaoDaLuu.some((item) => khoaNoiDungThongBao(item) === khoaTam);
+}
+
 export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -34,10 +47,18 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
         headers: { 'x-user-id': String(nguoiDung?.maNV || ''), 'x-user-role': apiRole },
       });
       const json = await response.json();
-      if (json.ok) setDepositNotifications(json.data || []);
+      if (json.ok) {
+        const thongBaoDaLuu = json.data || [];
+        setDepositNotifications(thongBaoDaLuu);
+        setTransientNotifications((current) => current.filter(
+          (item) => !laThongBaoTamDaCoBanLuu(item, thongBaoDaLuu),
+        ));
+        return thongBaoDaLuu;
+      }
     } catch {
       // Module may not be migrated yet; the rest of the navigation remains usable.
     }
+    return [];
   };
 
   useEffect(() => {
@@ -58,8 +79,8 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
       console.log('[Socket] Received new notification in menu:', data);
       taiThongBaoDatCoc();
 
-      setTransientNotifications(prev => [{
-        MaThongBao: 'temp_' + Date.now(),
+      const thongBaoTam = {
+        MaThongBao: `temp_${Date.now()}`,
         NoiDung: data.noiDung,
         TaoLuc: new Date().toISOString(),
         DaDoc: false,
@@ -71,7 +92,18 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
         LoaiSuKien: data.loaiSuKien || null,
         LoaiThongBao: data.loaiSuKien || null,
         PhieuId: data.phieuId || null,
-      }, ...prev]);
+      };
+
+      setTransientNotifications((current) => {
+        const khoaMoi = khoaNoiDungThongBao(thongBaoTam);
+        const biLapGanDay = current.some((item) => {
+          if (khoaNoiDungThongBao(item) !== khoaMoi) return false;
+          const thoiDiemCu = new Date(item.TaoLuc).getTime();
+          return Number.isFinite(thoiDiemCu)
+            && Date.now() - thoiDiemCu <= CUA_SO_CHONG_LAP_SOCKET_MS;
+        });
+        return biLapGanDay ? current : [thongBaoTam, ...current];
+      });
     });
 
     const onFocus = () => taiThongBaoDatCoc();
@@ -211,7 +243,12 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
 
   const laActive = (path) => location.pathname === path || location.pathname.startsWith(path + '/');
 
-  const allUnreadNotifications = [...transientNotifications, ...depositNotifications].filter((n) => !n.DaDoc);
+  const transientNotificationsKhongLap = transientNotifications.filter(
+    (item) => !laThongBaoTamDaCoBanLuu(item, depositNotifications),
+  );
+  const allUnreadNotifications = [...transientNotificationsKhongLap, ...depositNotifications]
+    .filter((item) => !item.DaDoc)
+    .sort((itemA, itemB) => new Date(itemB.TaoLuc).getTime() - new Date(itemA.TaoLuc).getTime());
 
   return (
     <>
@@ -275,11 +312,10 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
             
             {/* Combine both lists for display */}
             {(() => {
-              const allNotifications = [...transientNotifications, ...depositNotifications].filter((n) => !n.DaDoc);
-              if (!allNotifications.length) {
+              if (!allUnreadNotifications.length) {
                 return <p style={{ padding: '12px 0', textAlign: 'center', color: '#64748b' }}>Không có thông báo mới.</p>;
               }
-              return allNotifications.slice(0, 6).map((item) => (
+              return allUnreadNotifications.slice(0, 6).map((item) => (
                 <button type="button" key={item.MaThongBao} className="unread" onClick={() => moThongBao(item)}>
                   <span>{item.NoiDung}</span><small>{new Date(item.TaoLuc).toLocaleString('vi-VN')}</small>
                 </button>

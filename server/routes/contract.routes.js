@@ -11,6 +11,7 @@ import {
   chuanHoaKyThanhToan,
   KY_THANH_TOAN_MAC_DINH,
 } from '../utils/hopDongQuyDinh.js';
+import { ganYeuCauThueGanNhat, layYeuCauThueGanNhat } from '../services/yeuCauThue.js';
 
 const router = express.Router();
 
@@ -55,7 +56,9 @@ async function layDatCocDayDu(maDatCoc) {
     .maybeSingle();
 
   if (error) throw error;
-  return data;
+  if (!data) return null;
+  const yeuCauThue = await layYeuCauThueGanNhat(data.CCCD);
+  return { ...data, LoaiThue: yeuCauThue?.LoaiThue || null, YeuCauThue: yeuCauThue };
 }
 
 function demGiuongTuGiuongDatCoc(giuongDatCoc = []) {
@@ -139,7 +142,7 @@ router.get('/cho-lap', async (req, res) => {
       .from('DatCoc')
       .select(`
         MaDatCoc, ThoiDiemTao, CapNhatLuc, SoTienCoc, TrangThai,
-        LoaiThue, SoGiuongThue, MaCN, CCCD, MaNhom,
+        SoGiuongThue, MaCN, CCCD, MaNhom,
         KhachHang ( CCCD, HoTen, SDT ),
         Phong ( MaPhong, LoaiPhong, SucChuaToiDa, ChiNhanh ( TenCN ) ),
         ChiNhanh ( TenCN ),
@@ -153,10 +156,10 @@ router.get('/cho-lap', async (req, res) => {
 
     const { data, error, count } = await query;
     if (error) throw error;
+    const phieuKemYeuCauThue = await ganYeuCauThueGanNhat(data || []);
 
-    let ketQua = (data || []).map((dc) => {
+    let ketQua = phieuKemYeuCauThue.map((dc) => {
       const phongRaw = layThongTinPhong(dc);
-      const phong = dc.Phong || dc.GiuongDatCoc?.[0]?.Giuong?.Phong;
       const tenCN = phongRaw.tenCN;
       const soGiuongThue = tinhSoGiuongThueHopDong(dc, phongRaw);
       return {

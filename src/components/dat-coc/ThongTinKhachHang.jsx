@@ -1,4 +1,5 @@
 import React from 'react';
+import { dinhDangTienNhap, layChuSoTien } from '../../utils/dinhDangTienNhap';
 
 export default function ThongTinKhachHang({
   role,
@@ -81,10 +82,11 @@ export default function ThongTinKhachHang({
             <label className="d-field-group">
               <span>Khả năng tài chính định kỳ</span>
               <input
-                type="number"
-                placeholder="Ví dụ: 5000000"
-                value={customerForm.KhaNangTaiChinh || ''}
-                onChange={(event) => capNhatFormKhachHang('KhaNangTaiChinh', event.target.value)}
+                type="text"
+                inputMode="numeric"
+                placeholder="Ví dụ: 5.000.000"
+                value={dinhDangTienNhap(customerForm.KhaNangTaiChinh)}
+                onChange={(event) => capNhatFormKhachHang('KhaNangTaiChinh', layChuSoTien(event.target.value))}
               />
             </label>
 
