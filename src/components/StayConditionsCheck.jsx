@@ -109,6 +109,19 @@ export default function StayConditionsCheck({ maHoSo = null, hienThongBao, onQua
 
   const xacNhanKiemTraLuuTru = () => guiKetQuaKiemTra(null);
 
+  const soDat = danhSachThanhVienLuuTru.filter((tv) => tv.dieuKien).length;
+  const tongNguoi = danhSachThanhVienLuuTru.length;
+  const tatCaDat = tongNguoi > 0 && soDat === tongNguoi;
+  const tatCaKhongDat = tongNguoi > 0 && soDat === 0;
+  const motPhanDat = soDat > 0 && soDat < tongNguoi;
+
+  const nutXacNhan = (() => {
+    if (dangXuLy) return { nhan: 'Đang xử lý...', className: 'btn-book-filled' };
+    if (tatCaKhongDat) return { nhan: 'Không đáp ứng điều kiện lưu trú', className: 'np-btn-danger' };
+    if (motPhanDat) return { nhan: 'Đưa ra quyết định', className: 'btn-book-warning' };
+    return { nhan: 'Xác nhận đáp ứng điều kiện', className: 'btn-book-filled' };
+  })();
+
   return (
     <div className="stay-check-page">
 
@@ -179,16 +192,16 @@ export default function StayConditionsCheck({ maHoSo = null, hienThongBao, onQua
                 <span className="stay-check-members-count">{danhSachThanhVienLuuTru.length} Thành viên</span>
               </div>
 
-              <div className="table-responsive">
-                <table className="appointments-table">
+              <div style={{ overflowX: 'auto' }}>
+                <table className="appointments-table stay-check-table">
                   <thead>
                     <tr>
-                      <th style={{ width: '60px' }}>STT</th>
+                      <th style={{ whiteSpace: 'nowrap', width: 48 }}>STT</th>
                       <th>Họ tên</th>
-                      <th>CCCD</th>
-                      <th style={{ textAlign: 'center' }}>Giới tính</th>
-                      <th style={{ textAlign: 'center' }}>Điều kiện</th>
-                      <th>Kết quả</th>
+                      <th style={{ whiteSpace: 'nowrap', width: 120 }}>CCCD</th>
+                      <th style={{ textAlign: 'center', whiteSpace: 'nowrap', width: 80 }}>Giới tính</th>
+                      <th style={{ textAlign: 'center', whiteSpace: 'nowrap', width: 84 }}>Điều kiện</th>
+                      <th style={{ whiteSpace: 'nowrap', width: 88 }}>Kết quả</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -197,10 +210,10 @@ export default function StayConditionsCheck({ maHoSo = null, hienThongBao, onQua
                         <td>{tv.id}</td>
                         <td>
                           <strong className="client-name">{tv.hoTen}</strong>
-                          {tv.truongNhom && <span className="stay-check-lead-tag">TRƯỞNG NHÓM</span>}
+                          {tv.truongNhom && tongNguoi > 1 && <span className="stay-check-lead-tag">TRƯỞNG NHÓM</span>}
                         </td>
-                        <td className="datetime-cell-content">{tv.cccd}</td>
-                        <td style={{ textAlign: 'center' }} className="datetime-cell-content">{tv.gioiTinh}</td>
+                        <td style={{ whiteSpace: 'nowrap' }}>{tv.cccd}</td>
+                        <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>{tv.gioiTinh}</td>
                         <td style={{ textAlign: 'center' }}>
                           <input
                             type="checkbox"
@@ -209,7 +222,7 @@ export default function StayConditionsCheck({ maHoSo = null, hienThongBao, onQua
                             onChange={() => capNhatDieuKienThanhVien(tv.id)}
                           />
                         </td>
-                        <td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
                           <span className={`stay-check-result ${tv.dieuKien ? 'result-pass' : 'result-fail'}`}>
                             {tv.dieuKien ? 'Đạt' : 'Không đạt'}
                           </span>
@@ -226,15 +239,22 @@ export default function StayConditionsCheck({ maHoSo = null, hienThongBao, onQua
                   className="btn-detail-outline"
                   onClick={onQuayLai}
                 >
-                  Quay lại
+                  Quay lại danh sách
                 </button>
                 <button
                   type="button"
-                  className="btn-book-filled"
-                  disabled={dangXuLy}
+                  className={nutXacNhan.className}
+                  disabled={dangXuLy || tongNguoi === 0}
                   onClick={xacNhanKiemTraLuuTru}
+                  title={
+                    tatCaKhongDat
+                      ? 'Toàn bộ người trong danh sách không đáp ứng điều kiện — hồ sơ sẽ bị từ chối'
+                      : motPhanDat
+                        ? 'Một số thành viên không đạt — bạn sẽ cần đưa ra quyết định tiếp theo'
+                        : 'Tất cả đều đáp ứng điều kiện lưu trú — tiếp tục lập hợp đồng'
+                  }
                 >
-                  {dangXuLy ? 'Đang xử lý...' : 'Xác nhận kết quả kiểm tra → Lập hợp đồng'}
+                  {nutXacNhan.nhan}
                 </button>
               </div>
             </div>
