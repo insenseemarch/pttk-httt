@@ -1,12 +1,11 @@
 import React from 'react';
 import BieuDoLichSu from './BieuDoLichSu';
 import { moAnhTrongTabMoi } from '../../utils/moAnhTrongTabMoi';
+import { dinhDangTienNhap, layChuSoTien } from '../../utils/dinhDangTienNhap';
 
 export default function ThanhToanMinhChung({
   role,
   selected,
-  room,
-  selectedBeds,
   suggested,
   depositAmount,
   setDepositAmount,
@@ -15,7 +14,7 @@ export default function ThanhToanMinhChung({
   transaction,
   setTransaction,
   evidence,
-  onEvidence,
+  xuLyAnhChungTu,
   cashAmount,
   setCashAmount,
   cashConfirmed,
@@ -25,7 +24,8 @@ export default function ThanhToanMinhChung({
   setActionError,
   busy,
   note,
-  submitAction,
+  guiYeuCauXuLy,
+  guiChungTuThanhToan,
   money,
   dateTime,
 }) {
@@ -38,7 +38,7 @@ export default function ThanhToanMinhChung({
         <section className="d-section-card d-card-money">
           <h3>Tính toán tiền cọc</h3>
           <div className="d-formula-box">
-            <span>Công thức: Tiền thuê 2 tháng × {selected.LoaiThue === 'Thuê nguyên phòng' ? room?.SucChuaToiDa || selected.SoGiuongThue : selectedBeds.length} giường</span>
+            <span>Tiền cọc = (Tiền thuê 2 tháng) × (Số giường thuê).</span>
             <strong>Gợi ý: {money(suggested)}</strong>
           </div>
 
@@ -46,10 +46,10 @@ export default function ThanhToanMinhChung({
             <label className="d-field-group">
               <span>SỐ TIỀN CỌC XÁC NHẬN (KẾ TOÁN CÓ THỂ ĐIỀU CHỈNH)</span>
               <input
-                type="number"
-                min="1"
-                value={depositAmount || suggested}
-                onChange={(event) => setDepositAmount(event.target.value)}
+                type="text"
+                inputMode="numeric"
+                value={dinhDangTienNhap(depositAmount || suggested)}
+                onChange={(event) => setDepositAmount(layChuSoTien(event.target.value))}
                 style={{ fontWeight: 'bold', fontSize: '15px', color: '#f26a21' }}
               />
             </label>
@@ -93,11 +93,10 @@ export default function ThanhToanMinhChung({
               <label className="d-field-group">
                 <span style={{ color: '#14532d' }}>Số tiền mặt thực tế đã nhận (VNĐ)</span>
                 <input
-                  type="number"
-                  min="1"
-                  step="1000"
-                  value={cashAmount || selected.SoTienCoc}
-                  onChange={(event) => setCashAmount(event.target.value)}
+                  type="text"
+                  inputMode="numeric"
+                  value={dinhDangTienNhap(cashAmount || selected.SoTienCoc)}
+                  onChange={(event) => setCashAmount(layChuSoTien(event.target.value))}
                   style={{ borderColor: '#86efac', background: '#ffffff', fontWeight: 'bold' }}
                 />
               </label>
@@ -126,7 +125,7 @@ export default function ThanhToanMinhChung({
                 <span className="material-symbols-outlined" style={{ fontSize: '36px' }}>cloud_upload</span>
                 <strong>{evidence ? 'Đã chọn ảnh chứng từ thanh toán' : 'Kéo thả hoặc click để chọn ảnh giao dịch'}</strong>
                 <small>Định dạng ảnh PNG, JPG (Tối đa 2 megabyte)</small>
-                <input type="file" accept="image/*" onChange={(event) => onEvidence(event.target.files?.[0])} />
+                <input type="file" accept="image/*" onChange={(event) => xuLyAnhChungTu(event.target.files?.[0])} />
               </div>
               {evidence && (
                 <div className="d-proof-preview">
@@ -191,7 +190,7 @@ export default function ThanhToanMinhChung({
                     setActionError('Vui lòng nhập lý do báo hết chỗ vào ô ghi chú phía trên.');
                     return;
                   }
-                  submitAction('BAO_HET_CHO');
+                  guiYeuCauXuLy('BAO_HET_CHO');
                 }}
               >
                 Báo hết chỗ và Từ chối
@@ -207,7 +206,7 @@ export default function ThanhToanMinhChung({
                     setActionError('Vui lòng nhập lý do từ chối chứng từ vào ô ghi chú phía trên.');
                     return;
                   }
-                  submitAction('TU_CHOI_CHUNG_TU');
+                  guiYeuCauXuLy('TU_CHOI_CHUNG_TU');
                 }}
               >
                 Từ chối chứng từ
@@ -218,7 +217,11 @@ export default function ThanhToanMinhChung({
                 type="button"
                 className="d-btn-primary"
                 disabled={busy || (role === 'QUAN_LY' && selected.TrangThai === 'CHO_XAC_NHAN_THANH_TOAN' && !latestProof)}
-                onClick={() => submitAction(primaryAction[0])}
+                onClick={() => (
+                  primaryAction[0] === 'XAC_NHAN_THANH_TOAN'
+                    ? guiChungTuThanhToan()
+                    : guiYeuCauXuLy(primaryAction[0])
+                )}
               >
                 {busy ? 'Đang xử lý...' : primaryAction[1]}
               </button>

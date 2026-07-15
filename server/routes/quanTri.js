@@ -8,6 +8,7 @@ import {
   layThongKePhongGiuong,
   layDanhSachPhong,
   layDanhSachChiNhanh,
+  layDanhSachLoaiPhong,
 } from '../services/phongGiuong.js';
 import {
   layDanhSachHopDong,
@@ -91,6 +92,15 @@ export function ganRouteQuanTri(app) {
       res.json({ ok: true, data });
     } catch (error) {
       traLoiLoi(res, error, 'lấy chi nhánh');
+    }
+  });
+
+  app.get('/api/loai-phong', async (req, res) => {
+    try {
+      const data = await layDanhSachLoaiPhong();
+      res.json({ ok: true, data });
+    } catch (error) {
+      traLoiLoi(res, error, 'lấy loại phòng');
     }
   });
 

@@ -119,7 +119,7 @@ export async function layDanhSachPhong(boLoc = {}) {
     .select(
       `
       MaPhong, LoaiPhong, SucChuaConLai, SucChuaToiDa, GioiTinhYeuCau, GiaThue, TinhTrang, MaCN,
-      LoaiPhongInfo:LoaiPhong(TenLoaiPhong),
+      LoaiPhongInfo:LoaiPhong(MaLoaiPhong, TenLoaiPhong),
       ChiNhanh ( TenCN ),
       Giuong ( MaGiuong, GioiTinhYeuCau, GiaThue, TinhTrang )
     `,
@@ -129,6 +129,8 @@ export async function layDanhSachPhong(boLoc = {}) {
     .range(tu, den);
 
   if (maCN) query = query.eq('MaCN', Number(maCN));
+  const maLoaiPhong = /^\d+$/.test(String(loaiPhong).trim()) ? Number(loaiPhong) : null;
+  if (maLoaiPhong) query = query.eq('LoaiPhong', maLoaiPhong);
   if (timKiem.trim()) {
     const q = timKiem.trim();
     if (/^\d+$/.test(q)) query = query.eq('MaPhong', Number(q));
@@ -142,12 +144,12 @@ export async function layDanhSachPhong(boLoc = {}) {
 
   if (phongRes.error) throw phongRes.error;
 
-  const loaiPhongKey = chuanHoaChuoi(loaiPhong);
+  const loaiPhongKey = maLoaiPhong ? '' : chuanHoaChuoi(loaiPhong);
   let danhSach = (phongRes.data || [])
     .filter((p) => !loaiPhongKey || chuanHoaChuoi(layTenLoaiPhong(p)).includes(loaiPhongKey))
     .map((p) => {
     const giuongs = p.Giuong || [];
-    const tong = giuongs.length || p.SucChuaToiDa || p.SucChuaConLai || p.SucChua || 1;
+    const tong = giuongs.length || p.SucChuaToiDa || p.SucChuaConLai || 1;
     let daDung = 0;
     let hetHanCoc = null;
     giuongs.forEach((g) => {
@@ -162,6 +164,7 @@ export async function layDanhSachPhong(boLoc = {}) {
 
     return {
       maPhong: p.MaPhong,
+      maLoaiPhong: p.LoaiPhong,
       loaiPhong: layTenLoaiPhong(p),
       gioiTinhYeuCau: p.GioiTinhYeuCau || 'Chưa phân loại',
       sucChua: p.SucChuaToiDa || tong,
@@ -198,6 +201,15 @@ export async function layDanhSachPhong(boLoc = {}) {
 
 export async function layDanhSachChiNhanh() {
   const { data, error } = await supabase.from('ChiNhanh').select('MaCN, TenCN').order('TenCN');
+  if (error) throw error;
+  return data || [];
+}
+
+export async function layDanhSachLoaiPhong() {
+  const { data, error } = await supabase
+    .from('LoaiPhong')
+    .select('MaLoaiPhong, TenLoaiPhong')
+    .order('MaLoaiPhong');
   if (error) throw error;
   return data || [];
 }

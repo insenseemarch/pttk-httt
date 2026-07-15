@@ -56,20 +56,6 @@
   font-size: 15px;
 }
 
-.qt-page-header .qt-room-auto-note {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-  color: #15803d;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.qt-room-auto-note .material-symbols-outlined {
-  font-size: 18px;
-}
-
 .qt-btn-primary {
   background: #f97316;
   color: #fff;

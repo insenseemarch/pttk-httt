@@ -2,6 +2,7 @@ import express from 'express';
 import { supabase } from '../config/supabase.js';
 import { dinhDangNgay, dinhDangTien } from '../utils/dinhDang.js';
 import { getIO } from '../config/ketNoiSocket.js';
+import { ganYeuCauThueGanNhat, layYeuCauThueGanNhat } from '../services/yeuCauThue.js';
 
 const router = express.Router();
 
@@ -39,21 +40,13 @@ async function layHoSoKiemTra(maDatCoc) {
 
   if (error) throw error;
   if (!dc) return null;
-
-  const yc = await layYeuCauThueGanNhat(dc.CCCD);
-  dc._soNguoiDuKien = Number(yc?.SoNguoiDuKien || 1);
-  return dc;
-}
-
-async function layYeuCauThueGanNhat(cccd) {
-  const { data } = await supabase
-    .from('YeuCauThue')
-    .select('SoNguoiDuKien, ThoiGianVao')
-    .eq('CCCD', String(cccd))
-    .order('NgayTao', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  return data;
+  const yeuCauThue = await layYeuCauThueGanNhat(dc.CCCD);
+  return {
+    ...dc,
+    _soNguoiDuKien: Number(yeuCauThue?.SoNguoiDuKien || 1),
+    LoaiThue: yeuCauThue?.LoaiThue || null,
+    YeuCauThue: yeuCauThue,
+  };
 }
 
 function laThueNhom(soNguoiDuKien) {
@@ -426,7 +419,7 @@ router.get('/', async (req, res) => {
       .from('DatCoc')
       .select(`
         MaDatCoc, ThoiDiemTao, DatCocThanhCong, CapNhatLuc, SoTienCoc, TrangThai,
-        LoaiThue, SoGiuongThue, MaCN, CCCD, MaNhom,
+        SoGiuongThue, MaCN, CCCD, MaNhom,
         KhachHang ( CCCD, HoTen, SDT ),
         Phong ( MaPhong, LoaiPhong ( TenLoaiPhong ), ChiNhanh ( TenCN ) ),
         ChiNhanh ( TenCN ),
@@ -439,15 +432,16 @@ router.get('/', async (req, res) => {
 
     const { data, error, count } = await query;
     if (error) throw error;
+    const phieuKemYeuCauThue = await ganYeuCauThueGanNhat(data || []);
 
     const tenLP = (lp) => (lp && typeof lp === 'object' ? lp.TenLoaiPhong : lp) || '—';
 
-    let ketQua = await Promise.all((data || []).map(async (dc) => {
+    let ketQua = phieuKemYeuCauThue.map((dc) => {
       const phongTrucTiep = dc.Phong;
       const phongTuGiuong = dc.GiuongDatCoc?.[0]?.Giuong?.Phong;
       const phong = phongTrucTiep || phongTuGiuong;
       const tenCN = phong?.ChiNhanh?.TenCN || dc.ChiNhanh?.TenCN || '—';
-      const yc = await layYeuCauThueGanNhat(dc.CCCD);
+      const yc = dc.YeuCauThue;
       const soNguoiDuKien = Number(yc?.SoNguoiDuKien || 1);
       return {
         maDatCoc: dc.MaDatCoc,
@@ -459,13 +453,13 @@ router.get('/', async (req, res) => {
         chiNhanh: tenCN,
         soGiuongThue: dc.SoGiuongThue || 1,
         soNguoiDuKien,
-        loaiThue: dc.LoaiThue || 'Thuê giường lẻ',
+        loaiThue: dc.LoaiThue,
         soTienCocFmt: dinhDangTien(dc.SoTienCoc),
         trangThai: dc.TrangThai,
         ngayChuyenKiemTra: dinhDangNgay(dc.CapNhatLuc || dc.DatCocThanhCong || dc.ThoiDiemTao),
         laThuNhom: laThueNhom(soNguoiDuKien),
       };
-    }));
+    });
 
     if (timKiem.trim()) {
       const q = timKiem.trim().toLowerCase();

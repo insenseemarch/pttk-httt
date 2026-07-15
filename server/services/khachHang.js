@@ -1,6 +1,10 @@
 import { supabase } from '../config/supabase.js';
 import { dinhDangCCCD, dinhDangNgay } from '../utils/dinhDang.js';
 
+function chuanHoaCCCD(value) {
+  return String(value ?? '').replace(/\D/g, '');
+}
+
 function layHopDongHienTai(hopDongs) {
   if (!hopDongs?.length) return null;
   const dangHieuLuc = hopDongs.find((hd) => hd.TrangThai === 'Đang hiệu lực');
@@ -63,9 +67,8 @@ export async function layDanhSachKhachHang(boLoc = {}) {
 
   if (timKiem.trim()) {
     const q = timKiem.trim();
-    const cccdNum = Number(q);
-    if (!Number.isNaN(cccdNum) && /^\d+$/.test(q)) {
-      query = query.or(`HoTen.ilike.%${q}%,SDT.ilike.%${q}%,Email.ilike.%${q}%,CCCD.eq.${cccdNum}`);
+    if (/^\d+$/.test(q)) {
+      query = query.or(`HoTen.ilike.%${q}%,SDT.ilike.%${q}%,Email.ilike.%${q}%,CCCD.eq.${q}`);
     } else {
       query = query.or(`HoTen.ilike.%${q}%,SDT.ilike.%${q}%,Email.ilike.%${q}%`);
     }
@@ -131,7 +134,7 @@ export async function layChiTietKhachHang(cccd) {
       )
     `,
     )
-    .eq('CCCD', Number(cccd))
+    .eq('CCCD', chuanHoaCCCD(cccd))
     .maybeSingle();
 
   if (error) throw error;
@@ -168,7 +171,7 @@ export async function themKhachHang(duLieu) {
   const { data, error } = await supabase
     .from('KhachHang')
     .insert({
-      CCCD: Number(duLieu.cccd),
+      CCCD: chuanHoaCCCD(duLieu.cccd),
       HoTen: duLieu.hoTen,
       SDT: duLieu.sdt,
       Email: duLieu.email || null,
@@ -195,7 +198,7 @@ export async function capNhatKhachHang(cccd, duLieu) {
       GioiTinh: duLieu.gioiTinh,
       DiaChi: duLieu.diaChi,
     })
-    .eq('CCCD', Number(cccd))
+    .eq('CCCD', chuanHoaCCCD(cccd))
     .select()
     .maybeSingle();
 

@@ -29,8 +29,28 @@ const STATUS_CODE_BY_LABEL = Object.freeze(
   Object.fromEntries(Object.entries(LABELS).map(([code, label]) => [label, code])),
 );
 
+const MA_MAU_THEO_TRANG_THAI = Object.freeze({
+  ...STATUS_CODE_BY_LABEL,
+  'Chờ kiểm tra': 'CHO_KIEM_TRA',
+  'Chờ lập hợp đồng': 'CHO_LAP_HOP_DONG',
+  'Chờ lập hợp đồng (điều chỉnh)': 'CHO_LAP_HOP_DONG_DIEU_CHINH',
+  'Chờ hoàn cọc': 'CHO_HOAN_COC',
+  'Chờ thanh toán': 'CHO_THANH_TOAN_HOP_DONG',
+  'Chờ thanh toán thêm': 'CHO_THANH_TOAN_THEM',
+  'Chờ đối soát': 'CHO_DOI_SOAT',
+  'Chờ xác nhận đối soát': 'CHO_XAC_NHAN_DOI_SOAT',
+  'Chờ thanh lý': 'CHO_THANH_LY',
+  'Đã thanh lý': 'DA_THANH_LY',
+});
+
 function maTrangThai(value) {
   return STATUS_CODE_BY_LABEL[value] || value;
+}
+
+function maMauTrangThai(value) {
+  const giaTri = String(value || '');
+  if (LABELS[giaTri]) return giaTri;
+  return MA_MAU_THEO_TRANG_THAI[giaTri] || 'KHAC';
 }
 
 function dinhDangCCCD(value) {
@@ -155,6 +175,27 @@ function phongPhuHopGioiTinh(room, gender) {
   return !gender || String(room?.GioiTinhYeuCau || '').trim() === String(gender).trim();
 }
 
+function taoFormTaoPhieuMacDinh(cccd = '') {
+  return {
+    cccd,
+    maYC: '',
+    loaiThue: '',
+    maLoaiPhong: '',
+    tenLoaiPhong: '',
+    soNguoiDuKien: 0,
+    maPhong: '',
+    maGiuongs: [],
+    hoTen: '',
+    sdt: '',
+    email: '',
+    diaChi: '',
+    gioiTinh: '',
+    quocTich: '',
+    khaNangTaiChinh: '',
+    thoiHanThue: 6,
+  };
+}
+
 function chuyenThanhNgay(value) {
   if (!value) return null;
   if (typeof value === 'string' && !value.endsWith('Z') && !/\+\d{2}:?\d{2}$/.test(value) && !/\-\d{2}:?\d{2}$/.test(value)) {
@@ -210,17 +251,32 @@ function locTheoTab(item, tab, role) {
     if (tab === 'THANH_TOAN') return ['CHO_TINH_COC', 'CHO_THANH_TOAN', 'CHO_XAC_NHAN_THANH_TOAN', 'TU_CHOI_CHUNG_TU'].includes(item.TrangThai);
   }
   if (role === 'QUAN_LY') {
-    if (tab === 'KIEM_TRA_PHONG') return item.TrangThai === 'CHO_KIEM_TRA_PHONG';
-    if (tab === 'DUYET_TIEN') return item.TrangThai === 'CHO_XAC_NHAN_THANH_TOAN';
+    if (tab === 'KIEM_TRA_PHONG') return ['CHO_KIEM_TRA_PHONG', 'HET_CHO', 'CON_TRONG_CHO_GUI_KE_TOAN'].includes(item.TrangThai);
+    if (tab === 'DUYET_TIEN') return ['CHO_XAC_NHAN_THANH_TOAN', 'TU_CHOI_CHUNG_TU'].includes(item.TrangThai);
   }
   if (role === 'KE_TOAN') {
-    if (tab === 'TINH_COC') return item.TrangThai === 'CHO_TINH_COC';
+    if (tab === 'TINH_COC') return ['CHO_TINH_COC', 'CHO_THANH_TOAN', 'CHO_XAC_NHAN_THANH_TOAN', 'TU_CHOI_CHUNG_TU'].includes(item.TrangThai);
   }
   return true;
 }
 
+function layTabTheoTrangThai(role, trangThai) {
+  if (['DA_XAC_NHAN', 'QUA_HAN_TU_DONG_HUY'].includes(trangThai)) return 'KET_THUC';
+  if (role === 'SALE') {
+    if (['MOI', 'CHO_KIEM_TRA_PHONG', 'HET_CHO', 'CON_TRONG_CHO_GUI_KE_TOAN'].includes(trangThai)) return 'KHAO_SAT';
+    if (['CHO_TINH_COC', 'CHO_THANH_TOAN', 'CHO_XAC_NHAN_THANH_TOAN', 'TU_CHOI_CHUNG_TU'].includes(trangThai)) return 'THANH_TOAN';
+  }
+  if (role === 'QUAN_LY') {
+    if (['CHO_KIEM_TRA_PHONG', 'HET_CHO', 'CON_TRONG_CHO_GUI_KE_TOAN'].includes(trangThai)) return 'KIEM_TRA_PHONG';
+    if (['CHO_XAC_NHAN_THANH_TOAN', 'TU_CHOI_CHUNG_TU'].includes(trangThai)) return 'DUYET_TIEN';
+  }
+  if (role === 'KE_TOAN') return 'TINH_COC';
+  return 'ALL';
+}
+
 export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
   const [searchParams, setSearchParams] = useSearchParams();
+  const phieuTuUrl = searchParams.get('phieu');
   const role = layVaiTro(nguoiDung);
   const [items, setItems] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -249,27 +305,15 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
   const [editingSelection, setEditingSelection] = useState(false);
   const [rooms, setRooms] = useState([]);
   const [overviewRoomLimit, setOverviewRoomLimit] = useState(10);
-  const [createForm, setCreateForm] = useState({
-    cccd: '',
-    loaiThue: 'Thuê giường lẻ',
-    maPhong: '',
-    maGiuongs: [],
-    hoTen: '',
-    sdt: '',
-    email: '',
-    diaChi: '',
-    gioiTinh: '',
-    quocTich: 'Việt Nam',
-    khaNangTaiChinh: '',
-    thoiHanThue: 6
-  });
+  const [createForm, setCreateForm] = useState(() => taoFormTaoPhieuMacDinh());
+  const [dangTaiHoSoTaoPhieu, setDangTaiHoSoTaoPhieu] = useState(false);
   const [customerForm, setCustomerForm] = useState({});
   const [savedCustomerForm, setSavedCustomerForm] = useState({});
   const [savingCustomer, setSavingCustomer] = useState(false);
   const [customerSaveError, setCustomerSaveError] = useState('');
   const [customerSaveMessage, setCustomerSaveMessage] = useState('');
 
-  const taiDanhSach = async (silent = false) => {
+  const taiDanhSachPhieu = async (silent = false) => {
     if (!silent) setLoading(true);
     if (!silent) setError('');
     try {
@@ -286,7 +330,7 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
     }
   };
 
-  const taiChiTiet = async (id, silent = false) => {
+  const taiChiTietPhieu = async (id, silent = false) => {
     if (!silent) setError('');
     try {
       let response;
@@ -320,6 +364,7 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
       const normalizedData = chuanHoaPhieuTuAPI(json.data);
       setSelected(normalizedData);
       if (!silent) {
+        setSearchParams({ phieu: String(normalizedData.MaDatCoc) }, { replace: true });
         setActionError('');
         const formKhachHang = {
           CCCD: normalizedData.CCCD || '',
@@ -350,7 +395,10 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
   };
 
   useEffect(() => {
-    taiDanhSach();
+    taiDanhSachPhieu();
+    if (/^\d+$/.test(String(phieuTuUrl || ''))) {
+      taiChiTietPhieu(Number(phieuTuUrl));
+    }
 
     // Connect socket
     const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3001');
@@ -362,24 +410,24 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
         socket.emit('join_room', `sale:${nguoiDung.maNV}`);
       }
       // Reconnect-sync
-      taiDanhSach(true);
+      taiDanhSachPhieu(true);
       const currentSelected = selectedRef.current;
-      if (currentSelected) taiChiTiet(currentSelected.MaDatCoc, true);
+      if (currentSelected) taiChiTietPhieu(currentSelected.MaDatCoc, true);
     });
 
-    socket.on('thong_bao_moi', (data) => {
-      console.log('[Socket] Received change in workflow:', data);
-      taiDanhSach(true);
+    socket.on('dat_coc_cap_nhat', (data) => {
+      console.log('[Socket] Received deposit workflow update:', data);
+      taiDanhSachPhieu(true);
       const currentSelected = selectedRef.current;
       if (currentSelected && Number(currentSelected.MaDatCoc) === Number(data.phieuId)) {
-        taiChiTiet(currentSelected.MaDatCoc, true);
+        taiChiTietPhieu(currentSelected.MaDatCoc, true);
       }
     });
 
     const interval = setInterval(() => {
-      taiDanhSach(true);
+      taiDanhSachPhieu(true);
       const currentSelected = selectedRef.current;
-      if (currentSelected) taiChiTiet(currentSelected.MaDatCoc, true);
+      if (currentSelected) taiChiTietPhieu(currentSelected.MaDatCoc, true);
     }, 30000);
 
     return () => {
@@ -498,8 +546,10 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
       });
       const json = await response.json();
       if (!json.ok) throw new Error(json.error);
-      await taiDanhSach();
-      await taiChiTiet(selected.MaDatCoc);
+      const trangThaiMoi = maTrangThai(json.data?.TrangThai);
+      setSelectedTab(layTabTheoTrangThai(role, trangThaiMoi));
+      await taiDanhSachPhieu();
+      await taiChiTietPhieu(selected.MaDatCoc);
     } catch (err) {
       setActionError(err.message);
     } finally {
@@ -507,33 +557,21 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
     }
   };
 
-  const taiDanhSachPhongGiuong = async () => {
-    try {
-      const response = await fetch(`${API}/phong-giuong-trong`, { headers: taoHeaderAPI(nguoiDung) });
-      const json = await response.json();
-      if (!json.ok) throw new Error(json.error);
-      setRooms(json.data);
-      setOverviewRoomLimit(10);
-      setEditingSelection(false);
-      setCreateError('');
-      setCreateForm({
-        cccd: '',
-        loaiThue: 'Thuê giường lẻ',
-        maPhong: '',
-        maGiuongs: [],
-        hoTen: '',
-        sdt: '',
-        email: '',
-        diaChi: '',
-        gioiTinh: '',
-        quocTich: 'Việt Nam',
-        khaNangTaiChinh: '',
-        thoiHanThue: 6
-      });
-      setShowCreate(true);
-    } catch (err) {
-      setError(err.message);
-    }
+  const taiDanhSachPhongGiuong = () => {
+    setRooms([]);
+    setOverviewRoomLimit(10);
+    setEditingSelection(false);
+    setDangTaiHoSoTaoPhieu(false);
+    setCreateError('');
+    setCreateForm(taoFormTaoPhieuMacDinh());
+    setShowCreate(true);
+  };
+
+  const thayDoiCCCDTaoPhieu = (value) => {
+    const cccd = String(value || '').replace(/\D/g, '').slice(0, 12);
+    setRooms([]);
+    setCreateError('');
+    setCreateForm(taoFormTaoPhieuMacDinh(cccd));
   };
 
   const suaLuaChonPhongGiuong = async () => {
@@ -545,7 +583,11 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
       setOverviewRoomLimit(10);
       setCreateForm({
         cccd: String(selected.CCCD),
+        maYC: '',
         loaiThue: selected.LoaiThue,
+        maLoaiPhong: '',
+        tenLoaiPhong: '',
+        soNguoiDuKien: 1,
         maPhong: '',
         maGiuongs: [],
         hoTen: selected.KhachHang?.HoTen || '',
@@ -564,6 +606,62 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
       setError(err.message);
     }
   };
+
+  useEffect(() => {
+    if (!showCreate || editingSelection) return undefined;
+    if (!/^\d{12}$/.test(createForm.cccd)) {
+      setDangTaiHoSoTaoPhieu(false);
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    setDangTaiHoSoTaoPhieu(true);
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await fetch(`${API}/ho-so-tao-phieu/${createForm.cccd}`, {
+          headers: taoHeaderAPI(nguoiDung),
+          signal: controller.signal,
+        });
+        const json = await response.json();
+        if (!json.ok) throw new Error(json.error);
+        const { khachHang, yeuCauThue, phong, maGiuongsMacDinh } = json.data;
+        const thongTinLoaiPhong = yeuCauThue.ThongTinLoaiPhong || phong.ThongTinLoaiPhong || {};
+        setRooms([phong]);
+        setCreateForm((current) => ({
+          ...current,
+          cccd: dinhDangCCCD(khachHang.CCCD),
+          maYC: yeuCauThue.MaYC,
+          loaiThue: yeuCauThue.LoaiThue,
+          maLoaiPhong: yeuCauThue.LoaiPhong,
+          tenLoaiPhong: thongTinLoaiPhong.TenLoaiPhong || `Loại phòng #${yeuCauThue.LoaiPhong}`,
+          soNguoiDuKien: Number(yeuCauThue.SoNguoiDuKien || 1),
+          maPhong: String(phong.MaPhong),
+          maGiuongs: (maGiuongsMacDinh || []).map(Number),
+          hoTen: khachHang.HoTen || '',
+          sdt: khachHang.SDT || '',
+          email: khachHang.Email || '',
+          diaChi: khachHang.DiaChi || '',
+          gioiTinh: khachHang.GioiTinh || '',
+          quocTich: khachHang.QuocTich || '',
+          khaNangTaiChinh: khachHang.KhaNangTaiChinh ?? '',
+          thoiHanThue: Number(yeuCauThue.ThoiHanThue || 6),
+        }));
+        setCreateError('');
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+        setRooms([]);
+        setCreateForm((current) => taoFormTaoPhieuMacDinh(current.cccd));
+        setCreateError(err.message || 'Không thể tải thông tin khách hàng');
+      } finally {
+        if (!controller.signal.aborted) setDangTaiHoSoTaoPhieu(false);
+      }
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [showCreate, editingSelection, createForm.cccd, nguoiDung?.maNV, role]);
 
   const genderCompatibleRooms = useMemo(() => rooms
     .map((roomItem) => {
@@ -594,57 +692,33 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
   const taoPhieuDatCoc = async () => {
     const roomData = selectedCreateRoom;
     setCreateError('');
-    if (!roomData || !createForm.maGiuongs.length) return setCreateError('Vui lòng chọn phòng và giường');
     if (!/^\d{12}$/.test(createForm.cccd)) {
       return setCreateError('Số CCCD phải có đúng 12 chữ số.');
     }
-    if (!createForm.hoTen || !createForm.hoTen.trim()) {
-      return setCreateError('Vui lòng nhập họ và tên khách thuê.');
-    }
-    if (!tenHopLe(createForm.hoTen)) {
-      return setCreateError('Họ và tên không hợp lệ (không chứa số hoặc ký tự đặc biệt).');
-    }
-    if (createForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(createForm.email)) {
-      return setCreateError('Địa chỉ email không đúng định dạng.');
-    }
-    if (!createForm.sdt || !/^\d{9,11}$/.test(createForm.sdt)) {
-      return setCreateError('Số điện thoại không hợp lệ (bắt buộc từ 9 đến 11 chữ số).');
-    }
-    if (!createForm.gioiTinh || !createForm.gioiTinh.trim()) {
-      return setCreateError('Vui lòng chọn giới tính.');
-    }
-    if (!createForm.quocTich || !createForm.quocTich.trim()) {
-      return setCreateError('Vui lòng nhập quốc tịch.');
-    }
-    if (createForm.khaNangTaiChinh && (Number(createForm.khaNangTaiChinh) <= 0 || Number.isNaN(Number(createForm.khaNangTaiChinh)))) {
-      return setCreateError('Khả năng tài chính phải là một số dương.');
+    if (!createForm.maYC || !roomData) return setCreateError('Chưa tải đủ yêu cầu thuê và phòng đã chọn của khách hàng.');
+    if (!createForm.maGiuongs.length) return setCreateError('Phiếu phải có ít nhất một giường.');
+    if (createForm.loaiThue === 'Thuê giường lẻ' && createForm.maGiuongs.length < Number(createForm.soNguoiDuKien || 1)) {
+      return setCreateError(`Vui lòng chọn ít nhất ${createForm.soNguoiDuKien} giường theo số người dự kiến.`);
     }
     setBusy(true);
     try {
       const response = await fetch(`${API}/phieu`, {
         method: 'POST',
         headers: taoHeaderAPI(nguoiDung),
-        body: JSON.stringify({ ...createForm, maCN: roomData.MaCN }),
+        body: JSON.stringify({
+          cccd: createForm.cccd,
+          maYC: createForm.maYC,
+          maGiuongs: createForm.maGiuongs,
+        }),
       });
       const json = await response.json();
       if (!json.ok) throw new Error(json.error);
       setShowCreate(false);
-      setCreateForm({
-        cccd: '',
-        loaiThue: 'Thuê giường lẻ',
-        maPhong: '',
-        maGiuongs: [],
-        hoTen: '',
-        sdt: '',
-        email: '',
-        diaChi: '',
-        gioiTinh: '',
-        quocTich: 'Việt Nam',
-        khaNangTaiChinh: '',
-        thoiHanThue: 6
-      });
-      await taiDanhSach();
-      await taiChiTiet(json.data.MaDatCoc);
+      setSelectedTab('KHAO_SAT');
+      setRooms([]);
+      setCreateForm(taoFormTaoPhieuMacDinh());
+      await taiDanhSachPhieu();
+      await taiChiTietPhieu(json.data.MaDatCoc);
     } catch (err) {
       setCreateError(err.message);
     } finally {
@@ -659,7 +733,6 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
       maGiuongs: createForm.maGiuongs,
       maPhong: Number(createForm.maPhong),
       maCN: selectedCreateRoom.MaCN,
-      loaiThue: createForm.loaiThue,
     });
   };
 
@@ -670,17 +743,14 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
     reader.onload = () => setEvidence(String(reader.result));
     reader.readAsDataURL(file);
   };
+  const guiChungTuThanhToan = () => guiYeuCauXuLy('XAC_NHAN_THANH_TOAN');
   const money = dinhDangTien;
   const dateTime = dinhDangNgayGio;
   const remaining = tinhThoiGianConLai;
-  const fetchList = taiDanhSach;
-  const fetchDetail = taiChiTiet;
-  const submitAction = guiYeuCauXuLy;
   const loadRooms = taiDanhSachPhongGiuong;
   const editSelection = suaLuaChonPhongGiuong;
   const createDeposit = taoPhieuDatCoc;
   const saveNewSelection = luuLuaChonPhongGiuongMoi;
-  const onEvidence = xuLyAnhChungTu;
   const saveCustomerInfo = luuThongTinKhachHang;
 
   const primaryAction = selected ? layHanhDongChoVaiTro(role, selected.TrangThai) : null;
@@ -688,18 +758,25 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
   const latestProof = selected?.chungTu?.[0] || null;
 
   const filteredItems = useMemo(() => {
-    return items.filter((item) => {
-      if (!locTheoTab(item, selectedTab, role)) return false;
-      if (searchQuery.trim()) {
-        const query = searchQuery.toLowerCase().trim();
-        const hoTen = (item.KhachHang?.HoTen || '').toLowerCase();
-        const cccd = String(item.CCCD || '');
-        const phone = (item.KhachHang?.SDT || '');
-        const maPhong = String(item.MaPhong || '');
-        return hoTen.includes(query) || cccd.includes(query) || phone.includes(query) || maPhong.includes(query);
-      }
-      return true;
-    });
+    return items
+      .filter((item) => {
+        if (!locTheoTab(item, selectedTab, role)) return false;
+        if (searchQuery.trim()) {
+          const query = searchQuery.toLowerCase().trim();
+          const hoTen = (item.KhachHang?.HoTen || '').toLowerCase();
+          const cccd = String(item.CCCD || '');
+          const phone = (item.KhachHang?.SDT || '');
+          const maPhong = String(item.MaPhong || '');
+          return hoTen.includes(query) || cccd.includes(query) || phone.includes(query) || maPhong.includes(query);
+        }
+        return true;
+      })
+      .sort((itemA, itemB) => {
+        const ngayTaoA = chuyenThanhNgay(itemA.ThoiDiemTao)?.getTime() || 0;
+        const ngayTaoB = chuyenThanhNgay(itemB.ThoiDiemTao)?.getTime() || 0;
+        if (ngayTaoA !== ngayTaoB) return ngayTaoB - ngayTaoA;
+        return Number(itemB.MaDatCoc || 0) - Number(itemA.MaDatCoc || 0);
+      });
   }, [items, selectedTab, role, searchQuery]);
 
   return (
@@ -709,7 +786,7 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
           max-width: 1440px;
           margin: 0 auto;
           padding: 32px 24px;
-          font-family: 'Plus Jakarta Sans', 'Inter', 'Segoe UI', Arial, sans-serif;
+          font-family: inherit;
           color: #1e293b;
           background: #f8fafc;
           min-height: 100vh;
@@ -895,7 +972,7 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
           background: #f1f5f9;
           border: 1px solid #e2e8f0;
           border-radius: 20px;
-          padding: 16px;
+          padding: 16px 16px 52px;
           max-height: 850px;
           overflow-y: auto;
           box-shadow: inset 0 2px 4px rgba(15, 23, 42, 0.03);
@@ -905,16 +982,16 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
         }
         
         .d-card-item {
-          --status-color: #f26a21;
-          --status-background: #fff8f5;
-          --status-shadow: rgba(242, 106, 33, 0.18);
+          --status-color: #64748b;
+          --status-background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+          --status-shadow: rgba(100, 116, 139, 0.18);
           width: 100%;
           display: flex;
           align-items: center;
           padding: 18px 20px;
           border-radius: 16px;
           border: 1px solid #e2e8f0;
-          background: #ffffff;
+          background: var(--status-background);
           text-align: left;
           cursor: pointer;
           transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -922,26 +999,37 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
           outline: none;
           box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.01), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
         }
+        .d-card-item::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 16px;
+          bottom: 16px;
+          width: 4px;
+          background: var(--status-color);
+          border-radius: 0 6px 6px 0;
+        }
         .d-card-item:hover {
-          border-color: #cbd5e1;
-          background: #f8fafc;
+          border-color: var(--status-color);
+          background: var(--status-background);
           transform: translateY(-2px);
-          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+          box-shadow: 0 10px 18px -5px var(--status-shadow);
         }
         .d-card-item.active {
           border-color: var(--status-color);
           background: var(--status-background);
-          box-shadow: 0 10px 20px -5px var(--status-shadow);
+          transform: translateX(4px) scale(1.01);
+          filter: saturate(1.08);
+          box-shadow: 0 0 0 3px var(--status-shadow), 0 14px 28px -8px var(--status-shadow);
+          z-index: 2;
+        }
+        .d-card-item.active:hover {
+          transform: translateX(4px) scale(1.01);
         }
         .d-card-item.active::before {
-          content: '';
-          position: absolute;
-          left: 0;
-          top: 18px;
-          bottom: 18px;
-          width: 4px;
-          background: var(--status-color);
-          border-radius: 0 6px 6px 0;
+          top: 12px;
+          bottom: 12px;
+          width: 5px;
         }
         
         .d-card-dot {
@@ -950,6 +1038,7 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
           border-radius: 50%;
           margin-right: 16px;
           flex-shrink: 0;
+          background: var(--status-color);
           box-shadow: 0 0 0 4px rgba(226, 232, 240, 0.5);
         }
         .d-card-item.active .d-card-dot {
@@ -966,6 +1055,17 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
         .d-card-item.status-CHO_XAC_NHAN_THANH_TOAN { --status-color: #be185d; --status-background: linear-gradient(135deg, #fff8fc 0%, #fce7f3 100%); --status-shadow: rgba(190, 24, 93, 0.20); }
         .d-card-item.status-DA_XAC_NHAN { --status-color: #047857; --status-background: linear-gradient(135deg, #f7fffb 0%, #d1fae5 100%); --status-shadow: rgba(4, 120, 87, 0.20); }
         .d-card-item.status-TU_CHOI_CHUNG_TU { --status-color: #b45309; --status-background: linear-gradient(135deg, #fffdf7 0%, #fef3c7 100%); --status-shadow: rgba(180, 83, 9, 0.20); }
+        .d-card-item.status-CHO_KIEM_TRA { --status-color: #0f766e; --status-background: linear-gradient(135deg, #f7fffd 0%, #ccfbf1 100%); --status-shadow: rgba(15, 118, 110, 0.20); }
+        .d-card-item.status-CHO_LAP_HOP_DONG { --status-color: #4338ca; --status-background: linear-gradient(135deg, #fafaff 0%, #e0e7ff 100%); --status-shadow: rgba(67, 56, 202, 0.20); }
+        .d-card-item.status-CHO_LAP_HOP_DONG_DIEU_CHINH { --status-color: #7c3aed; --status-background: linear-gradient(135deg, #fdfaff 0%, #ede9fe 100%); --status-shadow: rgba(124, 58, 237, 0.20); }
+        .d-card-item.status-CHO_HOAN_COC { --status-color: #b45309; --status-background: linear-gradient(135deg, #fffdf7 0%, #fef3c7 100%); --status-shadow: rgba(180, 83, 9, 0.20); }
+        .d-card-item.status-CHO_THANH_TOAN_HOP_DONG { --status-color: #0891b2; --status-background: linear-gradient(135deg, #f7feff 0%, #cffafe 100%); --status-shadow: rgba(8, 145, 178, 0.20); }
+        .d-card-item.status-CHO_THANH_TOAN_THEM { --status-color: #c026d3; --status-background: linear-gradient(135deg, #fff9ff 0%, #fae8ff 100%); --status-shadow: rgba(192, 38, 211, 0.20); }
+        .d-card-item.status-CHO_DOI_SOAT { --status-color: #475569; --status-background: linear-gradient(135deg, #fbfcfd 0%, #e2e8f0 100%); --status-shadow: rgba(71, 85, 105, 0.20); }
+        .d-card-item.status-CHO_XAC_NHAN_DOI_SOAT { --status-color: #4f46e5; --status-background: linear-gradient(135deg, #fafaff 0%, #e0e7ff 100%); --status-shadow: rgba(79, 70, 229, 0.20); }
+        .d-card-item.status-CHO_THANH_LY { --status-color: #92400e; --status-background: linear-gradient(135deg, #fffdf8 0%, #ffedd5 100%); --status-shadow: rgba(146, 64, 14, 0.20); }
+        .d-card-item.status-DA_THANH_LY { --status-color: #166534; --status-background: linear-gradient(135deg, #f8fff9 0%, #dcfce7 100%); --status-shadow: rgba(22, 101, 52, 0.20); }
+        .d-card-item.status-KHAC { --status-color: #64748b; --status-background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%); --status-shadow: rgba(100, 116, 139, 0.20); }
         
         .d-badge {
           font-size: 11px;
@@ -988,6 +1088,17 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
         .d-badge-CHO_XAC_NHAN_THANH_TOAN { background: #fdf2f8; color: #be185d; border: 1px solid #fce7f3; }
         .d-badge-DA_XAC_NHAN { background: #ecfdf5; color: #047857; border: 1px solid #d1fae5; }
         .d-badge-TU_CHOI_CHUNG_TU { background: #fffbeb; color: #b45309; border: 1px solid #fef3c7; }
+        .d-badge-CHO_KIEM_TRA { background: #f0fdfa; color: #0f766e; border: 1px solid #99f6e4; }
+        .d-badge-CHO_LAP_HOP_DONG { background: #eef2ff; color: #4338ca; border: 1px solid #c7d2fe; }
+        .d-badge-CHO_LAP_HOP_DONG_DIEU_CHINH { background: #f5f3ff; color: #7c3aed; border: 1px solid #ddd6fe; }
+        .d-badge-CHO_HOAN_COC { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+        .d-badge-CHO_THANH_TOAN_HOP_DONG { background: #ecfeff; color: #0e7490; border: 1px solid #a5f3fc; }
+        .d-badge-CHO_THANH_TOAN_THEM { background: #fdf4ff; color: #a21caf; border: 1px solid #f5d0fe; }
+        .d-badge-CHO_DOI_SOAT { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+        .d-badge-CHO_XAC_NHAN_DOI_SOAT { background: #eef2ff; color: #4f46e5; border: 1px solid #c7d2fe; }
+        .d-badge-CHO_THANH_LY { background: #fff7ed; color: #92400e; border: 1px solid #fed7aa; }
+        .d-badge-DA_THANH_LY { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; }
+        .d-badge-KHAC { background: #f8fafc; color: #64748b; border: 1px solid #cbd5e1; }
 
         .d-card-dot-MOI { background: #dc2626; }
         .d-card-dot-CHO_KIEM_TRA_PHONG { background: #c2410c; }
@@ -999,6 +1110,17 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
         .d-card-dot-CHO_XAC_NHAN_THANH_TOAN { background: #be185d; }
         .d-card-dot-DA_XAC_NHAN { background: #047857; }
         .d-card-dot-TU_CHOI_CHUNG_TU { background: #b45309; }
+        .d-card-dot-CHO_KIEM_TRA { background: #0f766e; }
+        .d-card-dot-CHO_LAP_HOP_DONG { background: #4338ca; }
+        .d-card-dot-CHO_LAP_HOP_DONG_DIEU_CHINH { background: #7c3aed; }
+        .d-card-dot-CHO_HOAN_COC { background: #b45309; }
+        .d-card-dot-CHO_THANH_TOAN_HOP_DONG { background: #0891b2; }
+        .d-card-dot-CHO_THANH_TOAN_THEM { background: #c026d3; }
+        .d-card-dot-CHO_DOI_SOAT { background: #475569; }
+        .d-card-dot-CHO_XAC_NHAN_DOI_SOAT { background: #4f46e5; }
+        .d-card-dot-CHO_THANH_LY { background: #92400e; }
+        .d-card-dot-DA_THANH_LY { background: #166534; }
+        .d-card-dot-KHAC { background: #64748b; }
 
         .d-detail-panel {
           background: #ffffff;
@@ -1128,6 +1250,15 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
         }
         .d-field-group input::placeholder {
           color: #94a3b8;
+        }
+        .d-field-group input[readonly] {
+          background: #f8fafc;
+          color: #334155;
+          cursor: default;
+        }
+        .d-field-group input[readonly]:focus {
+          border-color: #cbd5e1;
+          box-shadow: none;
         }
         
         .d-info-grid {
@@ -1561,7 +1692,7 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
             />
           </div>
           <span className="d-tooltip-wrap" data-tooltip="Làm mới">
-            <button type="button" className="d-refresh-btn" aria-label="Làm mới" onClick={fetchList}>
+            <button type="button" className="d-refresh-btn" aria-label="Làm mới" onClick={taiDanhSachPhieu}>
               <span className="material-symbols-outlined">refresh</span>
             </button>
           </span>
@@ -1572,7 +1703,7 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
             filteredItems={filteredItems}
             loading={loading}
             selected={selected}
-            fetchDetail={fetchDetail}
+            taiChiTietPhieu={taiChiTietPhieu}
             dateTime={dateTime}
           />
 
@@ -1590,7 +1721,7 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
                     <small>QUY TRÌNH XỬ LÝ PHIẾU ĐẶT CỌC</small>
                     <h2>Khách hàng: {selected.KhachHang?.HoTen || 'Chưa cập nhật họ tên'}</h2>
                   </div>
-                  <span className={`d-badge d-badge-${selected.TrangThai}`} style={{ fontSize: '12px', padding: '8px 16px' }}>
+                  <span className={`d-badge d-badge-${maMauTrangThai(selected.TrangThai)}`} style={{ fontSize: '12px', padding: '8px 16px' }}>
                     {LABELS[selected.TrangThai] || selected.TrangThai}
                   </span>
                 </div>
@@ -1740,7 +1871,7 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
                 <section className="d-section-card d-card-room">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                     <h3 style={{ margin: 0, border: 'none', padding: 0 }}>Phòng và Giường</h3>
-                    <a href={`${ROUTES.phongGiuong}?phong=${selected.MaPhong}`} target="_blank" rel="noreferrer" style={{ fontSize: '13px', color: '#f26a21', fontWeight: '800', textDecoration: 'none' }}>
+                    <a href={`${ROUTES.soDoPhong}?phong=${selected.MaPhong}&nguon=dat-coc&phieu=${selected.MaDatCoc}`} target="_blank" rel="noreferrer" style={{ fontSize: '13px', color: '#f26a21', fontWeight: '800', textDecoration: 'none' }}>
                       Xem sơ đồ trực quan ↗
                     </a>
                     {role === 'SALE' && selected.TrangThai === 'HET_CHO' && (
@@ -1769,7 +1900,7 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
                       <div>
                         <span style={{ display: 'block', fontSize: '11px', color: '#94a3b8', fontWeight: '800', textTransform: 'uppercase' }}>Loại phòng &amp; Sức chứa</span>
                         <strong style={{ display: 'block', fontSize: '13.5px', color: '#334155', marginTop: '4px' }}>
-                          {selectedBeds[0]?.Giuong?.Phong?.LoaiPhong || 'Chưa rõ loại'} · {selectedBeds[0]?.Giuong?.Phong?.SucChuaToiDa || '—'} giường tối đa
+                          {selectedBeds[0]?.Giuong?.Phong?.ThongTinLoaiPhong?.TenLoaiPhong || 'Chưa rõ loại'} · {selectedBeds[0]?.Giuong?.Phong?.SucChuaToiDa || '—'} giường tối đa
                         </strong>
                       </div>
                     </div>
@@ -1804,8 +1935,6 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
                 <ThanhToanMinhChung
                   role={role}
                   selected={selected}
-                  room={room}
-                  selectedBeds={selectedBeds}
                   suggested={suggested}
                   depositAmount={depositAmount}
                   setDepositAmount={setDepositAmount}
@@ -1814,7 +1943,7 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
                   transaction={transaction}
                   setTransaction={setTransaction}
                   evidence={evidence}
-                  onEvidence={onEvidence}
+                  xuLyAnhChungTu={xuLyAnhChungTu}
                   cashAmount={cashAmount}
                   setCashAmount={setCashAmount}
                   cashConfirmed={cashConfirmed}
@@ -1824,7 +1953,8 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
                   setActionError={setActionError}
                   busy={busy}
                   note={note}
-                  submitAction={submitAction}
+                  guiYeuCauXuLy={guiYeuCauXuLy}
+                  guiChungTuThanhToan={guiChungTuThanhToan}
                   money={money}
                   dateTime={dateTime}
                 />
@@ -1849,6 +1979,8 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
         selectedCreateRoom={selectedCreateRoom}
         createError={createError}
         setCreateError={setCreateError}
+        dangTaiHoSoTaoPhieu={dangTaiHoSoTaoPhieu}
+        thayDoiCCCDTaoPhieu={thayDoiCCCDTaoPhieu}
         busy={busy}
         saveNewSelection={saveNewSelection}
         createDeposit={createDeposit}

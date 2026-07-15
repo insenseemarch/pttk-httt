@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import KhungNhanVien from '../components/KhungNhanVien';
+import { ROUTES } from '../config/routes';
 
 function layChipTrangThai(trangThai) {
   const map = {
@@ -14,10 +15,14 @@ function layChipTrangThai(trangThai) {
 
 export default function DanhSachPhongGiuong({ nguoiDung, dangXuat }) {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const phongQuery = searchParams.get('phong') || '';
+  const moTuDatCoc = searchParams.get('nguon') === 'dat-coc';
+  const phieuDatCocQuery = searchParams.get('phieu') || '';
   const [thongKe, setThongKe] = useState({ tongPhong: 0, phongTrong: 0, dangDatCoc: 0, tyLeLapDay: 0 });
   const [danhSach, setDanhSach] = useState([]);
   const [chiNhanh, setChiNhanh] = useState([]);
+  const [loaiPhong, setLoaiPhong] = useState([]);
   const [dangTai, setDangTai] = useState(true);
   const [boLoc, setBoLoc] = useState({ maCN: '', trangThai: '', loaiPhong: '', timKiem: '', page: 1, limit: 1000 });
 
@@ -27,6 +32,7 @@ export default function DanhSachPhongGiuong({ nguoiDung, dangXuat }) {
 
   useEffect(() => {
     taiChiNhanh();
+    taiLoaiPhong();
   }, []);
 
   useEffect(() => {
@@ -36,6 +42,11 @@ export default function DanhSachPhongGiuong({ nguoiDung, dangXuat }) {
   const taiChiNhanh = async () => {
     const res = await fetch('/api/chi-nhanh').then((r) => r.json());
     if (res.ok) setChiNhanh(res.data);
+  };
+
+  const taiLoaiPhong = async () => {
+    const res = await fetch('/api/loai-phong').then((r) => r.json());
+    if (res.ok) setLoaiPhong(res.data || []);
   };
 
   const taiDuLieu = async () => {
@@ -68,6 +79,16 @@ export default function DanhSachPhongGiuong({ nguoiDung, dangXuat }) {
     setShowModalChiTiet(true);
   };
 
+  const quayLaiDatCoc = () => {
+    window.close();
+    window.setTimeout(() => {
+      if (!window.closed) {
+        const query = phieuDatCocQuery ? `?phieu=${encodeURIComponent(phieuDatCocQuery)}` : '';
+        navigate(`${ROUTES.deposit}${query}`);
+      }
+    }, 150);
+  };
+
   const danhSachHienThi = useMemo(() => {
     if (!phongQuery) return danhSach;
     return [...danhSach].sort((a, b) => {
@@ -83,11 +104,18 @@ export default function DanhSachPhongGiuong({ nguoiDung, dangXuat }) {
         <div>
           <h1>Quản lý Phòng &amp; Giường</h1>
           <p>Theo dõi hiện trạng, đặt cọc và lập hợp đồng theo từng phòng.</p>
-          <p className="qt-room-auto-note">
-            <span className="material-symbols-outlined">sync</span>
-            Trạng thái được hệ thống tự động đồng bộ từ đặt cọc và hợp đồng.
-          </p>
         </div>
+        {moTuDatCoc && (
+          <button
+            type="button"
+            className="qt-btn-outline"
+            onClick={quayLaiDatCoc}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '19px' }}>arrow_back</span>
+            Quay lại phiếu đặt cọc
+          </button>
+        )}
       </div>
 
       <div className="qt-stats">
@@ -120,8 +148,9 @@ export default function DanhSachPhongGiuong({ nguoiDung, dangXuat }) {
           <label>Loại phòng</label>
           <select value={boLoc.loaiPhong} onChange={(e) => capNhatBoLoc('loaiPhong', e.target.value)}>
             <option value="">Tất cả</option>
-            <option value="Nguyên">Nguyên căn</option>
-            <option value="Giường">Giường ghép</option>
+            {loaiPhong.map((item) => (
+              <option key={item.MaLoaiPhong} value={item.MaLoaiPhong}>{item.TenLoaiPhong}</option>
+            ))}
           </select>
         </div>
         <div className="qt-field qt-search-wrap">

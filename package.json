@@ -8,7 +8,8 @@
     "dev:client": "vite",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "start": "node --use-system-ca server/index.js",
-    "build": "vite build"
+    "build": "vite build",
+    "seed:dat-coc-yeu-cau": "node server/seedYeuCauThueDatCoc.js"
   },
   "dependencies": {
     "@supabase/server": "^1.2.0",
