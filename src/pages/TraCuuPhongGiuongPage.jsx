@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { layDanhSachTienIchHienThi } from '../../utils/tienIchPhong';
-import { dinhDangTienInput } from '../../utils/soTien';
+import { layDanhSachTienIchHienThi } from '../utils/tienIchPhong';
+import { dinhDangTienInput } from '../utils/soTien';
 
 export default function TraCuuPhongGiuongPage({
   trangHienTai,
