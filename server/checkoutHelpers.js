@@ -44,7 +44,9 @@ export function tinhTienCocHopDong(hopDong, datCoc, chiTiet) {
 export function tinhSoTienQuyetToan(item) {
   const tienCocGoc = Number(item.tienCoc || 0);
   const tiLeHoan = Number(item.tiLeHoanCoc ?? 100);
-  const tienCocDuocHoan = tienCocGoc * (tiLeHoan / 100);
+  const tienCocDuocHoan = item.loaiDoiSoat === LOAI_DOI_SOAT_HOAN_THANH_VIEN
+    ? tienCocGoc
+    : tienCocGoc * (tiLeHoan / 100);
   const noThue = Number(item.noThue || 0);
   const noDienNuoc = Number(item.noDienNuoc || 0);
   const chiPhiHuHong = Number(item.chiPhiHuHong || 0);
@@ -68,6 +70,53 @@ export function layMaDatCocTuPds(pds) {
 
 export function locKhauTruThat(danhSachKhauTru) {
   return (danhSachKhauTru || []).filter(k => k.name !== 'MaDatCoc');
+}
+
+export const LOAI_DOI_SOAT_HOAN_THANH_VIEN = 'HOAN_COC_THANH_VIEN_KHONG_DAT';
+export const LOAI_DOI_SOAT_TU_CHOI_KY = 'HOAN_COC_TU_CHOI_KY';
+
+export function layLoaiDoiSoatTuPds(pds) {
+  const meta = (pds?.DanhSachKhauTru || []).find((k) => k.name === 'LoaiDoiSoat');
+  return meta?.desc || null;
+}
+
+export function laPhieuHoanCocThanhVienKhongDat(pds) {
+  return layLoaiDoiSoatTuPds(pds) === LOAI_DOI_SOAT_HOAN_THANH_VIEN;
+}
+
+/** Phiếu hoàn cọc tách biệt — không đồng bộ trạng thái DatCoc/HĐ khi xử lý checkout */
+export function laPhieuHoanCocDocLap(pds) {
+  const loai = layLoaiDoiSoatTuPds(pds);
+  return loai === LOAI_DOI_SOAT_HOAN_THANH_VIEN || loai === LOAI_DOI_SOAT_TU_CHOI_KY;
+}
+
+export function taoMaSoPhieuHoanCoc(maDatCoc, maPhieu) {
+  return `PC-${maDatCoc}~${maPhieu}`;
+}
+
+/** HĐ-1 | PC-5 | PC-5~42 */
+export function phanTichMaSoQuyetToan(maSo) {
+  const raw = String(maSo || '').trim();
+  if (raw.startsWith('HĐ-')) {
+    return { loai: 'hop_dong', maHopDong: Number(raw.replace('HĐ-', '')), maDatCoc: null, maPhieu: null };
+  }
+  const tvMatch = raw.match(/^PC-(\d+)~(\d+)$/i);
+  if (tvMatch) {
+    return { loai: 'dat_coc', maHopDong: null, maDatCoc: Number(tvMatch[1]), maPhieu: Number(tvMatch[2]) };
+  }
+  const pcMatch = raw.match(/^PC-(\d+)$/i);
+  if (pcMatch) {
+    return { loai: 'dat_coc', maHopDong: null, maDatCoc: Number(pcMatch[1]), maPhieu: null };
+  }
+  return { loai: null, maHopDong: null, maDatCoc: null, maPhieu: null };
+}
+
+function tinhTienHoanThanhVienTuPds(pds, khauTru) {
+  const tuPds = Number(pds?.SoTienHoanTamTinh);
+  if (Number.isFinite(tuPds) && tuPds > 0) return tuPds;
+  return (khauTru || [])
+    .filter((k) => k.name === 'ThanhVienKhongDat')
+    .reduce((s, k) => s + (Number(k.amount) || 0), 0);
 }
 
 export function mapHopDongRaDTO(h, datCocMap) {
@@ -115,23 +164,40 @@ export function mapHopDongRaDTO(h, datCocMap) {
 export function mapDatCocRaDTO(d, pds, giuongDatCoc) {
   const phongCoSo = layPhongCoSoTuGiuongDatCoc(giuongDatCoc) || 'Chưa xếp phòng';
   const khauTru = locKhauTruThat(pds?.DanhSachKhauTru);
+  const laHoanThanhVien = laPhieuHoanCocThanhVienKhongDat(pds);
+  const loaiDoiSoat = layLoaiDoiSoatTuPds(pds);
+  const soThanhVienHoan = laHoanThanhVien
+    ? khauTru.filter((k) => k.name === 'ThanhVienKhongDat').length
+    : 0;
+
   const dto = {
     loai: 'dat_coc',
-    maSo: `PC-${d.MaDatCoc}`,
-    tenKhachHang: d.KhachHang?.HoTen || 'Khách cọc',
+    maSo: laHoanThanhVien && pds?.MaPhieu
+      ? taoMaSoPhieuHoanCoc(d.MaDatCoc, pds.MaPhieu)
+      : `PC-${d.MaDatCoc}`,
+    maPhieu: pds?.MaPhieu || null,
+    maDatCoc: d.MaDatCoc,
+    loaiDoiSoat,
+    tenKhachHang: laHoanThanhVien
+      ? `${d.KhachHang?.HoTen || 'Khách cọc'} — hoàn cọc ${soThanhVienHoan} thành viên bị loại`
+      : d.KhachHang?.HoTen || 'Khách cọc',
     soDienThoai: d.KhachHang?.SDT || '',
     email: d.KhachHang?.Email || '',
     phongCoSo,
     giaThue: 0,
-    tienCoc: Number(d.SoTienCoc) || 0,
+    tienCoc: laHoanThanhVien
+      ? tinhTienHoanThanhVienTuPds(pds, khauTru)
+      : Number(d.SoTienCoc) || 0,
     ngayBatDau: d.ThoiDiemTao ? d.ThoiDiemTao.split('T')[0] : '',
     ngayKetThuc: '',
-    trangThai: pds?.TrangThai || chuanHoaTrangThaiDatCoc(d.TrangThai),
+    trangThai: laHoanThanhVien
+      ? (pds?.TrangThai || 'Chờ đối soát')
+      : (pds?.TrangThai || chuanHoaTrangThaiDatCoc(d.TrangThai)),
     noThue: pds ? Number(pds.KhauTruTienThue) : 0,
     noDienNuoc: pds ? Number(pds.KhauTruTienDichVu) : 0,
     chiPhiHuHong: pds ? Number(pds.KhauTruSuaChua) : 0,
     moTaHuHong: pds?.MoTaHuHong || '',
-    tiLeHoanCoc: pds ? Number(pds.TyLeHoanTien) : 80,
+    tiLeHoanCoc: laHoanThanhVien ? 100 : (pds ? Number(pds.TyLeHoanTien) : 80),
     yKienTranhChap: pds?.YKienTranhChap || '',
     loaiHinhTraPhong: pds?.LoaiHinhTraPhong || 'huy_thue',
     ngayTraDuKien: pds?.NgayDKTraPhong || '',

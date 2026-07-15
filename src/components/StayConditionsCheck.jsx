@@ -8,6 +8,8 @@ export default function StayConditionsCheck({ maHoSo = null, hienThongBao, onQua
   const [dangTaiLuuTru, setDangTaiLuuTru] = useState(false);
   const [dangXuLy, setDangXuLy] = useState(false);
   const [ngoaiLe, setNgoaiLe] = useState(null);
+  /** null | 'quay-lai' | 'ket-qua' | { action: 'luaChon', loai, nhan } */
+  const [confirmPopup, setConfirmPopup] = useState(null);
 
   const taiDuLieuKiemTraLuuTru = async (maHoSoCanTai = maHoSo) => {
     if (!maHoSoCanTai) {
@@ -107,13 +109,88 @@ export default function StayConditionsCheck({ maHoSo = null, hienThongBao, onQua
     }
   };
 
-  const xacNhanKiemTraLuuTru = () => guiKetQuaKiemTra(null);
-
   const soDat = danhSachThanhVienLuuTru.filter((tv) => tv.dieuKien).length;
   const tongNguoi = danhSachThanhVienLuuTru.length;
   const tatCaDat = tongNguoi > 0 && soDat === tongNguoi;
   const tatCaKhongDat = tongNguoi > 0 && soDat === 0;
   const motPhanDat = soDat > 0 && soDat < tongNguoi;
+
+  const xacNhanKiemTraLuuTru = () => setConfirmPopup('ket-qua');
+
+  const moConfirmLuaChon = (lc) => {
+    setConfirmPopup({ action: 'luaChon', loai: lc.loai, nhan: lc.nhan });
+  };
+
+  const thucHienConfirmPopup = async () => {
+    if (!confirmPopup) return;
+    if (confirmPopup === 'quay-lai') {
+      setConfirmPopup(null);
+      if (onQuayLai) onQuayLai();
+      return;
+    }
+    if (confirmPopup === 'ket-qua') {
+      setConfirmPopup(null);
+      await guiKetQuaKiemTra(null);
+      return;
+    }
+    if (confirmPopup.action === 'luaChon') {
+      const { loai } = confirmPopup;
+      setConfirmPopup(null);
+      await guiKetQuaKiemTra(loai);
+    }
+  };
+
+  const noiDungConfirmPopup = (() => {
+    if (confirmPopup === 'quay-lai') {
+      return {
+        tieuDe: 'Quay lại danh sách?',
+        moTa: 'Bạn có chắc chắn muốn quay lại? Kết quả kiểm tra chưa xác nhận sẽ không được lưu.',
+        nutChinh: 'Quay lại',
+        nutChinhClass: 'btn-detail-outline',
+      };
+    }
+    if (confirmPopup === 'ket-qua') {
+      if (tatCaKhongDat) {
+        return {
+          tieuDe: 'Không đáp ứng điều kiện lưu trú?',
+          moTa: 'Toàn bộ thành viên không đạt điều kiện. Hệ thống sẽ chuyển sang bước xử lý từ chối ký hợp đồng / hoàn cọc.',
+          nutChinh: 'Xác nhận',
+          nutChinhClass: 'np-btn-danger',
+        };
+      }
+      if (motPhanDat) {
+        return {
+          tieuDe: 'Đưa ra quyết định?',
+          moTa: `Có ${tongNguoi - soDat} thành viên không đạt, ${soDat} thành viên còn lại đủ điều kiện. Xác nhận để chọn hướng xử lý tiếp theo.`,
+          nutChinh: 'Tiếp tục',
+          nutChinhClass: 'btn-book-warning',
+        };
+      }
+      return {
+        tieuDe: 'Xác nhận đáp ứng điều kiện lưu trú?',
+        moTa: `Tất cả ${tongNguoi} thành viên đáp ứng điều kiện. Hồ sơ sẽ chuyển sang bước lập hợp đồng.`,
+        nutChinh: 'Xác nhận',
+        nutChinhClass: 'btn-book-filled',
+      };
+    }
+    if (confirmPopup?.action === 'luaChon') {
+      if (confirmPopup.loai === 'CONTINUE_PARTIAL') {
+        return {
+          tieuDe: 'Tiếp tục ký hợp đồng?',
+          moTa: `${confirmPopup.nhan}. Các thành viên không đạt sẽ không ký HĐ và được chuyển hoàn cọc theo quy định.`,
+          nutChinh: 'Xác nhận tiếp tục',
+          nutChinhClass: 'btn-book-filled',
+        };
+      }
+      return {
+        tieuDe: 'Dừng thủ tục thuê?',
+        moTa: 'Nhóm sẽ dừng thủ tục thuê. Hệ thống chuyển sang hoàn cọc 80% theo quy định.',
+        nutChinh: 'Xác nhận dừng thuê',
+        nutChinhClass: 'np-btn-danger',
+      };
+    }
+    return null;
+  })();
 
   const nutXacNhan = (() => {
     if (dangXuLy) return { nhan: 'Đang xử lý...', className: 'btn-book-filled' };
@@ -237,7 +314,7 @@ export default function StayConditionsCheck({ maHoSo = null, hienThongBao, onQua
                 <button
                   type="button"
                   className="btn-detail-outline"
-                  onClick={onQuayLai}
+                  onClick={() => setConfirmPopup('quay-lai')}
                 >
                   Quay lại danh sách
                 </button>
@@ -327,11 +404,47 @@ export default function StayConditionsCheck({ maHoSo = null, hienThongBao, onQua
                   type="button"
                   className={lc.loai === 'TERMINATE_REFUND' ? 'np-btn-danger' : 'btn-book-filled'}
                   disabled={dangXuLy}
-                  onClick={() => guiKetQuaKiemTra(lc.loai)}
+                  onClick={() => moConfirmLuaChon(lc)}
                 >
                   {dangXuLy ? 'Đang xử lý...' : lc.nhan}
                 </button>
               ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmPopup && noiDungConfirmPopup && (
+        <div
+          className="np-modal-overlay"
+          onClick={() => { if (!dangXuLy) setConfirmPopup(null); }}
+          role="presentation"
+        >
+          <div className="np-modal np-modal--confirm" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="np-modal-head">
+              <span className="material-symbols-outlined np-modal-icon">help</span>
+              <div>
+                <h3>{noiDungConfirmPopup.tieuDe}</h3>
+                <p>{noiDungConfirmPopup.moTa}</p>
+              </div>
+            </div>
+            <div className="np-modal-actions">
+              <button
+                type="button"
+                className="btn-detail-outline"
+                disabled={dangXuLy}
+                onClick={() => setConfirmPopup(null)}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className={noiDungConfirmPopup.nutChinhClass}
+                disabled={dangXuLy}
+                onClick={thucHienConfirmPopup}
+              >
+                {dangXuLy ? 'Đang xử lý...' : noiDungConfirmPopup.nutChinh}
+              </button>
             </div>
           </div>
         </div>
