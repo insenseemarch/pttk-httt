@@ -1,5 +1,5 @@
-import { layDanhSachTienIchHienThi } from '../../utils/tienIchPhong';
-import { dinhDangTienInput } from '../../utils/soTien';
+import { layDanhSachTienIchHienThi } from '../utils/tienIchPhong';
+import { dinhDangTienInput } from '../utils/soTien';
 
 export default function TiepNhanDangKyThuePage({
   trangHienTai,

@@ -1,9 +1,5 @@
 import { supabase } from '../config/supabase.js';
-import { dinhDangCCCD, dinhDangNgay } from '../utils/dinhDang.js';
-
-function chuanHoaCCCD(value) {
-  return String(value ?? '').replace(/\D/g, '');
-}
+import { chuanHoaCCCD, dinhDangCCCD, dinhDangNgay } from '../utils/dinhDang.js';
 
 function layHopDongHienTai(hopDongs) {
   if (!hopDongs?.length) return null;

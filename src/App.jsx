@@ -15,15 +15,16 @@ import {
   layMaNhanVien,
   xoaNguoiDungDangNhap,
 } from './utils/nhanVienSession';
-import TraCuuPhongGiuongPage from './features/traCuuPhongGiuong/TraCuuPhongGiuongPage';
-import TiepNhanDangKyThuePage from './features/tiepNhanDangKyThue/TiepNhanDangKyThuePage';
+import TraCuuPhongGiuongPage from './pages/TraCuuPhongGiuongPage';
+import TiepNhanDangKyThuePage from './pages/TiepNhanDangKyThuePage';
 import {
   guiTiepNhanDangKyThue,
+  kiemTraKhachHangTrung,
   kiemTraThongTinDangKyThue,
   layDanhSachTieuChiDangKyThue,
   mapYeuCauThueSangBoLoc,
   taoPayloadTiepNhanDangKyThue,
-} from './features/tiepNhanDangKyThue/tiepNhanDangKyThue';
+} from './components/tiepNhanDangKyThue/tiepNhanDangKyThue';
 import { layDanhSachTienIchHienThi } from './utils/tienIchPhong';
 import { chiLayChuSo, laySoTienNumber } from './utils/soTien';
 
@@ -1013,6 +1014,9 @@ export default function App({
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data.ok) {
+        if (response.status === 409) {
+          throw new Error('CCCD/S\u0110T/Email \u0111\u00e3 t\u1ed3n t\u1ea1i. Vui l\u00f2ng nh\u1eadp l\u1ea1i th\u00f4ng tin.');
+        }
         throw new Error(data.error || 'Không thể tạo lịch hẹn xem phòng.');
       }
 
@@ -1518,6 +1522,7 @@ export default function App({
       loaiThue: formYeuCauThue.loaiPhong === 'Nguyên phòng' ? 'Thuê nguyên phòng' : 'Thuê giường lẻ',
     };
     const newFilters = mapYeuCauThueSangBoLoc(yeuCauThueChoTraCuu, danhSachTieuChi);
+    await kiemTraKhachHangTrung(formKhachHang);
 
     setBoLocTraCuu(newFilters);
     setCheDoNhanVien(true);
@@ -1534,10 +1539,12 @@ export default function App({
       formKhachHang,
       formYeuCauThue: yeuCauThueChoTraCuu,
       tieuChiUuTien,
+      yeuCauThueDaLuu,
     };
     const tiepNhanContext = taoContextTiepNhanDangKyThue({
       formYeuCauThue: yeuCauThueChoTraCuu,
       tieuChiUuTien,
+      yeuCauThueDaLuu,
     });
     sessionStorage.setItem('traCuuPhongContext', JSON.stringify(context));
     sessionStorage.setItem('tiepNhanDangKyThueContext', JSON.stringify(tiepNhanContext));

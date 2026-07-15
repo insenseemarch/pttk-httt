@@ -14,7 +14,7 @@ export function chuanHoaLoaiThue(value) {
 
 function chuanHoaKhoaCCCD(value) {
   const digits = String(value ?? '').replace(/\D/g, '');
-  return digits ? digits.padStart(12, '0') : '';
+  return digits;
 }
 
 function layBienTheCCCD(value) {

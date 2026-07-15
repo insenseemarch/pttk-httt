@@ -55,8 +55,7 @@ function maMauTrangThai(value) {
 
 function dinhDangCCCD(value) {
   const digits = String(value ?? '').replace(/\D/g, '');
-  if (!digits) return '';
-  return digits.length < 12 ? digits.padStart(12, '0') : digits;
+  return digits;
 }
 
 function chuanHoaPhieuTuAPI(phieu) {
@@ -139,7 +138,7 @@ function chuanHoaFormKhachHang(form = {}) {
 
 function loiFormKhachHang(form) {
   const data = chuanHoaFormKhachHang(form);
-  if (!/^\d{12}$/.test(data.CCCD)) return 'Số CCCD phải có đúng 12 chữ số.';
+  if (!/^\d{6,12}$/.test(data.CCCD)) return 'Số CCCD/Hộ chiếu phải chứa từ 6 đến 12 chữ số.';
   if (!data.HoTen) return 'Họ và tên khách thuê không được để trống.';
   if (!tenHopLe(data.HoTen)) return 'Họ và tên không hợp lệ (không chứa số hoặc ký tự đặc biệt).';
   if (data.Email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.Email)) return 'Địa chỉ email không đúng định dạng.';
@@ -609,7 +608,7 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
 
   useEffect(() => {
     if (!showCreate || editingSelection) return undefined;
-    if (!/^\d{12}$/.test(createForm.cccd)) {
+    if (!/^\d{6,12}$/.test(createForm.cccd)) {
       setDangTaiHoSoTaoPhieu(false);
       return undefined;
     }
@@ -692,8 +691,8 @@ export default function QuyTrinhDatCoc({ nguoiDung, dangXuat }) {
   const taoPhieuDatCoc = async () => {
     const roomData = selectedCreateRoom;
     setCreateError('');
-    if (!/^\d{12}$/.test(createForm.cccd)) {
-      return setCreateError('Số CCCD phải có đúng 12 chữ số.');
+    if (!/^\d{6,12}$/.test(createForm.cccd)) {
+      return setCreateError('Số CCCD/Hộ chiếu phải chứa từ 6 đến 12 chữ số.');
     }
     if (!createForm.maYC || !roomData) return setCreateError('Chưa tải đủ yêu cầu thuê và phòng đã chọn của khách hàng.');
     if (!createForm.maGiuongs.length) return setCreateError('Phiếu phải có ít nhất một giường.');

@@ -28,7 +28,7 @@ export function kiemTraThongTinDangKyThue(khachHang, yeuCauThue) {
   const sdt = String(khachHang.sdt || '').replace(/\D/g, '');
 
   if (!khachHang.hoTen.trim()) return 'Vui lòng nhập họ tên khách hàng.';
-  if (cccd.length < 9 || cccd.length > 12) return 'CCCD phải có từ 9 đến 12 chữ số.';
+  if (cccd.length < 6 || cccd.length > 12) return 'CCCD/Hộ chiếu phải có từ 6 đến 12 chữ số.';
   if (sdt.length < 9 || sdt.length > 11) return 'Số điện thoại phải có từ 9 đến 11 chữ số.';
   if (!String(khachHang.ngaySinh || '').trim()) return 'Vui lòng chọn ngày sinh khách hàng.';
   if (!String(khachHang.gioiTinh || '').trim()) return 'Vui lòng chọn giới tính khách hàng.';
@@ -45,7 +45,13 @@ export function kiemTraThongTinDangKyThue(khachHang, yeuCauThue) {
 export function mapYeuCauThueSangBoLoc(yeuCauThue, danhSachTieuChi) {
   const khuVucMongMuon = String(yeuCauThue.khuVucMongMuon || '').trim();
   const khuVucKhongDau = boDauTiengViet(khuVucMongMuon);
-  const mappedKhuVuc = !khuVucMongMuon || khuVucKhongDau.includes('tat ca')
+  const laTatCaKhuVuc = !khuVucMongMuon
+    || khuVucKhongDau.includes('tat ca')
+    || khuVucKhongDau === 'tp.hcm'
+    || khuVucKhongDau === 'tphcm'
+    || khuVucKhongDau === 'hcm'
+    || khuVucKhongDau.includes('thanh pho ho chi minh');
+  const mappedKhuVuc = laTatCaKhuVuc
     ? 'Tất cả'
     : khuVucMongMuon.split(',')[0].trim();
 
@@ -102,8 +108,28 @@ export async function guiTiepNhanDangKyThue(payload) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.ok) {
+    if (response.status === 409) {
+      throw new Error('CCCD/S\u0110T/Email \u0111\u00e3 t\u1ed3n t\u1ea1i. Vui l\u00f2ng nh\u1eadp l\u1ea1i th\u00f4ng tin.');
+    }
     throw new Error(data.error || 'Không thể tiếp nhận đăng ký thuê.');
   }
 
+  return data;
+}
+
+export async function kiemTraKhachHangTrung(formKhachHang) {
+  const response = await fetch('/api/kiem-tra-khach-hang-trung', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ khachHang: formKhachHang }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.ok) {
+    if (response.status === 409) {
+      throw new Error('CCCD/S\u0110T/Email \u0111\u00e3 t\u1ed3n t\u1ea1i. Vui l\u00f2ng nh\u1eadp l\u1ea1i th\u00f4ng tin.');
+    }
+    throw new Error(data.error || 'Không thể kiểm tra thông tin khách hàng.');
+  }
   return data;
 }

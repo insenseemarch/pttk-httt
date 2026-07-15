@@ -1,7 +1,7 @@
 import express from 'express';
 import { supabase } from '../config/supabase.js';
 import { getIO } from '../config/ketNoiSocket.js';
-import { dinhDangCCCD } from '../utils/dinhDang.js';
+import { chuanHoaCCCD, dinhDangCCCD } from '../utils/dinhDang.js';
 import { chuanHoaLoaiThue, ganYeuCauThueGanNhat, layYeuCauThueGanNhat } from '../services/yeuCauThue.js';
 
 const router = express.Router();
@@ -106,9 +106,9 @@ function chuanHoaThongTinTuyChon(value) {
 }
 
 function chuanHoaCCCD12So(value) {
-  const digits = String(value ?? '').replace(/\D/g, '');
-  if (!/^\d{12}$/.test(digits)) {
-    throw new Error('Số CCCD phải có đúng 12 chữ số');
+  const digits = chuanHoaCCCD(value);
+  if (!/^\d{6,12}$/.test(digits)) {
+    throw new Error('Số CCCD/Hộ chiếu phải chứa từ 6 đến 12 chữ số.');
   }
   return digits;
 }
