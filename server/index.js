@@ -1628,6 +1628,24 @@ app.post('/api/checkout/request', async (req, res) => {
       return res.status(400).json({ ok: false, error: 'Thiáº¿u mÃ£ chá»©ng tá»«' });
     }
 
+    const maSo = String(maSoChungTu).trim();
+    const isDatCoc = /^PC-/i.test(maSo);
+    const idTuMa = Number(String(maSo.split('-').pop() || '').replace(/\D/g, ''));
+    const isHopDong = !isDatCoc && Number.isFinite(idTuMa) && idTuMa > 0;
+
+    console.log('[checkout/request]', { maSo, isDatCoc, isHopDong, idTuMa, loaiHinhTraPhong });
+
+    if (isHopDong) {
+      const id = idTuMa;
+
+      const { data: updatedRows, error: errHd } = await supabase
+        .from('HopDong')
+        .update({ TrangThai: nextTrangThai })
+        .eq('MaHopDong', id)
+        .select('MaHopDong, TrangThai');
+      if (errHd) throw errHd;
+      if (!updatedRows?.length) {
+        return res.status(404).json({ ok: false, error: `Không cập nhật được hợp đồng MaHopDong=${id}` });
     // Cháº¥p nháº­n HÄ-12 hoáº·c HD-00012
     const isHopDong =
       String(maSoChungTu).startsWith('HÄ-') ||
@@ -1638,8 +1656,7 @@ app.post('/api/checkout/request', async (req, res) => {
       if (!Number.isFinite(id) || id <= 0) {
         return res.status(400).json({ ok: false, error: 'MÃ£ há»£p Ä‘á»“ng khÃ´ng há»£p lá»‡' });
       }
-
-      await supabase.from('HopDong').update({ TrangThai: nextTrangThai }).eq('MaHopDong', id);
+      console.log('[checkout/request] HopDong updated:', updatedRows[0]);
 
       const hopDong = await layHopDongDayDu(id);
       const datCocMap = await layDatCocMap();
@@ -1667,9 +1684,13 @@ app.post('/api/checkout/request', async (req, res) => {
       } else {
         await supabase.from('PhieuDoiSoat').insert({ ...pdsPayload, MaHopDong: id });
       }
-    } else {
-      const id = Number(maSoChungTu.replace('PC-', ''));
-      await supabase.from('DatCoc').update({ TrangThai: nextTrangThai }).eq('MaDatCoc', id);
+    } else if (isDatCoc) {
+      const id = idTuMa;
+      if (!Number.isFinite(id) || id <= 0) {
+        return res.status(400).json({ ok: false, error: 'Mã đặt cọc không hợp lệ' });
+      }
+      const { error: errDc } = await supabase.from('DatCoc').update({ TrangThai: nextTrangThai }).eq('MaDatCoc', id);
+      if (errDc) throw errDc;
       await luuPhieuDoiSoatDatCoc(id, {
         NgayDKTraPhong: ngayTraDuKien,
         LoaiHinhTraPhong: loaiHinhTraPhong || 'huy_thue',
@@ -1678,9 +1699,12 @@ app.post('/api/checkout/request', async (req, res) => {
         TrangThai: nextTrangThai,
         TyLeHoanTien: 80
       });
+    } else {
+      return res.status(400).json({ ok: false, error: `Mã chứng từ không hợp lệ: ${maSo}` });
     }
-    res.json({ ok: true });
+    res.json({ ok: true, trangThai: nextTrangThai });
   } catch (err) {
+    console.error('[checkout/request] error:', err);
     res.status(500).json({ ok: false, error: err.message });
   }
 });

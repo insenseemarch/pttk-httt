@@ -5,15 +5,30 @@
  * - 70%: đã ký HĐ, chưa hết hạn, lưu trú từ 6 tháng trở lên (trả trước hạn)
  * - 100%: hết hạn hợp đồng / trả đúng hạn
  */
+export function chuanHoaLoaiHinhTraPhong(loai) {
+  if (loai === 'truoc_han_duoi_6' || loai === 'truoc_han_tren_6') return 'truoc_han';
+  return loai || 'dung_han';
+}
+
 export function tinhTyLeHoanCoc(item) {
   if (!item) return 100;
 
-  if (item.loai === 'dat_coc' || item.loaiHinhTraPhong === 'huy_thue') {
+  const loaiHinh = item.loaiHinhTraPhong;
+
+  if (item.loai === 'dat_coc' || loaiHinh === 'huy_thue') {
     return 80;
   }
 
-  if (item.loaiHinhTraPhong === 'dung_han') {
+  if (loaiHinh === 'dung_han') {
     return 100;
+  }
+
+  if (loaiHinh === 'truoc_han_duoi_6') {
+    return 50;
+  }
+
+  if (loaiHinh === 'truoc_han_tren_6') {
+    return 70;
   }
 
   const ngayTra = item.ngayTraDuKien ? new Date(item.ngayTraDuKien) : new Date();

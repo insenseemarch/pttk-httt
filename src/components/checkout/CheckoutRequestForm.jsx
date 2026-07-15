@@ -1,12 +1,28 @@
-import React from 'react';
+import { tinhTyLeHoanCoc } from '../../utils/tinhTyLeHoanCoc';
+import { KHOA_NGUOI_DUNG } from '../../config/routes';
+
+function docNguoiDungDangNhap() {
+  try {
+    const raw = localStorage.getItem(KHOA_NGUOI_DUNG);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
 
 export default function CheckoutRequestForm({ 
   selectedItem, 
   formValues, 
   onChange, 
   onSubmit, 
-  onCancel 
+  onCancel,
+  nguoiDung: nguoiDungProp = null,
 }) {
+  const nguoiDung = nguoiDungProp || docNguoiDungDangNhap();
+  const tenNguoiTiepNhan = nguoiDung?.hoTen || nguoiDung?.tenNV || 'Nhân viên';
+  const vaiTroNguoiTiepNhan = nguoiDung?.vaiTro || 'Staff';
+  const nhanNguoiTiepNhan = `${tenNguoiTiepNhan} (${vaiTroNguoiTiepNhan})`;
+
   const isDatCoc = selectedItem?.loai === 'dat_coc';
   
   const ngayBatDauStr = selectedItem?.ngayBatDau;
@@ -44,42 +60,45 @@ export default function CheckoutRequestForm({
     };
   }
 
-  // Tỷ lệ hoàn cọc theo đề bài 3.1.4 — dựa trên loại hình trả phòng
+  // Tỷ lệ hoàn cọc theo đề bài 3.1.4 — 3 trường hợp hợp đồng + hủy cọc
   const selectedLoaiHinh = formValues.loaiHinhTraPhong;
   const soThangDaO = timelineInfo
     ? Math.floor((homNay - new Date(ngayBatDauStr)) / (1000 * 60 * 60 * 24 * 30))
     : 0;
 
-  let tiLeHoan = 100;
+  const tiLeHoan = tinhTyLeHoanCoc({
+    ...selectedItem,
+    loaiHinhTraPhong: selectedLoaiHinh,
+    ngayTraDuKien: formValues.ngayTraDuKien,
+  });
+
   let textCanhBao = '';
   let colorCanhBaoBg = '#fffbeb';
   let colorCanhBaoBorder = '#fde68a';
   let colorCanhBaoText = '#b45309';
+  const tienHoan = (Number(selectedItem.tienCoc || 0) * tiLeHoan / 100).toLocaleString('vi-VN');
 
   if (isDatCoc || selectedLoaiHinh === 'huy_thue') {
-    tiLeHoan = 80;
-    textCanhBao = `ĐẶT CỌC CHƯA KÝ HỢP ĐỒNG — Hoàn cọc theo tỷ lệ quy định. Căn cứ theo điều khoản đặt cọc giữ chỗ, khách chưa ký hợp đồng chính thức sẽ nhận lại 80% số tiền đặt cọc (tương đương ${(selectedItem.tienCoc * 0.8).toLocaleString('vi-VN')} đồng).`;
+    textCanhBao = `ĐẶT CỌC CHƯA KÝ HỢP ĐỒNG — Hoàn ${tiLeHoan}% tiền cọc (tương đương ${tienHoan} đồng).`;
   } else if (selectedLoaiHinh === 'dung_han') {
-    tiLeHoan = 100;
-    textCanhBao = `TRẢ PHÒNG ĐÚNG HẠN — Hoàn cọc theo quy định. Khách trả phòng đúng hạn kết thúc hợp đồng được hoàn trả lại 100% tiền đặt cọc (tương đương ${(selectedItem.tienCoc).toLocaleString('vi-VN')} đồng).`;
+    textCanhBao = `HẾT HẠN THUÊ THEO HỢP ĐỒNG — Hoàn 100% tiền cọc (tương đương ${tienHoan} đồng).`;
     colorCanhBaoBg = '#f0fdf4';
     colorCanhBaoBorder = '#a7f3d0';
     colorCanhBaoText = '#15803d';
-  } else if (selectedLoaiHinh === 'truoc_han' && soThangDaO < 6) {
-    tiLeHoan = 50;
-    textCanhBao = `TRẢ TRƯỚC HẠN (DƯỚI 6 THÁNG) — Hoàn cọc theo tỷ lệ quy định. Căn cứ theo điều 4.2 của hợp đồng, việc trả phòng trước hạn dưới 6 tháng lưu trú sẽ bị khấu trừ 50% tiền cọc (tương đương ${(selectedItem.tienCoc * 0.5).toLocaleString('vi-VN')} đồng).`;
+  } else if (
+    selectedLoaiHinh === 'truoc_han_duoi_6'
+    || (selectedLoaiHinh === 'truoc_han' && soThangDaO < 6)
+    || tiLeHoan === 50
+  ) {
+    textCanhBao = `ĐÃ KÝ HỢP ĐỒNG, CHƯA HẾT HẠN, LƯU TRÚ DƯỚI 6 THÁNG — Hoàn 50% tiền cọc (tương đương ${tienHoan} đồng).`;
     colorCanhBaoBg = '#fef2f2';
     colorCanhBaoBorder = '#fca5a5';
     colorCanhBaoText = '#b91c1c';
-  } else if (selectedLoaiHinh === 'truoc_han' && soThangDaO >= 6) {
-    tiLeHoan = 70;
-    textCanhBao = `TRẢ TRƯỚC HẠN (TRÊN 6 THÁNG) — Hoàn cọc theo tỷ lệ quy định. Căn cứ theo điều 4.2 của hợp đồng, việc trả phòng trước hạn trên 6 tháng lưu trú sẽ bị khấu trừ 30% tiền cọc, khách nhận lại 70% tiền cọc (tương đương ${(selectedItem.tienCoc * 0.7).toLocaleString('vi-VN')} đồng).`;
   } else {
-    tiLeHoan = 100;
-    textCanhBao = `TRẢ PHÒNG ĐÚNG HẠN — Hoàn cọc theo quy định. Khách trả phòng đúng hạn kết thúc hợp đồng được hoàn trả lại 100% tiền đặt cọc (tương đương ${(selectedItem.tienCoc).toLocaleString('vi-VN')} đồng).`;
-    colorCanhBaoBg = '#f0fdf4';
-    colorCanhBaoBorder = '#a7f3d0';
-    colorCanhBaoText = '#15803d';
+    textCanhBao = `ĐÃ KÝ HỢP ĐỒNG, CHƯA HẾT HẠN, LƯU TRÚ TRÊN 6 THÁNG — Hoàn 70% tiền cọc (tương đương ${tienHoan} đồng).`;
+    colorCanhBaoBg = '#fff7ed';
+    colorCanhBaoBorder = '#fed7aa';
+    colorCanhBaoText = '#c2410c';
   }
 
   return (
@@ -203,11 +222,18 @@ export default function CheckoutRequestForm({
               style={{ border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '8px', fontSize: '14px', outline: 'none', color: '#334155', fontWeight: '600', backgroundColor: '#ffffff' }}
             >
               {isDatCoc ? (
-                <option value="huy_thue">Hủy đăng ký thuê và rút cọc</option>
+                <option value="huy_thue">Hủy đăng ký thuê và rút cọc — hoàn 80%</option>
               ) : (
                 <>
-                  <option value="dung_han">Trả phòng đúng hạn hợp đồng</option>
-                  <option value="truoc_han">Chấm dứt hợp đồng sớm (Trả phòng trước hạn)</option>
+                  <option value="dung_han">
+                    Hết hạn thuê theo hợp đồng — hoàn 100% tiền cọc
+                  </option>
+                  <option value="truoc_han_duoi_6">
+                    Chưa hết hạn, lưu trú dưới 6 tháng — hoàn 50% tiền cọc
+                  </option>
+                  <option value="truoc_han_tren_6">
+                    Chưa hết hạn, lưu trú trên 6 tháng — hoàn 70% tiền cọc
+                  </option>
                 </>
               )}
             </select>
@@ -236,7 +262,7 @@ export default function CheckoutRequestForm({
             <label style={{ fontSize: '13px', fontWeight: '700', color: '#64748b' }}>Người tiếp nhận</label>
             <input 
               type="text" 
-              value="Nguyễn Văn A (Sale)" 
+              value={nhanNguoiTiepNhan} 
               readOnly 
               style={{ border: '1px solid #cbd5e1', padding: '10px 14px', borderRadius: '8px', fontSize: '14px', backgroundColor: '#f1f5f9', color: '#64748b', fontWeight: '600' }} 
             />
