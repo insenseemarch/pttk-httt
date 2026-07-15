@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabase.js';
-import { dinhDangNgay } from '../utils/dinhDang.js';
+import { dinhDangCCCD, dinhDangNgay } from '../utils/dinhDang.js';
 
 function layHopDongHienTai(hopDongs) {
   if (!hopDongs?.length) return null;
@@ -79,7 +79,7 @@ export async function layDanhSachKhachHang(boLoc = {}) {
     const { phong, chiNhanh } = layPhongTuHopDong(hd);
     const trangThaiHD = xacDinhTrangThaiHD(hd);
     return {
-      cccd: String(kh.CCCD),
+      cccd: dinhDangCCCD(kh.CCCD),
       hoTen: kh.HoTen,
       sdt: kh.SDT || '',
       email: kh.Email || '',
@@ -91,6 +91,7 @@ export async function layDanhSachKhachHang(boLoc = {}) {
         : '—',
       trangThaiHD,
       ngaySinh: dinhDangNgay(kh.NgaySinh),
+      ngaySinhRaw: kh.NgaySinh || '',
       gioiTinh: kh.GioiTinh || '—',
       diaChi: kh.DiaChi || '—',
       maHopDong: hd?.MaHopDong || null,
@@ -141,7 +142,7 @@ export async function layChiTietKhachHang(cccd) {
   const hoaDons = (hd?.HoaDon || []).sort((a, b) => new Date(b.NgayLap) - new Date(a.NgayLap));
 
   return {
-    cccd: String(data.CCCD),
+    cccd: dinhDangCCCD(data.CCCD),
     hoTen: data.HoTen,
     sdt: data.SDT || '',
     email: data.Email || '',
@@ -180,7 +181,7 @@ export async function themKhachHang(duLieu) {
     .single();
 
   if (error) throw error;
-  return { cccd: String(data.CCCD), hoTen: data.HoTen };
+  return { cccd: dinhDangCCCD(data.CCCD), hoTen: data.HoTen };
 }
 
 export async function capNhatKhachHang(cccd, duLieu) {
@@ -199,5 +200,5 @@ export async function capNhatKhachHang(cccd, duLieu) {
     .maybeSingle();
 
   if (error) throw error;
-  return data;
+  return data ? { ...data, CCCD: dinhDangCCCD(data.CCCD) } : data;
 }

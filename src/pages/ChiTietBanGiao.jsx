@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import KhungNhanVien from '../components/KhungNhanVien';
-import StayConditionsCheck from '../components/StayConditionsCheck';
+import AssetHandover from '../components/AssetHandover';
 import { ROUTES } from '../config/routes';
 
-export default function KiemTraLuuTru({ nguoiDung, dangXuat }) {
+export default function ChiTietBanGiao({ nguoiDung, dangXuat }) {
   const navigate = useNavigate();
-  const { maHoSo } = useParams();
+  const { maHopDong } = useParams();
   const [toast, setToast] = useState(null);
 
   const hienThongBao = (kieu, tinNhan) => {
     setToast({ type: kieu === 'error' ? 'error' : 'success', message: tinNhan });
-    setTimeout(() => setToast(null), 3500);
+    setTimeout(() => setToast(null), 4000);
   };
 
   return (
@@ -20,13 +20,11 @@ export default function KiemTraLuuTru({ nguoiDung, dangXuat }) {
         <div className={`np-toast np-toast--${toast.type}`}>{toast.message}</div>
       )}
 
-      <StayConditionsCheck
-        maHoSo={maHoSo}
+      <AssetHandover
+        maHopDong={maHopDong ? parseInt(maHopDong) : null}
         hienThongBao={hienThongBao}
-        onQuayLai={() => navigate(ROUTES.kiemTraLuuTru)}
-        onXacNhanThanhCong={() => {
-          setTimeout(() => navigate(ROUTES.kiemTraLuuTru), 1500);
-        }}
+        onQuayLai={() => navigate(ROUTES.banGiao)}
+        onBanGiaoThanhCong={() => navigate(ROUTES.banGiao)}
       />
     </KhungNhanVien>
   );

@@ -1,5 +1,6 @@
 import React from 'react';
 import BieuDoLichSu from './BieuDoLichSu';
+import { moAnhTrongTabMoi } from '../../utils/moAnhTrongTabMoi';
 
 export default function ThanhToanMinhChung({
   role,
@@ -159,7 +160,7 @@ export default function ThanhToanMinhChung({
               <small style={{ color: '#94a3b8', marginTop: '6px', fontWeight: '600' }}>Tải lên lúc: {dateTime(latestProof.TaiLenLuc)}</small>
             </div>
             {latestProof.HinhAnhDataUrl && (
-              <a href={latestProof.HinhAnhDataUrl} target="_blank" rel="noreferrer" style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', display: 'block' }}>
+              <a href={latestProof.HinhAnhDataUrl} target="_blank" rel="noreferrer" onClick={(event) => moAnhTrongTabMoi(event, latestProof.HinhAnhDataUrl)} style={{ border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden', display: 'block' }}>
                 <img src={latestProof.HinhAnhDataUrl} alt="Chứng từ thanh toán" style={{ width: '100%', maxHeight: '110px', objectFit: 'contain', display: 'block' }} />
               </a>
             )}

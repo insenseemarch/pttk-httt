@@ -30,33 +30,39 @@ export default function DanhSachPhieuDatCoc({
         </div>
       )}
       {filteredItems.map((item) => (
-        <button
-          type="button"
+        <span
           key={item.MaDatCoc}
-          className={`d-card-item status-${item.TrangThai} ${selected?.MaDatCoc === item.MaDatCoc ? 'active' : ''}`}
-          onClick={() => fetchDetail(item.MaDatCoc)}
-          style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '14px', width: '100%' }}
+          className="d-tooltip-wrap d-card-tooltip"
+          data-tooltip="Nhấn vào để xem chi tiết"
         >
-          <span className={`d-card-dot d-card-dot-${item.TrangThai}`} />
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '8px' }}>
-              <strong style={{ fontSize: '15px', color: '#0f172a', fontWeight: '800' }}>
-                {item.KhachHang?.HoTen || `Khách hàng ${item.CCCD}`}
-              </strong>
-              <span className={`d-badge d-badge-${item.TrangThai}`} style={{ flexShrink: 0 }}>
-                {LABELS[item.TrangThai] || item.TrangThai}
-              </span>
+          <button
+            type="button"
+            className={`d-card-item status-${item.TrangThai} ${selected?.MaDatCoc === item.MaDatCoc ? 'active' : ''}`}
+            aria-label={`Xem chi tiết phiếu ${item.MaDatCoc}`}
+            onClick={() => fetchDetail(item.MaDatCoc)}
+            style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: '14px', width: '100%' }}
+          >
+            <span className={`d-card-dot d-card-dot-${item.TrangThai}`} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '8px' }}>
+                <strong style={{ fontSize: '15px', color: '#0f172a', fontWeight: '800' }}>
+                  {item.KhachHang?.HoTen || `Khách hàng ${item.CCCD}`}
+                </strong>
+                <span className={`d-badge d-badge-${item.TrangThai}`} style={{ flexShrink: 0 }}>
+                  {LABELS[item.TrangThai] || item.TrangThai}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '8px' }}>
+                <small style={{ fontSize: '12.5px', color: '#64748b', fontWeight: '500' }}>
+                  Phiếu #{item.MaDatCoc} · Phòng {item.MaPhong || '—'} · {item.LoaiThue === 'Thuê nguyên phòng' ? 'Nguyên phòng' : 'Giường lẻ'}
+                </small>
+                <small style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: '600', flexShrink: 0 }}>
+                  {dateTime(item.CapNhatLuc || item.ThoiDiemTao)}
+                </small>
+              </div>
             </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', gap: '8px' }}>
-              <small style={{ fontSize: '12.5px', color: '#64748b', fontWeight: '500' }}>
-                Phiếu #{item.MaDatCoc} · Phòng {item.MaPhong || '—'} · {item.LoaiThue === 'Thuê nguyên phòng' ? 'Nguyên phòng' : 'Giường lẻ'}
-              </small>
-              <small style={{ fontSize: '11.5px', color: '#94a3b8', fontWeight: '600', flexShrink: 0 }}>
-                {dateTime(item.CapNhatLuc || item.ThoiDiemTao)}
-              </small>
-            </div>
-          </div>
-        </button>
+          </button>
+        </span>
       ))}
     </section>
   );

@@ -193,7 +193,7 @@ export default function DanhSachPhongGiuong({ nguoiDung, dangXuat }) {
                 <h3 style={{ fontSize: '20px', fontWeight: '800', color: '#0f172a', margin: 0 }}>Phòng P.{phongDangXem.maPhong}</h3>
                 <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0 0' }}>{phongDangXem.chiNhanh} · Phòng {phongDangXem.gioiTinhYeuCau} · {phongDangXem.loaiPhong}</p>
               </div>
-              <button type="button" onClick={() => setShowModalChiTiet(false)} style={{ background: '#f1f5f9', border: 'none', cursor: 'pointer', color: '#64748b', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <button type="button" onClick={() => { setShowModalChiTiet(false); setPhongDangXem(null); }} style={{ background: '#f1f5f9', border: 'none', cursor: 'pointer', color: '#64748b', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
               </button>
             </div>
@@ -260,7 +260,61 @@ export default function DanhSachPhongGiuong({ nguoiDung, dangXuat }) {
             </div>
 
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', borderTop: '1px solid #f1f5f9', paddingTop: '16px' }}>
-              <button type="button" onClick={() => setShowModalChiTiet(false)} className="qt-btn-primary" style={{ padding: '10px 24px', borderRadius: '10px', fontWeight: '700' }}>Đóng lại</button>
+              <button type="button" onClick={() => { setShowModalChiTiet(false); setPhongDangXem(null); }} className="qt-btn-primary" style={{ padding: '10px 24px', borderRadius: '10px', fontWeight: '700' }}>Đóng lại</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {false && phongDangXem && (
+        <div className="qt-modal-overlay" onClick={() => setPhongDangXem(null)}>
+          <div className="qt-room-detail-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="qt-room-detail-head">
+              <div>
+                <h2>Phòng P.{phongDangXem.maPhong}</h2>
+                <p>{phongDangXem.chiNhanh} · Phòng · {phongDangXem.loaiPhong}</p>
+              </div>
+              <button type="button" className="qt-room-detail-close" onClick={() => setPhongDangXem(null)} aria-label="Đóng">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="qt-room-detail-summary">
+              <div>
+                <span>Tình trạng phòng</span>
+                <strong className={`qt-room-state qt-room-state--${layChipTrangThai(phongDangXem.trangThai)}`}>
+                  {phongDangXem.trangThai}
+                </strong>
+              </div>
+              <div>
+                <span>Giá thuê gốc</span>
+                <strong>{phongDangXem.giaThue}{phongDangXem.loaiPhong?.includes('Giường') ? '/giường/tháng' : '/tháng'}</strong>
+              </div>
+              <div>
+                <span>Hiện trạng chỗ</span>
+                <strong>{phongDangXem.hienTrang} (Giường)</strong>
+              </div>
+              <div>
+                <span>Tỷ lệ lấp đầy</span>
+                <strong>{phongDangXem.tyLe}%</strong>
+              </div>
+            </div>
+
+            <div className="qt-room-detail-section">
+              <h3>Chi tiết danh sách giường</h3>
+              {Number(phongDangXem.soGiuong || 0) > 0 ? (
+                <div className="qt-bed-summary">
+                  <span>Tổng giường: {phongDangXem.soGiuong}</span>
+                  <span>Giường trống: {phongDangXem.soGiuongTrong}</span>
+                  {phongDangXem.hetHanCoc && <span>Hết hạn cọc: {phongDangXem.hetHanCoc}</span>}
+                </div>
+              ) : (
+                <p>Phòng này chưa có dữ liệu giường.</p>
+              )}
+            </div>
+
+            <div className="qt-room-detail-footer">
+              <button type="button" className="qt-btn-primary" onClick={() => setPhongDangXem(null)}>Đóng lại</button>
             </div>
           </div>
         </div>

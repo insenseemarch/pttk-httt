@@ -84,8 +84,15 @@
   gap: 6px;
 }
 
-.qt-btn-primary:hover {
+.qt-btn-primary:hover:not(:disabled) {
   opacity: 0.92;
+}
+
+.qt-btn-primary:disabled,
+.qt-btn-outline:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .qt-btn-outline {
@@ -169,9 +176,12 @@
 
 .qt-search-wrap {
   position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .qt-search-wrap input {
+  flex: 1;
   padding-left: 40px;
 }
 
@@ -182,6 +192,7 @@
   transform: translateY(-50%);
   color: #8c7164;
   font-size: 20px;
+  pointer-events: none;
 }
 
 .qt-stats {
@@ -428,6 +439,133 @@
   min-height: 220px;
   color: #9d4300;
   cursor: pointer;
+}
+
+.qt-room-detail-modal {
+  width: min(680px, 100%);
+  max-height: 90vh;
+  overflow-y: auto;
+  background: #fff;
+  border-radius: 18px;
+  padding: 28px;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+}
+
+.qt-room-detail-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.qt-room-detail-head h2 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  color: #111827;
+}
+
+.qt-room-detail-head p {
+  margin: 0;
+  color: #64748b;
+  font-size: 16px;
+}
+
+.qt-room-detail-close {
+  width: 48px;
+  height: 48px;
+  border: none;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.qt-room-detail-close:hover {
+  background: #e2e8f0;
+}
+
+.qt-room-detail-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  margin-top: 24px;
+  padding: 24px;
+  border-radius: 18px;
+  background: #f8fafc;
+}
+
+.qt-room-detail-summary span {
+  display: block;
+  margin-bottom: 8px;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.qt-room-detail-summary strong {
+  color: #111827;
+  font-size: 17px;
+}
+
+.qt-room-state--green { color: #16a34a !important; }
+.qt-room-state--orange { color: #ea580c !important; }
+.qt-room-state--red { color: #dc2626 !important; }
+.qt-room-state--gray { color: #64748b !important; }
+
+.qt-room-detail-section {
+  margin-top: 24px;
+}
+
+.qt-room-detail-section h3 {
+  margin: 0 0 14px;
+  color: #475569;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.qt-room-detail-section p {
+  margin: 0;
+  color: #584237;
+}
+
+.qt-bed-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.qt-bed-summary span {
+  padding: 9px 12px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.qt-room-detail-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 1px solid #e5e7eb;
+}
+
+@media (max-width: 640px) {
+  .qt-room-detail-modal {
+    padding: 20px;
+  }
+
+  .qt-room-detail-summary {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* Drawer */
@@ -849,12 +987,65 @@
   align-items: flex-end;
 }
 
+/* Label inline (dùng trong flex row, không cần margin-bottom riêng) */
+.qt-label-inline {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #584237;
+  margin-bottom: 6px;
+}
+
+/* Link button bỏ gạch chân */
+a.qt-btn-outline,
+a.qt-btn-primary {
+  text-decoration: none;
+}
+
+/* Custom tooltip — dùng data-tip trên bất kỳ phần tử nào */
+.np-tooltip-wrap {
+  position: relative;
+  display: inline-block;
+}
+[data-tip] {
+  position: relative;
+}
+[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  background: #1e293b;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  width: 260px;
+  white-space: normal;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.18s ease;
+  z-index: 999;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+}
+[data-tip]:hover::after {
+  opacity: 1;
+}
+/* Nút: tooltip căn phải */
+.np-tooltip-wrap[data-tip]::after {
+  left: auto;
+  right: 0;
+}
+
 .np-check-label {
-  display: flex;
+  display: flex !important;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 14px;
   cursor: pointer;
+  white-space: nowrap;
+  margin-bottom: 0 !important;
   padding: 10px 0;
 }
 
@@ -894,6 +1085,11 @@
   border-radius: 6px;
   font-size: 13px;
   background: #fff;
+}
+
+.np-member-table th,
+.np-member-table td {
+  padding: 10px 8px;
 }
 
 .np-mono {
@@ -977,7 +1173,7 @@
   background: #fff;
   border-radius: 14px;
   width: 100%;
-  max-width: 520px;
+  max-width: 640px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
   overflow: hidden;
 }
@@ -1027,6 +1223,20 @@
   color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  line-height: 1.4;
+}
+
+.np-modal-summary .np-modal-label {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
+  white-space: normal;
+}
+
+.np-modal-field > .np-modal-label {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 13px;
 }
 
 .np-modal-chips {
@@ -1047,8 +1257,8 @@
 
 .np-modal-summary {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
 }
 
 .np-modal-summary > div {
@@ -1086,12 +1296,23 @@
 
 .np-modal-actions {
   display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 16px 24px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 16px 24px 20px;
   border-top: 1px solid #e5e7eb;
   background: #f8fafc;
+}
+
+.np-modal-actions > button {
+  flex: none !important;
+  width: 100%;
+  height: auto;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.45;
+  padding: 12px 16px;
+  min-height: 44px;
 }
 
 .np-btn-danger {

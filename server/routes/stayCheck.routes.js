@@ -21,7 +21,11 @@ async function layHoSoKiemTra(maDatCoc) {
     .select(`
       *,
       KhachHang ( CCCD, HoTen, GioiTinh ),
-      Phong ( MaPhong, LoaiPhong, GioiTinhYeuCau, SucChuaToiDa ),
+      Phong ( MaPhong, LoaiPhong ( TenLoaiPhong ), GioiTinhYeuCau, SucChuaToiDa ),
+      GiuongDatCoc (
+        MaGiuong, SoGiuongCoc,
+        Giuong ( MaGiuong, MaPhong, GiaThue, TinhTrang )
+      ),
       NhomThue (
         MaNhom, CCCD, SoThanhVienDangKy, SoThanhVienDuDieuKien,
         ThanhVienNhom (
@@ -34,18 +38,316 @@ async function layHoSoKiemTra(maDatCoc) {
     .maybeSingle();
 
   if (error) throw error;
+  if (!dc) return null;
+
+  const yc = await layYeuCauThueGanNhat(dc.CCCD);
+  dc._soNguoiDuKien = Number(yc?.SoNguoiDuKien || 1);
   return dc;
 }
 
-function laThueNhom(dc) {
-  return Boolean(dc.MaNhom) || (dc.SoGiuongThue || 1) > 1 || dc.LoaiThue === 'Thuê nguyên phòng';
+async function layYeuCauThueGanNhat(cccd) {
+  const { data } = await supabase
+    .from('YeuCauThue')
+    .select('SoNguoiDuKien, ThoiGianVao')
+    .eq('CCCD', String(cccd))
+    .order('NgayTao', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data;
 }
 
-function tinhGioiHanNguoi(dc) {
-  if (dc.LoaiThue === 'Thuê nguyên phòng') {
-    return dc.Phong?.SucChuaToiDa || dc.SoGiuongThue || 1;
+function laThueNhom(soNguoiDuKien) {
+  return Number(soNguoiDuKien || 1) > 1;
+}
+
+function laThueNguyenPhong(dc) {
+  return dc?.LoaiThue === 'Thuê nguyên phòng';
+}
+
+function soGiuongHienThi(dc) {
+  if (laThueNguyenPhong(dc)) {
+    return Number(dc.Phong?.SucChuaToiDa || dc.SoGiuongThue || 1);
   }
-  return dc.SoGiuongThue || 1;
+  return Number(dc.SoGiuongThue || 1);
+}
+
+function kiemTraChoPhepTiepTuc(dc, soThanhVienDat) {
+  if (soThanhVienDat < 1) {
+    return { ok: false, lyDo: 'Không còn thành viên nào đủ điều kiện.' };
+  }
+  if (!laThueNguyenPhong(dc)) {
+    const soGiuong = Number(dc.SoGiuongThue || 1);
+    if (soThanhVienDat > soGiuong) {
+      return {
+        ok: false,
+        lyDo: `Số người còn lại (${soThanhVienDat}) vượt số giường đã đặt (${soGiuong}).`,
+      };
+    }
+  }
+  return { ok: true };
+}
+
+async function capNhatSucChuaPhong(maPhong) {
+  const { data: giuongs, error } = await supabase
+    .from('Giuong')
+    .select('MaGiuong, TinhTrang')
+    .eq('MaPhong', maPhong);
+  if (error) throw error;
+
+  const tong = (giuongs || []).length;
+  const conTrong = (giuongs || []).filter((g) => g.TinhTrang).length;
+  const { error: errPhong } = await supabase
+    .from('Phong')
+    .update({ SucChuaConLai: conTrong, TinhTrang: conTrong > 0 })
+    .eq('MaPhong', maPhong);
+  if (errPhong) throw errPhong;
+  return { tong, conTrong };
+}
+
+async function traGiuongDatCoc(maDatCoc, maGiuongs) {
+  const ids = [...new Set(maGiuongs.map(Number).filter(Number.isFinite))];
+  if (!ids.length) return;
+
+  const { error: errXoa } = await supabase
+    .from('GiuongDatCoc')
+    .delete()
+    .eq('MaDatCoc', maDatCoc)
+    .in('MaGiuong', ids);
+  if (errXoa) throw errXoa;
+
+  await supabase
+    .from('KhoaGiuongDatCoc')
+    .delete()
+    .eq('MaDatCoc', maDatCoc)
+    .in('MaGiuong', ids);
+
+  const { error: errGiuong } = await supabase
+    .from('Giuong')
+    .update({ TinhTrang: true })
+    .in('MaGiuong', ids);
+  if (errGiuong) throw errGiuong;
+
+  const { data: giuongs, error: errLay } = await supabase
+    .from('Giuong')
+    .select('MaPhong')
+    .in('MaGiuong', ids);
+  if (errLay) throw errLay;
+
+  const maPhongs = [...new Set((giuongs || []).map((g) => g.MaPhong).filter(Boolean))];
+  for (const maPhong of maPhongs) {
+    await capNhatSucChuaPhong(maPhong);
+  }
+}
+
+async function dieuChinhGiuongSauTiepTuc(dc, soThanhVienConLai) {
+  const soGiuongThueGoc = Number(dc.SoGiuongThue || 1);
+
+  if (laThueNguyenPhong(dc)) {
+    return {
+      giuongGiu: (dc.GiuongDatCoc || []).map((g) => Number(g.MaGiuong)),
+      giuongTra: [],
+      soGiuongThueMoi: soGiuongThueGoc,
+    };
+  }
+
+  const giuongDatCoc = dc.GiuongDatCoc?.length
+    ? dc.GiuongDatCoc
+    : await (async () => {
+      const { data, error } = await supabase
+        .from('GiuongDatCoc')
+        .select('MaGiuong')
+        .eq('MaDatCoc', dc.MaDatCoc);
+      if (error) throw error;
+      return data || [];
+    })();
+
+  const tatCaMaGiuong = giuongDatCoc.map((g) => Number(g.MaGiuong)).filter(Number.isFinite);
+  const soGiuongCanGiu = Math.min(soThanhVienConLai, tatCaMaGiuong.length);
+  const giuongGiu = tatCaMaGiuong.slice(0, soGiuongCanGiu);
+  const giuongTra = tatCaMaGiuong.slice(soGiuongCanGiu);
+
+  if (giuongTra.length) {
+    await traGiuongDatCoc(dc.MaDatCoc, giuongTra);
+  }
+
+  return {
+    giuongGiu,
+    giuongTra,
+    soGiuongThueMoi: giuongGiu.length,
+  };
+}
+
+async function luuPhieuDoiSoatThanhVienKhongDat(dc, dsKhongDat, soGiuongThueGoc) {
+  const soTienCoc = Number(dc.SoTienCoc || 0);
+  const soNguoiCoc = Math.max(1, Number(soGiuongThueGoc || dc.SoGiuongThue || 1));
+  const tienCocMotNguoi = soTienCoc / soNguoiCoc;
+  const tyLe = 80;
+
+  const danhSachKhauTru = [
+    { id: '_meta', name: 'MaDatCoc', desc: String(dc.MaDatCoc), amount: 0 },
+    { id: '_meta', name: 'LoaiDoiSoat', desc: 'HOAN_COC_THANH_VIEN_KHONG_DAT', amount: 0 },
+    { id: '_meta', name: 'SoThanhVienKhongDat', desc: String(dsKhongDat.length), amount: 0 },
+    ...dsKhongDat.map((tv, i) => ({
+      id: `tv-${i}`,
+      name: 'ThanhVienKhongDat',
+      desc: `${tv.hoTen || ''}|${String(tv.cccd || '')}|${tv.lyDo || 'Không đáp ứng điều kiện lưu trú'}`,
+      amount: Math.round(tienCocMotNguoi * (tyLe / 100)),
+    })),
+  ];
+
+  const soTienHoan = danhSachKhauTru
+    .filter((k) => k.name === 'ThanhVienKhongDat')
+    .reduce((s, k) => s + (Number(k.amount) || 0), 0);
+
+  const payload = {
+    NgayDKTraPhong: new Date().toISOString().split('T')[0],
+    TyLeHoanTien: tyLe,
+    SoTienHoanTamTinh: soTienHoan,
+    SoTienHoanThuc: soTienHoan,
+    KhauTruTienThue: 0,
+    KhauTruTienDichVu: 0,
+    KhauTruSuaChua: 0,
+    KhauTruViPham: 0,
+    LoaiHinhTraPhong: 'huy_thue',
+    LyDoTraPhong: `Hoàn cọc 80% cho ${dsKhongDat.length} thành viên không đạt điều kiện lưu trú (PC-${dc.MaDatCoc}).`,
+    DanhSachKhauTru: danhSachKhauTru,
+    TrangThai: 'Chờ đối soát',
+  };
+
+  await upsertPhieuDoiSoatDatCoc(dc, payload);
+}
+
+async function thongBaoKeToanHoanCocThanhVien(dc, soThanhVienKhongDat) {
+  const noiDung = [
+    `[PC-${dc.MaDatCoc}]`,
+    `Có ${soThanhVienKhongDat} thành viên không đạt điều kiện lưu trú.`,
+    'Cần đối soát hoàn cọc 80% phần cọc tương ứng.',
+    'Nhóm tiếp tục ký HĐ với các thành viên còn lại.',
+  ].join(' ');
+
+  const { error } = await supabase.from('ThongBao').insert({
+    MaDatCoc: dc.MaDatCoc,
+    NguoiNhan: dc.NVKT || null,
+    VaiTroNhan: 'Kế toán',
+    NoiDung: noiDung,
+    DaDoc: false,
+    LoaiThongBao: 'Chờ đối soát',
+  });
+  if (error) throw error;
+
+  const io = getIO();
+  if (io) {
+    io.to('role:KE_TOAN').emit('thong_bao_moi', {
+      phieuId: dc.MaDatCoc,
+      noiDung,
+      loaiSuKien: 'Chờ đối soát',
+    });
+  }
+}
+
+async function giaiPhongToanBoGiuong(dc) {
+  const giuongDatCoc = dc.GiuongDatCoc?.length
+    ? dc.GiuongDatCoc
+    : await (async () => {
+      const { data, error } = await supabase
+        .from('GiuongDatCoc')
+        .select('MaGiuong')
+        .eq('MaDatCoc', dc.MaDatCoc);
+      if (error) throw error;
+      return data || [];
+    })();
+
+  const tatCaMaGiuong = giuongDatCoc.map((g) => Number(g.MaGiuong)).filter(Number.isFinite);
+  if (tatCaMaGiuong.length) {
+    await traGiuongDatCoc(dc.MaDatCoc, tatCaMaGiuong);
+  }
+
+  await supabase.from('KhoaGiuongDatCoc').delete().eq('MaDatCoc', dc.MaDatCoc);
+  return tatCaMaGiuong.length;
+}
+
+async function upsertPhieuDoiSoatDatCoc(dc, payload) {
+  const { data: existing, error: errTim } = await supabase
+    .from('PhieuDoiSoat')
+    .select('MaPhieu')
+    .eq('MaDatCoc', dc.MaDatCoc)
+    .order('MaPhieu', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (errTim) throw errTim;
+
+  if (existing?.MaPhieu) {
+    const { error } = await supabase.from('PhieuDoiSoat').update(payload).eq('MaPhieu', existing.MaPhieu);
+    if (error) throw error;
+    return;
+  }
+
+  const { error } = await supabase.from('PhieuDoiSoat').insert({ ...payload, MaDatCoc: dc.MaDatCoc });
+  if (error) throw error;
+}
+
+async function luuPhieuDoiSoatTuChoiKy(dc, dsKhongDat, laNhom) {
+  const soTienCoc = Number(dc.SoTienCoc || 0);
+  const tyLe = 80;
+  const soTienHoan = Math.round(soTienCoc * (tyLe / 100));
+
+  const thanhVienItems = (dsKhongDat || []).map((tv, i) => ({
+    id: `tv-${i}`,
+    name: 'ThanhVienKhongDat',
+    desc: `${tv.hoTen || ''}|${String(tv.cccd || '')}|${tv.lyDo || 'Không đáp ứng điều kiện lưu trú'}`,
+    amount: 0,
+  }));
+
+  const danhSachKhauTru = [
+    { id: '_meta', name: 'MaDatCoc', desc: String(dc.MaDatCoc), amount: 0 },
+    { id: '_meta', name: 'LoaiDoiSoat', desc: 'HOAN_COC_TU_CHOI_KY', amount: 0 },
+    { id: '_meta', name: 'HinhThuc', desc: laNhom ? 'DUNG_THUE_NHOM' : 'CA_NHAN', amount: 0 },
+    ...thanhVienItems,
+  ];
+
+  const lyDo = laNhom
+    ? `Từ chối ký HĐ / dừng thuê nhóm do không đạt điều kiện lưu trú (PC-${dc.MaDatCoc}).`
+    : `Từ chối ký HĐ: khách cá nhân không đạt điều kiện lưu trú (PC-${dc.MaDatCoc}).`;
+
+  await upsertPhieuDoiSoatDatCoc(dc, {
+    NgayDKTraPhong: new Date().toISOString().split('T')[0],
+    TyLeHoanTien: tyLe,
+    SoTienHoanTamTinh: soTienHoan,
+    SoTienHoanThuc: soTienHoan,
+    KhauTruTienThue: 0,
+    KhauTruTienDichVu: 0,
+    KhauTruSuaChua: 0,
+    KhauTruViPham: 0,
+    LoaiHinhTraPhong: 'huy_thue',
+    LyDoTraPhong: lyDo,
+    DanhSachKhauTru: danhSachKhauTru,
+    TrangThai: 'Chờ đối soát',
+  });
+}
+
+async function thongBaoKeToanTuChoiKy(dc, laNhom) {
+  const noiDung = laNhom
+    ? `[PC-${dc.MaDatCoc}] Nhóm dừng thuê do không đạt điều kiện lưu trú. Cần đối soát hoàn cọc 80% toàn bộ tiền cọc.`
+    : `[PC-${dc.MaDatCoc}] Khách cá nhân bị từ chối ký HĐ. Cần đối soát hoàn cọc 80% tiền cọc.`;
+
+  const { error } = await supabase.from('ThongBao').insert({
+    MaDatCoc: dc.MaDatCoc,
+    NguoiNhan: dc.NVKT || null,
+    VaiTroNhan: 'Kế toán',
+    NoiDung: noiDung,
+    DaDoc: false,
+    LoaiThongBao: 'Chờ đối soát',
+  });
+  if (error) throw error;
+
+  const io = getIO();
+  if (io) {
+    io.to('role:KE_TOAN').emit('thong_bao_moi', {
+      phieuId: dc.MaDatCoc,
+      noiDung,
+      loaiSuKien: 'Chờ đối soát',
+    });
+  }
 }
 
 async function ghiNhanKetQuaThanhVien(dc, ketQua) {
@@ -60,7 +362,7 @@ async function ghiNhanKetQuaThanhVien(dc, ketQua) {
         TrangThai: tv.dieuKien ? 'Đạt điều kiện' : 'Không đạt điều kiện',
       })
       .eq('MaNhom', dc.MaNhom)
-      .eq('CCCD', Number(tv.cccd));
+      .eq('CCCD', String(tv.cccd));
   }
 }
 
@@ -73,12 +375,13 @@ async function capNhatSoThanhVienDuDieuKien(dc, soDat) {
 }
 
 async function chuyenTrangThaiDatCoc(dc, trangThaiMoi, nguoiThucHien, ghiChu) {
-  await supabase
+  const { error: errCapNhat } = await supabase
     .from('DatCoc')
     .update({ TrangThai: trangThaiMoi, CapNhatLuc: new Date().toISOString() })
     .eq('MaDatCoc', dc.MaDatCoc);
+  if (errCapNhat) throw errCapNhat;
 
-  await supabase.from('LichSuDatCoc').insert({
+  const { error: errLichSu } = await supabase.from('LichSuDatCoc').insert({
     MaDatCoc: dc.MaDatCoc,
     TrangThaiCu: dc.TrangThai,
     TrangThaiMoi: trangThaiMoi,
@@ -86,6 +389,7 @@ async function chuyenTrangThaiDatCoc(dc, trangThaiMoi, nguoiThucHien, ghiChu) {
     VaiTroThucHien: 'Quản lý',
     GhiChu: ghiChu,
   });
+  if (errLichSu) throw errLichSu;
 }
 
 function mapThanhVienKiemTra(dc, idx, kh, extra = {}) {
@@ -111,9 +415,9 @@ router.get('/', async (req, res) => {
         MaDatCoc, ThoiDiemTao, DatCocThanhCong, CapNhatLuc, SoTienCoc, TrangThai,
         LoaiThue, SoGiuongThue, MaCN, CCCD, MaNhom,
         KhachHang ( CCCD, HoTen, SDT ),
-        Phong ( MaPhong, LoaiPhong, ChiNhanh ( TenCN ) ),
+        Phong ( MaPhong, LoaiPhong ( TenLoaiPhong ), ChiNhanh ( TenCN ) ),
         ChiNhanh ( TenCN ),
-        GiuongDatCoc ( MaGiuong, Giuong ( Phong ( MaPhong, LoaiPhong, ChiNhanh ( TenCN ) ) ) )
+        GiuongDatCoc ( MaGiuong, Giuong ( Phong ( MaPhong, LoaiPhong ( TenLoaiPhong ), ChiNhanh ( TenCN ) ) ) )
       `, { count: 'exact' })
       .eq('TrangThai', TRANG_THAI_CHO_KIEM_TRA)
       .order('CapNhatLuc', { ascending: false, nullsFirst: false });
@@ -123,27 +427,32 @@ router.get('/', async (req, res) => {
     const { data, error, count } = await query;
     if (error) throw error;
 
-    let ketQua = (data || []).map((dc) => {
+    const tenLP = (lp) => (lp && typeof lp === 'object' ? lp.TenLoaiPhong : lp) || '—';
+
+    let ketQua = await Promise.all((data || []).map(async (dc) => {
       const phongTrucTiep = dc.Phong;
       const phongTuGiuong = dc.GiuongDatCoc?.[0]?.Giuong?.Phong;
       const phong = phongTrucTiep || phongTuGiuong;
       const tenCN = phong?.ChiNhanh?.TenCN || dc.ChiNhanh?.TenCN || '—';
+      const yc = await layYeuCauThueGanNhat(dc.CCCD);
+      const soNguoiDuKien = Number(yc?.SoNguoiDuKien || 1);
       return {
         maDatCoc: dc.MaDatCoc,
         maPhieu: `PC-${dc.MaDatCoc}`,
         hoTen: dc.KhachHang?.HoTen || '—',
         sdt: dc.KhachHang?.SDT || '—',
         cccd: dc.CCCD ? String(dc.CCCD) : '—',
-        phong: phong ? `P.${phong.MaPhong} — ${phong.LoaiPhong}` : 'Chưa xác định',
+        phong: phong ? `P.${phong.MaPhong} — ${tenLP(phong.LoaiPhong)}` : 'Chưa xác định',
         chiNhanh: tenCN,
         soGiuongThue: dc.SoGiuongThue || 1,
+        soNguoiDuKien,
         loaiThue: dc.LoaiThue || 'Thuê giường lẻ',
         soTienCocFmt: dinhDangTien(dc.SoTienCoc),
         trangThai: dc.TrangThai,
         ngayChuyenKiemTra: dinhDangNgay(dc.CapNhatLuc || dc.DatCocThanhCong || dc.ThoiDiemTao),
-        laThuNhom: Boolean(dc.MaNhom) || (dc.SoGiuongThue || 1) > 1 || dc.LoaiThue === 'Thuê nguyên phòng',
+        laThuNhom: laThueNhom(soNguoiDuKien),
       };
-    });
+    }));
 
     if (timKiem.trim()) {
       const q = timKiem.trim().toLowerCase();
@@ -191,6 +500,9 @@ router.get('/:maHoSo', async (req, res) => {
       ];
     }
 
+    const tenLP = (lp) => (lp && typeof lp === 'object' ? lp.TenLoaiPhong : lp) || '—';
+    const soNguoiDuKien = hoSo._soNguoiDuKien || 1;
+
     const data = {
       thongTinDatCoc: {
         maHoSo: `PC-${maDatCoc}`,
@@ -199,12 +511,17 @@ router.get('/:maHoSo', async (req, res) => {
         ngayNhanPhong: dinhDangNgay(hoSo.DatCocThanhCong || hoSo.ThoiDiemTao),
         thoiHanThue: hoSo.ThoiHanThue || 6,
         phongDuKien: hoSo.Phong
-          ? `P.${hoSo.Phong.MaPhong} - ${hoSo.Phong.LoaiPhong}`
+          ? `P.${hoSo.Phong.MaPhong} - ${tenLP(hoSo.Phong.LoaiPhong)}`
           : 'Chưa xác định',
         soTienDaCoc: Number(hoSo.SoTienCoc || 0),
         donViTien: 'VNĐ',
         ghiChuSales: hoSo.LyDoXuLy || 'Không có ghi chú.',
         soGiuongThue: hoSo.SoGiuongThue || 1,
+        soGiuongHienThi: soGiuongHienThi(hoSo),
+        loaiThue: hoSo.LoaiThue || 'Thuê giường lẻ',
+        laThuNguyenPhong: laThueNguyenPhong(hoSo),
+        soNguoiDuKien,
+        laThuNhom: laThueNhom(soNguoiDuKien),
         gioiTinhYeuCau: hoSo.Phong?.GioiTinhYeuCau || null,
       },
       danhSachThanhVien,
@@ -217,8 +534,9 @@ router.get('/:maHoSo', async (req, res) => {
   }
 });
 
-const TRANG_THAI_DAT_KIEM_TRA = 'Chờ xác nhận'; // đạt kiểm tra ĐK → chờ nhân viên lập & ký hợp đồng
-const TRANG_THAI_DUNG_THUE = 'Chờ hoàn cọc';
+const TRANG_THAI_DAT_DU       = 'Chờ lập hợp đồng';                // tất cả đạt
+const TRANG_THAI_DAT_MOT_PHAN = 'Chờ lập hợp đồng (điều chỉnh)';  // nhóm một phần đạt
+const TRANG_THAI_DUNG_THUE    = 'Chờ hoàn cọc';                    // từ chối / dừng thuê
 
 async function thongBaoNhanVienLapHopDong(dc, soThanhVien) {
   const noiDung = [
@@ -228,12 +546,13 @@ async function thongBaoNhanVienLapHopDong(dc, soThanhVien) {
     'Vui lòng lập hợp đồng và hướng dẫn khách ký.',
   ].join(' ');
 
-  const { error } = await supabase.from('ThongBaoDatCoc').insert({
+  const { error } = await supabase.from('ThongBao').insert({
     MaDatCoc: dc.MaDatCoc,
     NguoiNhan: null,
     VaiTroNhan: 'Phụ trách',
     NoiDung: noiDung,
     DaDoc: false,
+    LoaiThongBao: 'Chờ lập hợp đồng',
   });
   if (error) throw error;
 
@@ -242,7 +561,7 @@ async function thongBaoNhanVienLapHopDong(dc, soThanhVien) {
     io.to('role:PHU_TRACH').emit('thong_bao_moi', {
       phieuId: dc.MaDatCoc,
       noiDung,
-      loaiSuKien: 'Chờ xác nhận',
+      loaiSuKien: 'Chờ lập hợp đồng',
     });
     console.log('[Socket] Broadcasted thong_bao_moi to room: role:PHU_TRACH');
   }
@@ -267,30 +586,49 @@ router.post('/xac-nhan', async (req, res) => {
       return res.status(400).json({ ok: false, error: `Hồ sơ không ở trạng thái "${TRANG_THAI_CHO_KIEM_TRA}" (hiện: ${dc.TrangThai}).` });
     }
 
-    const laNhom = laThueNhom(dc);
-    const gioiHan = tinhGioiHanNguoi(dc);
+    const soNguoiDuKien = dc._soNguoiDuKien || 1;
+    const laNhom = laThueNhom(soNguoiDuKien);
     const dsKhongDat = ketQua.filter((tv) => !tv.dieuKien);
     const dsDat = ketQua.filter((tv) => tv.dieuKien);
+    const soGiuongThueGoc = Number(dc.SoGiuongThue || 1);
 
     // ─── Bước 2: áp dụng quyết định ───
     if (luaChon === 'CONTINUE_PARTIAL') {
       if (!laNhom) {
         return res.status(400).json({ ok: false, error: 'Chỉ áp dụng cho hồ sơ thuê nhóm.' });
       }
-      if (dsDat.length < 1) {
-        return res.status(400).json({ ok: false, error: 'Không còn thành viên nào đủ điều kiện để tiếp tục.' });
-      }
-      if (dsDat.length > gioiHan) {
-        return res.status(400).json({ ok: false, error: `Số người còn lại (${dsDat.length}) vẫn vượt số giường/phòng đã đặt (${gioiHan}).` });
+
+      const { ok, lyDo } = kiemTraChoPhepTiepTuc(dc, dsDat.length);
+      if (!ok) {
+        return res.status(400).json({ ok: false, error: lyDo });
       }
 
       await ghiNhanKetQuaThanhVien(dc, ketQua);
       await capNhatSoThanhVienDuDieuKien(dc, dsDat.length);
+
+      const dieuChinh = await dieuChinhGiuongSauTiepTuc(dc, dsDat.length);
+      if (!laThueNguyenPhong(dc) && dieuChinh.soGiuongThueMoi !== soGiuongThueGoc) {
+        const { error: errSoGiuong } = await supabase
+          .from('DatCoc')
+          .update({ SoGiuongThue: dieuChinh.soGiuongThueMoi })
+          .eq('MaDatCoc', dc.MaDatCoc);
+        if (errSoGiuong) throw errSoGiuong;
+      }
+
+      if (dsKhongDat.length) {
+        await luuPhieuDoiSoatThanhVienKhongDat(dc, dsKhongDat, soGiuongThueGoc);
+        await thongBaoKeToanHoanCocThanhVien(dc, dsKhongDat.length);
+      }
+
+      const ghiChuDieuChinh = laThueNguyenPhong(dc)
+        ? `Kiểm tra ĐK lưu trú: loại ${dsKhongDat.length} thành viên không đạt, tiếp tục ký HĐ nguyên phòng với ${dsDat.length} thành viên.`
+        : `Kiểm tra ĐK lưu trú: loại ${dsKhongDat.length} thành viên không đạt, trả ${dieuChinh.giuongTra.length} giường, tiếp tục ký HĐ với ${dsDat.length} thành viên (${dieuChinh.soGiuongThueMoi} giường).`;
+
       await chuyenTrangThaiDatCoc(
         dc,
-        TRANG_THAI_DAT_KIEM_TRA,
+        TRANG_THAI_DAT_MOT_PHAN,
         nguoiThucHien,
-        `Kiểm tra ĐK lưu trú: loại ${dsKhongDat.length} thành viên không đạt, tiếp tục ký HĐ với ${dsDat.length} thành viên còn lại.`,
+        ghiChuDieuChinh,
       );
       await thongBaoNhanVienLapHopDong(dc, dsDat.length);
 
@@ -298,32 +636,48 @@ router.post('/xac-nhan', async (req, res) => {
         ok: true,
         data: {
           trangThai: 'CONTINUE_PARTIAL',
-          message: `Đã ghi nhận. Tiếp tục lập hợp đồng với ${dsDat.length} thành viên đủ điều kiện.`,
+          message: laThueNguyenPhong(dc)
+            ? `Đã ghi nhận. Tiếp tục lập hợp đồng nguyên phòng với ${dsDat.length} thành viên đủ điều kiện.`
+            : `Đã ghi nhận. Trả ${dieuChinh.giuongTra.length} giường, tiếp tục lập HĐ với ${dsDat.length} thành viên.`,
           buocTiepTheo: '/lap-hop-dong',
           maDatCoc,
+          soGiuongConLai: dieuChinh.soGiuongThueMoi,
+          soThanhVienKhongDat: dsKhongDat.length,
         },
       });
     }
 
     if (luaChon === 'TERMINATE_REFUND') {
       await ghiNhanKetQuaThanhVien(dc, ketQua);
-      await capNhatSoThanhVienDuDieuKien(dc, dsDat.length);
+      await capNhatSoThanhVienDuDieuKien(dc, 0);
+
+      const soGiuongDaTra = await giaiPhongToanBoGiuong(dc);
+      await luuPhieuDoiSoatTuChoiKy(dc, dsKhongDat, laNhom);
+      await thongBaoKeToanTuChoiKy(dc, laNhom);
+
+      const ghiChuTuChoi = laNhom
+        ? `Kiểm tra ĐK lưu trú: nhóm dừng thuê do ${dsKhongDat.length} thành viên không đạt — trả ${soGiuongDaTra} giường, chuyển hoàn cọc 80%.`
+        : 'Kiểm tra ĐK lưu trú: khách không đạt điều kiện — từ chối ký hợp đồng, trả giường, chuyển hoàn cọc 80%.';
+
       await chuyenTrangThaiDatCoc(
         dc,
         TRANG_THAI_DUNG_THUE,
         nguoiThucHien,
-        laNhom
-          ? `Kiểm tra ĐK lưu trú: nhóm dừng thủ tục thuê do ${dsKhongDat.length} thành viên không đạt — chuyển hoàn cọc 80%.`
-          : 'Kiểm tra ĐK lưu trú: khách không đạt điều kiện — từ chối ký hợp đồng, chuyển hoàn cọc 80%.',
+        ghiChuTuChoi,
       );
 
+      const soTienHoan = Math.round(Number(dc.SoTienCoc || 0) * 0.8);
       return res.json({
         ok: true,
         data: {
           trangThai: 'TERMINATED',
-          message: 'Đã dừng thủ tục thuê. Hồ sơ chuyển sang hoàn cọc (80%).',
-          buocTiepTheo: '/nhan-phong',
+          message: laNhom
+            ? `Đã dừng thuê nhóm. Trả ${soGiuongDaTra} giường, chuyển kế toán đối soát hoàn cọc 80% (${soTienHoan.toLocaleString('vi-VN')} VNĐ).`
+            : `Đã từ chối ký HĐ. Trả giường, chuyển kế toán đối soát hoàn cọc 80% (${soTienHoan.toLocaleString('vi-VN')} VNĐ).`,
+          buocTiepTheo: '/doi-soat',
           maDatCoc,
+          soGiuongDaTra,
+          soTienHoanTamTinh: soTienHoan,
         },
       });
     }
@@ -334,7 +688,7 @@ router.post('/xac-nhan', async (req, res) => {
       await capNhatSoThanhVienDuDieuKien(dc, dsDat.length);
       await chuyenTrangThaiDatCoc(
         dc,
-        TRANG_THAI_DAT_KIEM_TRA,
+        TRANG_THAI_DAT_DU,
         nguoiThucHien,
         'Kiểm tra ĐK lưu trú: tất cả thành viên đạt — chuyển lập hợp đồng.',
       );
@@ -368,7 +722,7 @@ router.post('/xac-nhan', async (req, res) => {
     }
 
     // Thuê nhóm → cho nhóm chọn hướng xử lý
-    const choPhepTiepTuc = dsDat.length >= 1 && dsDat.length <= gioiHan;
+    const { ok: choPhepTiepTuc, lyDo: lyDoKhongChoTiepTuc } = kiemTraChoPhepTiepTuc(dc, dsDat.length);
     return res.json({
       ok: true,
       data: {
@@ -376,13 +730,11 @@ router.post('/xac-nhan', async (req, res) => {
         message: 'Một số thành viên chưa đáp ứng điều kiện lưu trú.',
         thanhVienKhongDat: dsKhongDat.map((tv) => tv.hoTen),
         soThanhVienConLai: dsDat.length,
-        soGiuongThue: gioiHan,
+        soGiuongThue: soGiuongHienThi(dc),
+        loaiThue: dc.LoaiThue || 'Thuê giường lẻ',
+        laThuNguyenPhong: laThueNguyenPhong(dc),
         choPhepTiepTuc,
-        lyDoKhongChoTiepTuc: choPhepTiepTuc
-          ? null
-          : (dsDat.length < 1
-            ? 'Không còn thành viên nào đủ điều kiện.'
-            : `Số người còn lại (${dsDat.length}) vẫn vượt số giường/phòng đã đặt (${gioiHan}).`),
+        lyDoKhongChoTiepTuc: choPhepTiepTuc ? null : lyDoKhongChoTiepTuc,
         luaChonXuLy: [
           ...(choPhepTiepTuc
             ? [{ loai: 'CONTINUE_PARTIAL', nhan: `Tiếp tục ký HĐ với ${dsDat.length} thành viên còn lại` }]

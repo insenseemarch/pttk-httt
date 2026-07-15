@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import KhungNhanVien from '../components/KhungNhanVien';
 import { ROUTES } from '../config/routes';
 
-export default function DanhSachKiemTraLuuTru({ nguoiDung, dangXuat }) {
+export default function DanhSachBanGiao({ nguoiDung, dangXuat }) {
   const navigate = useNavigate();
   const [danhSach, setDanhSach] = useState([]);
   const [chiNhanh, setChiNhanh] = useState([]);
@@ -29,7 +29,7 @@ export default function DanhSachKiemTraLuuTru({ nguoiDung, dangXuat }) {
       const qs = new URLSearchParams(
         Object.fromEntries(Object.entries(boLoc).filter(([, v]) => v !== '')),
       );
-      const res = await fetch(`/api/kiem-tra-luu-tru?${qs}`);
+      const res = await fetch(`/api/ban-giao/cho-ban-giao?${qs}`);
       const json = await res.json();
       if (res.ok && json.ok) {
         setDanhSach(json.danhSach);
@@ -52,22 +52,20 @@ export default function DanhSachKiemTraLuuTru({ nguoiDung, dangXuat }) {
     <KhungNhanVien nguoiDung={nguoiDung} dangXuat={dangXuat}>
       <div className="qt-page-header">
         <div>
-          <h1>Kiểm tra điều kiện lưu trú</h1>
-          <p>Danh sách hồ sơ Sale đã ghi nhận, chờ Quản lý kiểm tra điều kiện lưu trú trước khi lập hợp đồng.</p>
+          <h1>Bàn giao phòng</h1>
+          <p>Danh sách hợp đồng đã thu đủ tiền kỳ đầu, chờ quản lý thực hiện bàn giao phòng/giường và tài sản cho khách.</p>
         </div>
       </div>
 
       <div className="qt-filter-card">
-        <div className="qt-field" style={{ gridColumn: 'span 2' }}>
+        <div className="qt-field qt-search-wrap" style={{ gridColumn: 'span 2' }}>
           <label>Tìm kiếm</label>
-          <div className="qt-search-wrap">
-            <span className="material-symbols-outlined">search</span>
-            <input
-              placeholder="Tên, SĐT, CCCD, mã phiếu cọc..."
-              value={boLoc.timKiem}
-              onChange={(e) => setBoLoc((p) => ({ ...p, timKiem: e.target.value }))}
-            />
-          </div>
+          <span className="material-symbols-outlined">search</span>
+          <input
+            placeholder="Tên khách, SĐT, CCCD, mã hợp đồng..."
+            value={boLoc.timKiem}
+            onChange={(e) => setBoLoc((p) => ({ ...p, timKiem: e.target.value }))}
+          />
         </div>
         <div className="qt-field">
           <label>Chi nhánh</label>
@@ -92,79 +90,61 @@ export default function DanhSachKiemTraLuuTru({ nguoiDung, dangXuat }) {
           <div className="qt-loading">Đang tải...</div>
         ) : danhSach.length === 0 ? (
           <div className="qt-empty">
-            <span className="material-symbols-outlined" style={{ fontSize: 48, color: '#94a3b8' }}>fact_check</span>
-            <p>Không có hồ sơ nào chờ kiểm tra điều kiện lưu trú.</p>
+            <span className="material-symbols-outlined" style={{ fontSize: 48, color: '#94a3b8' }}>door_front</span>
+            <p>Không có hợp đồng nào chờ bàn giao phòng.</p>
           </div>
         ) : (
           <>
             <table className="qt-table">
               <thead>
                 <tr>
-                  <th style={{ whiteSpace: 'nowrap' }}>Mã phiếu cọc</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>Khách hàng</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>Phòng / Giường</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>Chi nhánh</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>Ngày chuyển kiểm tra</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>Loại thuê</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>Tiền cọc</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>Trạng thái</th>
+                  <th>Mã hợp đồng</th>
+                  <th>Khách hàng</th>
+                  <th>Phòng / Giường</th>
+                  <th>Chi nhánh</th>
+                  <th>Ngày bắt đầu thuê</th>
+                  <th>Số giường</th>
+                  <th>Giá thuê</th>
+                  <th>Trạng thái</th>
                   <th />
                 </tr>
               </thead>
               <tbody>
                 {danhSach.map((item) => (
                   <tr
-                    key={item.maDatCoc}
+                    key={item.maHopDong}
                     style={{ cursor: 'pointer' }}
-                    onClick={() => navigate(`${ROUTES.kiemTraLuuTru}/${item.maDatCoc}`)}
+                    onClick={() => navigate(`${ROUTES.banGiao}/${item.maHopDong}`)}
                   >
-                    <td><strong style={{ color: 'var(--primary-color)' }}>{item.maPhieu}</strong></td>
+                    <td><strong style={{ color: 'var(--primary-color)' }}>{item.maHopDongFmt}</strong></td>
                     <td>
                       <div>{item.hoTen}</div>
                       <span style={{ fontSize: 12, color: '#64748b' }}>{item.sdt}</span>
                     </td>
                     <td>{item.phong}</td>
                     <td>{item.chiNhanh}</td>
-                    <td>{item.ngayChuyenKiemTra || '—'}</td>
-                    <td style={{ whiteSpace: 'nowrap' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-                        <span
-                          className={`qt-chip ${item.loaiThue === 'Thuê nguyên phòng' ? 'qt-chip--blue' : 'qt-chip--gray'}`}
-                          style={{ fontSize: 11, whiteSpace: 'nowrap' }}
-                        >
-                          {item.loaiThue || 'Thuê giường lẻ'}
-                        </span>
-                        {item.laThuNhom && (
-                          <span
-                            className="qt-chip qt-chip--blue"
-                            style={{ fontSize: 10, whiteSpace: 'nowrap' }}
-                            title="Thuê theo nhóm — cần kiểm tra điều kiện từng thành viên"
-                          >
-                            Nhóm
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td>{item.soTienCocFmt}</td>
+                    <td>{item.ngayBatDau || '—'}</td>
+                    <td>{item.soGiuong}</td>
+                    <td>{item.giaThue}</td>
                     <td>
-                      <span className="qt-chip qt-chip--orange">{item.trangThai}</span>
+                      <span className="qt-chip qt-chip--green">{item.trangThai}</span>
                     </td>
                     <td>
-                      <button
-                        type="button"
+                      <Link
+                        to={`${ROUTES.banGiao}/${item.maHopDong}`}
                         className="qt-btn-outline"
-                        style={{ padding: '6px 12px', fontSize: 12, whiteSpace: 'nowrap' }}
-                        onClick={(e) => { e.stopPropagation(); navigate(`${ROUTES.kiemTraLuuTru}/${item.maDatCoc}`); }}
+                        style={{ padding: '6px 12px', fontSize: 12, textDecoration: 'none' }}
+                        onClick={(e) => e.stopPropagation()}
                       >
-                        Kiểm tra
-                      </button>
+                        Bàn giao
+                      </Link>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
             <div className="qt-pagination">
-              <span>Hiển thị {danhSach.length} / {tong} hồ sơ</span>
+              <span>Hiển thị {danhSach.length} / {tong} hợp đồng</span>
             </div>
           </>
         )}

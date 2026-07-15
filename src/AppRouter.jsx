@@ -29,24 +29,29 @@ import DanhSachKiemTraLuuTru from './pages/DanhSachKiemTraLuuTru';
 import KiemTraLuuTru from './pages/KiemTraLuuTru';
 import DanhSachLapHopDong from './pages/DanhSachLapHopDong';
 import LapHopDong from './pages/LapHopDong';
+import DanhSachBanGiao from './pages/DanhSachBanGiao';
+import ChiTietBanGiao from './pages/ChiTietBanGiao';
 
-import { KHOA_NGUOI_DUNG, ROUTES } from './config/routes';
+import { ROUTES } from './config/routes';
+import {
+  chuanHoaVaiTroNhanVien,
+  docNguoiDungDangNhap,
+  luuNguoiDungDangNhap,
+  xoaNguoiDungDangNhap,
+} from './utils/nhanVienSession';
 
 
+function layTrangMacDinhSauDangNhap(nguoiDung) {
 
-function docNguoiDungTuLocal() {
+  const vaiTro = chuanHoaVaiTroNhanVien(nguoiDung?.vaiTro);
 
-  try {
+  if (vaiTro === 'sale') {
 
-    const luu = localStorage.getItem(KHOA_NGUOI_DUNG);
-
-    return luu ? JSON.parse(luu) : null;
-
-  } catch {
-
-    return null;
+    return ROUTES.tiepNhanDangKyThue;
 
   }
+
+  return ROUTES.dashboard;
 
 }
 
@@ -58,7 +63,7 @@ function TrangBaoVe({ children }) {
 
   const location = useLocation();
 
-  const [nguoiDung, setNguoiDung] = useState(docNguoiDungTuLocal);
+  const [nguoiDung, setNguoiDung] = useState(docNguoiDungDangNhap);
 
 
 
@@ -72,7 +77,7 @@ function TrangBaoVe({ children }) {
 
   const xuLyDangXuat = () => {
 
-    localStorage.removeItem(KHOA_NGUOI_DUNG);
+    xoaNguoiDungDangNhap();
 
     setNguoiDung(null);
 
@@ -92,13 +97,15 @@ function TrangDangNhap() {
 
   const navigate = useNavigate();
 
-  const nguoiDung = docNguoiDungTuLocal();
+  const location = useLocation();
+
+  const nguoiDung = docNguoiDungDangNhap();
 
 
 
   if (nguoiDung) {
 
-    return <Navigate to={ROUTES.dashboard} replace />;
+    return <Navigate to={layTrangMacDinhSauDangNhap(nguoiDung)} replace />;
 
   }
 
@@ -106,9 +113,11 @@ function TrangDangNhap() {
 
   const xuLyDangNhapThanhCong = (data) => {
 
-    localStorage.setItem(KHOA_NGUOI_DUNG, JSON.stringify(data));
+    luuNguoiDungDangNhap(data);
 
-    navigate(ROUTES.dashboard, { replace: true });
+    const quayLai = location.state?.tu || layTrangMacDinhSauDangNhap(data);
+
+    navigate(quayLai, { replace: true });
 
   };
 
@@ -174,6 +183,101 @@ function TrangHopDongSale() {
 }
 
 
+function TrangPhongGiuong() {
+
+  return (
+
+    <TrangBaoVe>
+
+      {({ nguoiDung, dangXuat }) => (
+        ['sale', 'quanly'].includes(chuanHoaVaiTroNhanVien(nguoiDung?.vaiTro)) ? (
+          <App
+            manHinhKhoiTao="search_vacancy"
+            batDauCheDoNhanVien
+            nguoiDungDangNhap={nguoiDung}
+            dangXuatDangNhap={dangXuat}
+          />
+        ) : (
+          <DanhSachPhongGiuong nguoiDung={nguoiDung} dangXuat={dangXuat} />
+        )
+      )}
+
+    </TrangBaoVe>
+
+  );
+
+}
+
+
+function TrangSoDoPhong() {
+
+  return (
+
+    <TrangBaoVe>
+
+      {({ nguoiDung, dangXuat }) => (
+        <DanhSachPhongGiuong nguoiDung={nguoiDung} dangXuat={dangXuat} />
+      )}
+
+    </TrangBaoVe>
+
+  );
+
+}
+
+
+function TrangTiepNhanDangKyThue() {
+
+  return (
+
+    <TrangBaoVe>
+
+      {({ nguoiDung, dangXuat }) => (
+        chuanHoaVaiTroNhanVien(nguoiDung?.vaiTro) === 'sale' ? (
+          <App
+            manHinhKhoiTao="staff_reception"
+            batDauCheDoNhanVien
+            nguoiDungDangNhap={nguoiDung}
+            dangXuatDangNhap={dangXuat}
+          />
+        ) : (
+          <Navigate to={ROUTES.phongGiuong} replace />
+        )
+      )}
+
+    </TrangBaoVe>
+
+  );
+
+}
+
+
+function TrangLichHen() {
+
+  return (
+
+    <TrangBaoVe>
+
+      {({ nguoiDung, dangXuat }) => (
+        chuanHoaVaiTroNhanVien(nguoiDung?.vaiTro) === 'sale' ? (
+          <App
+            manHinhKhoiTao="staff_contracts"
+            batDauCheDoNhanVien
+            nguoiDungDangNhap={nguoiDung}
+            dangXuatDangNhap={dangXuat}
+          />
+        ) : (
+          <Navigate to={ROUTES.phongGiuong} replace />
+        )
+      )}
+
+    </TrangBaoVe>
+
+  );
+
+}
+
+
 
 export default function AppRouter() {
 
@@ -187,11 +291,14 @@ export default function AppRouter() {
 
       <Route path={ROUTES.dashboard} element={taoTrangStaff(Dashboard)} />
 
-      <Route path={ROUTES.phongGiuong} element={taoTrangStaff(DanhSachPhongGiuong)} />
+      <Route path={ROUTES.phongGiuong} element={<TrangPhongGiuong />} />
+      <Route path={ROUTES.soDoPhong} element={<TrangSoDoPhong />} />
 
       <Route path={ROUTES.khachHang} element={taoTrangStaff(DanhSachKhachHang)} />
 
       <Route path={ROUTES.hopDong} element={<TrangHopDongSale />} />
+      <Route path={ROUTES.tiepNhanDangKyThue} element={<TrangTiepNhanDangKyThue />} />
+      <Route path={ROUTES.lichHen} element={<TrangLichHen />} />
       <Route path={ROUTES.thuChi} element={taoTrangStaff(ThuChi)} />
       <Route path={ROUTES.nhanPhong} element={taoTrangStaff(DanhSachNhanPhong)} />
       <Route path={`${ROUTES.nhanPhong}/:maDatCoc`} element={taoTrangStaff(ChiTietNhanPhong)} />
@@ -204,6 +311,8 @@ export default function AppRouter() {
       <Route path={ROUTES.quanLyTaiKhoan} element={taoTrangStaff(QuanLyTaiKhoan)} />
       <Route path={ROUTES.checkout} element={taoTrangStaff(CheckoutPage)} />
       <Route path="/staff-payment" element={taoTrangStaff(InitialPayment)} />
+      <Route path={ROUTES.banGiao} element={taoTrangStaff(DanhSachBanGiao)} />
+      <Route path={`${ROUTES.banGiao}/:maHopDong`} element={taoTrangStaff(ChiTietBanGiao)} />
       <Route path={ROUTES.deposit} element={taoTrangStaff(QuyTrinhDatCoc)} />
 
       <Route path="/*" element={<App />} />
