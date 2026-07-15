@@ -1,4 +1,15 @@
 .deposit-page { max-width: 1440px; margin: 0 auto; color: #1f2937; }
+.d-workflow-page button,
+.d-workflow-page input,
+.d-workflow-page select,
+.d-workflow-page textarea,
+.d-create-dialog button,
+.d-create-dialog input,
+.d-create-dialog select,
+.d-create-dialog textarea,
+.deposit-notification-popover button {
+  font-family: 'Plus Jakarta Sans', 'Inter', 'Segoe UI', Arial, sans-serif;
+}
 .deposit-header { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 22px; }
 .deposit-header h1 { font-size: 28px; line-height: 1.2; margin: 3px 0 6px; letter-spacing: 0; }
 .deposit-header p { color: #64748b; }
