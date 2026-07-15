@@ -127,15 +127,15 @@ export default function DanhSachNhanPhong({ nguoiDung, dangXuat }) {
             <table className="qt-table">
               <thead>
                 <tr>
-                  <th data-tip="Mã định danh phiếu đặt cọc trong hệ thống">Mã phiếu cọc</th>
+                  <th style={{ whiteSpace: 'nowrap' }} data-tip="Mã định danh phiếu đặt cọc trong hệ thống">Mã phiếu cọc</th>
                   <th>Khách hàng</th>
-                  <th data-tip="Phòng / giường đã được đặt cọc. Hiển thị '—' nếu chưa xác định phòng cụ thể">Phòng / Giường</th>
-                  <th>Chi nhánh</th>
-                  <th data-tip="Ngày/giờ khách dự kiến vào ở. Lấy từ yêu cầu thuê hoặc ngày đặt cọc thành công">Lịch nhận phòng</th>
-                  <th data-tip="Thuê giường lẻ (cá nhân) hoặc Thuê nguyên phòng (nhóm). Trường hợp nhóm cần khai báo thành viên">Loại thuê</th>
-                  <th data-tip="Số giường được cọc. Nếu > 1 sẽ cần khai báo danh sách thành viên nhóm">Số giường</th>
-                  <th>Tiền cọc</th>
-                  <th data-tip="Trạng thái hiện tại của phiếu đặt cọc">Trạng thái</th>
+                  <th style={{ whiteSpace: 'nowrap' }} data-tip="Phòng / giường đã được đặt cọc">Phòng / Giường</th>
+                  <th style={{ whiteSpace: 'nowrap' }}>Chi nhánh</th>
+                  <th style={{ whiteSpace: 'nowrap' }} data-tip="Ngày/giờ khách dự kiến vào ở">Lịch nhận phòng</th>
+                  <th style={{ whiteSpace: 'nowrap' }} data-tip="Thuê giường lẻ (cá nhân) hoặc Thuê nguyên phòng. Nhóm cần khai báo thành viên">Loại thuê</th>
+                  <th style={{ whiteSpace: 'nowrap' }} data-tip="Số giường đã cọc">Số giường</th>
+                  <th style={{ whiteSpace: 'nowrap' }}>Tiền cọc</th>
+                  <th style={{ whiteSpace: 'nowrap' }} data-tip="Trạng thái phiếu đặt cọc">Trạng thái</th>
                   <th />
                 </tr>
               </thead>
@@ -154,22 +154,24 @@ export default function DanhSachNhanPhong({ nguoiDung, dangXuat }) {
                     <td>{item.phong}</td>
                     <td>{item.chiNhanh}</td>
                     <td>{item.ngayHenNhanPhong || '—'}</td>
-                    <td style={{ whiteSpace: 'nowrap' }}>
-                      <span
-                        className={`qt-chip ${item.loaiThue === 'Thuê nguyên phòng' ? 'qt-chip--blue' : 'qt-chip--gray'}`}
-                        style={{ fontSize: 11 }}
-                      >
-                        {item.loaiThue || 'Thuê giường lẻ'}
-                      </span>
-                      {item.laThuNhom && (
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
                         <span
-                          className="qt-chip qt-chip--blue"
-                          style={{ fontSize: 10, marginLeft: 4 }}
-                          title="Thuê theo nhóm — cần khai báo danh sách thành viên"
+                          className={`qt-chip ${item.loaiThue === 'Thuê nguyên phòng' ? 'qt-chip--blue' : 'qt-chip--gray'}`}
+                          style={{ fontSize: 11, whiteSpace: 'nowrap' }}
                         >
-                          Nhóm
+                          {item.loaiThue || 'Thuê giường lẻ'}
                         </span>
-                      )}
+                        {item.laThuNhom && (
+                          <span
+                            className="qt-chip qt-chip--blue"
+                            style={{ fontSize: 10, whiteSpace: 'nowrap' }}
+                            title="Thuê theo nhóm — cần khai báo danh sách thành viên"
+                          >
+                            Nhóm
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td>{item.soGiuongThue}</td>
                     <td>{item.soTienCocFmt}</td>
