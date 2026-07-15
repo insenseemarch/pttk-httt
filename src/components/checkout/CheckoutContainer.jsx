@@ -9,7 +9,7 @@ import ContractLiquidateForm from './ContractLiquidateForm';
 import PayoutForm from './PayoutForm';
 import ViewRequestDetails from './ViewRequestDetails';
 import ViewContractDetails from './ViewContractDetails';
-import { tinhTyLeHoanCoc } from '../../utils/tinhTyLeHoanCoc';
+import { tinhTyLeHoanCoc, chuanHoaLoaiHinhTraPhong } from '../../utils/tinhTyLeHoanCoc';
 
 export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTrang, loggedRole }) {
   const [danhSachQuyetToan, setDanhSachQuyetToan] = useState([]);
@@ -68,10 +68,14 @@ export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTra
 
   const napFormTuChiTiet = (data) => {
     const tiLeKhuyenNghi = data.tiLeHoanCoc || tinhTyLeHoanCoc(data);
+    let loaiHinh = data.loaiHinhTraPhong || (data.loai === 'dat_coc' ? 'huy_thue' : 'dung_han');
+    if (loaiHinh === 'truoc_han') {
+      loaiHinh = Number(tiLeKhuyenNghi) >= 70 ? 'truoc_han_tren_6' : 'truoc_han_duoi_6';
+    }
 
     setFormQuyetToan(prev => ({
       ...prev,
-      loaiHinhTraPhong: data.loaiHinhTraPhong || (data.loai === 'dat_coc' ? 'huy_thue' : 'dung_han'),
+      loaiHinhTraPhong: loaiHinh,
       ngayTraDuKien: data.ngayTraDuKien || new Date().toISOString().split('T')[0],
       lyDo: data.lyDo || '',
       phuongThucHoanTien: data.phuongThucHoanTien || 'chuyen_khoan',
@@ -129,7 +133,7 @@ export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTra
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           maSoChungTu: hoSoDangChon.maSo,
-          loaiHinhTraPhong: formQuyetToan.loaiHinhTraPhong,
+          loaiHinhTraPhong: chuanHoaLoaiHinhTraPhong(formQuyetToan.loaiHinhTraPhong),
           ngayTraDuKien: formQuyetToan.ngayTraDuKien,
           lyDo: formQuyetToan.lyDo,
           phuongThucHoanTien: formQuyetToan.phuongThucHoanTien

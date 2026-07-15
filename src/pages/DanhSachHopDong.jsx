@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import KhungNhanVien from '../components/KhungNhanVien';
 import CheckoutRequestForm from '../components/checkout/CheckoutRequestForm';
 import ManagerRoomInspectForm from '../components/contracts/ManagerRoomInspectForm';
+import { chuanHoaLoaiHinhTraPhong } from '../utils/tinhTyLeHoanCoc';
 
 const KY_HAN_OPTIONS = [1, 3, 6, 12, 24];
 import ReconcileConfirmForm from '../components/checkout/ReconcileConfirmForm';
@@ -271,7 +272,7 @@ export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           maSoChungTu: manYeuCau.maSo,
-          loaiHinhTraPhong: formYeuCau.loaiHinhTraPhong,
+          loaiHinhTraPhong: chuanHoaLoaiHinhTraPhong(formYeuCau.loaiHinhTraPhong),
           ngayTraDuKien: formYeuCau.ngayTraDuKien,
           lyDo: formYeuCau.lyDo,
           phuongThucHoanTien: formYeuCau.phuongThucHoanTien,
@@ -334,6 +335,7 @@ export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
             <CheckoutRequestForm
               selectedItem={manYeuCau}
               formValues={formYeuCau}
+              nguoiDung={nguoiDung}
               onChange={(e) => {
                 const { name, value } = e.target;
                 setFormYeuCau((p) => ({ ...p, [name]: value }));

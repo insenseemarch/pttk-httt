@@ -12,6 +12,9 @@ function layPhongTuChiTiet(chiTiets) {
 
 function chuanHoaTrangThai(trangThai) {
   if (!trangThai) return '—';
+  // Phòng trường hợp dữ liệu bị lỗi encoding UTF-8
+  const raw = String(trangThai);
+  if (raw.includes('kiá»ƒm') || raw.includes('kiá»\u0083m')) return 'Chờ kiểm tra';
   if (trangThai === 'Đang hiệu lực') return 'Hiệu lực';
   if (trangThai === 'Đã thanh lý' || trangThai === 'Thanh lý') return 'Thanh lý';
   if (trangThai === 'Đã hủy' || trangThai === 'Hủy') return 'Hủy';
