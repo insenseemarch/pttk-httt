@@ -45,7 +45,7 @@ async function layYeuCauThueGanNhat(cccd) {
   const { data } = await supabase
     .from('YeuCauThue')
     .select('SoNguoiDuKien, ThoiGianVao')
-    .eq('CCCD', Number(cccd))
+    .eq('CCCD', String(cccd))
     .order('NgayTao', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -72,7 +72,7 @@ async function ghiNhanKetQuaThanhVien(dc, ketQua) {
         TrangThai: tv.dieuKien ? 'Đạt điều kiện' : 'Không đạt điều kiện',
       })
       .eq('MaNhom', dc.MaNhom)
-      .eq('CCCD', Number(tv.cccd));
+      .eq('CCCD', String(tv.cccd));
   }
 }
 
