@@ -4,7 +4,11 @@ import { dinhDangNgay, dinhDangTien } from '../utils/dinhDang.js';
 
 const router = express.Router();
 
-const TRANG_THAI_CHO_LAP = 'Chờ xác nhận'; // đạt kiểm tra ĐK lưu trú, chờ lập & ký hợp đồng
+const TRANG_THAI_CHO_LAP = [
+  'Chờ lập hợp đồng',
+  'Chờ lập hợp đồng (điều chỉnh)',
+  'Chờ xác nhận', // legacy — giữ tương thích hồ sơ cũ
+];
 const TRANG_THAI_SAU_KY = 'Chờ thanh toán'; // đã ký HĐ, chờ kế toán thu tiền kỳ đầu
 
 const PHI_DICH_VU_MAC_DINH = [
@@ -78,7 +82,7 @@ router.get('/cho-lap', async (req, res) => {
         ChiNhanh ( TenCN ),
         GiuongDatCoc ( MaGiuong, Giuong ( Phong ( MaPhong, LoaiPhong, ChiNhanh ( TenCN ) ) ) )
       `, { count: 'exact' })
-      .eq('TrangThai', TRANG_THAI_CHO_LAP)
+      .in('TrangThai', TRANG_THAI_CHO_LAP)
       .order('CapNhatLuc', { ascending: false, nullsFirst: false });
 
     if (maCN) query = query.eq('MaCN', Number(maCN));
@@ -195,8 +199,8 @@ router.post('/tao-moi', async (req, res) => {
     if (!dc) {
       return res.status(404).json({ ok: false, error: 'Không tìm thấy hồ sơ đặt cọc' });
     }
-    if (choKy && dc.TrangThai !== TRANG_THAI_CHO_LAP) {
-      return res.status(400).json({ ok: false, error: `Hồ sơ không ở trạng thái "${TRANG_THAI_CHO_LAP}" (hiện: ${dc.TrangThai}).` });
+    if (choKy && !TRANG_THAI_CHO_LAP.includes(dc.TrangThai)) {
+      return res.status(400).json({ ok: false, error: `Hồ sơ không ở trạng thái chờ lập hợp đồng (hiện: ${dc.TrangThai}).` });
     }
 
     const ngayBD = new Date(thongTinThue?.ngayBatDau || Date.now());
