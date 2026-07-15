@@ -4437,9 +4437,7 @@ h1.page-title {
    TRANG KIỂM TRA ĐIỀU KIỆN LƯU TRÚ (STAY CHECK)
    ========================================== */
 .stay-check-page {
-  max-width: 1200px;
-  margin: 24px auto;
-  padding: 0 24px;
+  width: 100%;
 }
 
 .stay-check-header {
@@ -4455,7 +4453,7 @@ h1.page-title {
 
 .stay-check-grid {
   display: grid;
-  grid-template-columns: 1fr 2fr;
+  grid-template-columns: 340px 1fr;
   gap: 24px;
   align-items: start;
 }
@@ -4613,11 +4611,51 @@ h1.page-title {
   color: #dc2626;
 }
 
+.stay-check-table {
+  width: 100%;
+  min-width: unset !important;
+  table-layout: auto !important;
+}
+
+.stay-check-table th,
+.stay-check-table td {
+  width: auto !important;
+}
+
 .stay-check-actions {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
   gap: 16px;
   padding: 24px 20px;
+}
+
+.stay-check-actions > button:first-child {
+  flex: 1;
+}
+
+.stay-check-actions > button:last-child {
+  flex: none !important;
+  width: 280px !important;
+  white-space: nowrap;
+}
+
+.btn-book-warning {
+  background: #f97316;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-book-warning:hover:not(:disabled) {
+  background: #ea6c0a;
+}
+.btn-book-warning:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 @media (max-width: 900px) {

@@ -21,7 +21,7 @@ async function layHoSoKiemTra(maDatCoc) {
     .select(`
       *,
       KhachHang ( CCCD, HoTen, GioiTinh ),
-      Phong ( MaPhong, LoaiPhong, GioiTinhYeuCau, SucChuaToiDa ),
+      Phong ( MaPhong, LoaiPhong ( TenLoaiPhong ), GioiTinhYeuCau, SucChuaToiDa ),
       NhomThue (
         MaNhom, CCCD, SoThanhVienDangKy, SoThanhVienDuDieuKien,
         ThanhVienNhom (
@@ -34,18 +34,30 @@ async function layHoSoKiemTra(maDatCoc) {
     .maybeSingle();
 
   if (error) throw error;
+  if (!dc) return null;
+
+  const yc = await layYeuCauThueGanNhat(dc.CCCD);
+  dc._soNguoiDuKien = Number(yc?.SoNguoiDuKien || 1);
   return dc;
 }
 
-function laThueNhom(dc) {
-  return Boolean(dc.MaNhom) || (dc.SoGiuongThue || 1) > 1 || dc.LoaiThue === 'Thuê nguyên phòng';
+async function layYeuCauThueGanNhat(cccd) {
+  const { data } = await supabase
+    .from('YeuCauThue')
+    .select('SoNguoiDuKien, ThoiGianVao')
+    .eq('CCCD', Number(cccd))
+    .order('NgayTao', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data;
 }
 
-function tinhGioiHanNguoi(dc) {
-  if (dc.LoaiThue === 'Thuê nguyên phòng') {
-    return dc.Phong?.SucChuaToiDa || dc.SoGiuongThue || 1;
-  }
-  return dc.SoGiuongThue || 1;
+function laThueNhom(soNguoiDuKien) {
+  return Number(soNguoiDuKien || 1) > 1;
+}
+
+function tinhGioiHanNguoi(soNguoiDuKien) {
+  return Number(soNguoiDuKien || 1);
 }
 
 async function ghiNhanKetQuaThanhVien(dc, ketQua) {
@@ -111,9 +123,9 @@ router.get('/', async (req, res) => {
         MaDatCoc, ThoiDiemTao, DatCocThanhCong, CapNhatLuc, SoTienCoc, TrangThai,
         LoaiThue, SoGiuongThue, MaCN, CCCD, MaNhom,
         KhachHang ( CCCD, HoTen, SDT ),
-        Phong ( MaPhong, LoaiPhong, ChiNhanh ( TenCN ) ),
+        Phong ( MaPhong, LoaiPhong ( TenLoaiPhong ), ChiNhanh ( TenCN ) ),
         ChiNhanh ( TenCN ),
-        GiuongDatCoc ( MaGiuong, Giuong ( Phong ( MaPhong, LoaiPhong, ChiNhanh ( TenCN ) ) ) )
+        GiuongDatCoc ( MaGiuong, Giuong ( Phong ( MaPhong, LoaiPhong ( TenLoaiPhong ), ChiNhanh ( TenCN ) ) ) )
       `, { count: 'exact' })
       .eq('TrangThai', TRANG_THAI_CHO_KIEM_TRA)
       .order('CapNhatLuc', { ascending: false, nullsFirst: false });
@@ -123,27 +135,32 @@ router.get('/', async (req, res) => {
     const { data, error, count } = await query;
     if (error) throw error;
 
-    let ketQua = (data || []).map((dc) => {
+    const tenLP = (lp) => (lp && typeof lp === 'object' ? lp.TenLoaiPhong : lp) || '—';
+
+    let ketQua = await Promise.all((data || []).map(async (dc) => {
       const phongTrucTiep = dc.Phong;
       const phongTuGiuong = dc.GiuongDatCoc?.[0]?.Giuong?.Phong;
       const phong = phongTrucTiep || phongTuGiuong;
       const tenCN = phong?.ChiNhanh?.TenCN || dc.ChiNhanh?.TenCN || '—';
+      const yc = await layYeuCauThueGanNhat(dc.CCCD);
+      const soNguoiDuKien = Number(yc?.SoNguoiDuKien || 1);
       return {
         maDatCoc: dc.MaDatCoc,
         maPhieu: `PC-${dc.MaDatCoc}`,
         hoTen: dc.KhachHang?.HoTen || '—',
         sdt: dc.KhachHang?.SDT || '—',
         cccd: dc.CCCD ? String(dc.CCCD) : '—',
-        phong: phong ? `P.${phong.MaPhong} — ${phong.LoaiPhong}` : 'Chưa xác định',
+        phong: phong ? `P.${phong.MaPhong} — ${tenLP(phong.LoaiPhong)}` : 'Chưa xác định',
         chiNhanh: tenCN,
         soGiuongThue: dc.SoGiuongThue || 1,
+        soNguoiDuKien,
         loaiThue: dc.LoaiThue || 'Thuê giường lẻ',
         soTienCocFmt: dinhDangTien(dc.SoTienCoc),
         trangThai: dc.TrangThai,
         ngayChuyenKiemTra: dinhDangNgay(dc.CapNhatLuc || dc.DatCocThanhCong || dc.ThoiDiemTao),
-        laThuNhom: Boolean(dc.MaNhom) || (dc.SoGiuongThue || 1) > 1 || dc.LoaiThue === 'Thuê nguyên phòng',
+        laThuNhom: laThueNhom(soNguoiDuKien),
       };
-    });
+    }));
 
     if (timKiem.trim()) {
       const q = timKiem.trim().toLowerCase();
@@ -191,6 +208,9 @@ router.get('/:maHoSo', async (req, res) => {
       ];
     }
 
+    const tenLP = (lp) => (lp && typeof lp === 'object' ? lp.TenLoaiPhong : lp) || '—';
+    const soNguoiDuKien = hoSo._soNguoiDuKien || 1;
+
     const data = {
       thongTinDatCoc: {
         maHoSo: `PC-${maDatCoc}`,
@@ -199,12 +219,14 @@ router.get('/:maHoSo', async (req, res) => {
         ngayNhanPhong: dinhDangNgay(hoSo.DatCocThanhCong || hoSo.ThoiDiemTao),
         thoiHanThue: hoSo.ThoiHanThue || 6,
         phongDuKien: hoSo.Phong
-          ? `P.${hoSo.Phong.MaPhong} - ${hoSo.Phong.LoaiPhong}`
+          ? `P.${hoSo.Phong.MaPhong} - ${tenLP(hoSo.Phong.LoaiPhong)}`
           : 'Chưa xác định',
         soTienDaCoc: Number(hoSo.SoTienCoc || 0),
         donViTien: 'VNĐ',
         ghiChuSales: hoSo.LyDoXuLy || 'Không có ghi chú.',
         soGiuongThue: hoSo.SoGiuongThue || 1,
+        soNguoiDuKien,
+        laThuNhom: laThueNhom(soNguoiDuKien),
         gioiTinhYeuCau: hoSo.Phong?.GioiTinhYeuCau || null,
       },
       danhSachThanhVien,

@@ -102,10 +102,15 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
     setShowNotifications(false);
     await taiThongBaoDatCoc();
 
-    if (item.LoaiSuKien === 'ban_giao_phong') {
-      navigate(item.PhieuId ? `${ROUTES.banGiao}/${item.PhieuId}` : ROUTES.banGiao);
-    } else if (item.MaDatCoc) {
-      navigate(`${ROUTES.deposit}?phieu=${item.MaDatCoc}`);
+    const loai = item.LoaiThongBao || item.LoaiSuKien || '';
+    const phieuId = item.MaDatCoc || item.PhieuId;
+
+    if (loai === 'ban_giao_phong') {
+      navigate(phieuId ? `${ROUTES.banGiao}/${phieuId}` : ROUTES.banGiao);
+    } else if (loai === 'Chờ kiểm tra' || loai === 'kiem_tra_luu_tru') {
+      navigate(phieuId ? `${ROUTES.kiemTraLuuTru}/${phieuId}` : ROUTES.kiemTraLuuTru);
+    } else if (phieuId) {
+      navigate(`${ROUTES.deposit}?phieu=${phieuId}`);
     } else {
       navigate(ROUTES.checkout);
     }
