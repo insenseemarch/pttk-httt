@@ -1,4 +1,5 @@
 import { boDauTiengViet, layMaNhanVien } from '../../utils/nhanVienSession';
+import { laySoTienNumber } from '../../utils/soTien';
 
 export const LABEL_TIEU_CHI_UU_TIEN = {
   yenTinh: 'Yên tĩnh',
@@ -49,8 +50,8 @@ export function mapYeuCauThueSangBoLoc(yeuCauThue, danhSachTieuChi) {
     : khuVucMongMuon.split(',')[0].trim();
 
   let mappedLoaiPhong = 'Tất cả';
-  if (yeuCauThue.loaiPhong === 'Nguyên phòng') mappedLoaiPhong = 'Phòng đơn';
-  else if (yeuCauThue.loaiPhong === 'Giường ghép') mappedLoaiPhong = 'Giường dorm';
+  if (yeuCauThue.loaiPhong === 'Nguyên phòng' || yeuCauThue.loaiThue === 'Thuê nguyên phòng') mappedLoaiPhong = 'Phòng đơn';
+  else if (yeuCauThue.loaiPhong === 'Giường ghép' || yeuCauThue.loaiThue === 'Thuê giường lẻ') mappedLoaiPhong = 'Giường dorm';
 
   return {
     khuVuc: mappedKhuVuc,
@@ -81,9 +82,11 @@ export function taoPayloadTiepNhanDangKyThue({
       sdt: String(formKhachHang.sdt || '').replace(/\D/g, ''),
       email: formKhachHang.email.trim(),
       diaChi: String(formKhachHang.diaChi || '').trim(),
+      khaNangTaiChinh: laySoTienNumber(formYeuCauThue.mucGiaDen) ?? laySoTienNumber(formKhachHang.khaNangTaiChinh) ?? '',
     },
     yeuCauThue: {
       ...formYeuCauThue,
+      loaiThue: formYeuCauThue.loaiPhong === 'Nguyên phòng' ? 'Thuê nguyên phòng' : 'Thuê giường lẻ',
       yeuCauList: danhSachTieuChi,
     },
     maNV: layMaNhanVien(nguoiDungDangNhap),

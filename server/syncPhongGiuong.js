@@ -66,7 +66,7 @@ export async function syncPhongGiuong() {
   for (const [maPhong, info] of phongMap.entries()) {
     const sucChua = info.tongGiuong - info.giuongThue;
     const tinhTrang = sucChua > 0;
-    await supabase.from('Phong').update({ SucChua: sucChua, TinhTrang: tinhTrang }).eq('MaPhong', maPhong);
+    await supabase.from('Phong').update({ SucChuaConLai: sucChua, TinhTrang: tinhTrang }).eq('MaPhong', maPhong);
   }
 
   console.log('Đồng bộ thành công!');

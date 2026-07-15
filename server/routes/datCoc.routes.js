@@ -27,13 +27,17 @@ const CUSTOMER_EDITABLE_STATES = [
 ];
 
 const ACTIVE_LOCK_STATES = [
+  TRANG_THAI_COC.MOI,
   TRANG_THAI_COC.CHO_KIEM_TRA_PHONG,
   TRANG_THAI_COC.CON_TRONG_CHO_GUI_KE_TOAN,
   TRANG_THAI_COC.CHO_TINH_COC,
   TRANG_THAI_COC.CHO_THANH_TOAN,
   TRANG_THAI_COC.CHO_XAC_NHAN_THANH_TOAN,
   TRANG_THAI_COC.TU_CHOI_CHUNG_TU,
+  TRANG_THAI_COC.DA_XAC_NHAN,
 ];
+
+const BANG_THONG_BAO = 'ThongBao';
 
 function chuanHoaVaiTro(value) {
   const role = String(value || '').toLowerCase();
@@ -108,7 +112,7 @@ async function layPhieu(maDatCoc) {
     .select(`
       *,
       KhachHang (*),
-      GiuongDatCoc (MaGiuong, SoGiuongCoc, Giuong (MaGiuong, MaPhong, GiaThue, TinhTrang, Phong (MaPhong, LoaiPhong, SucChua, SucChuaToiDa, GiaThue, MaCN)))
+      GiuongDatCoc (MaGiuong, SoGiuongCoc, Giuong (MaGiuong, MaPhong, GiaThue, TinhTrang, Phong (MaPhong, LoaiPhong, SucChuaConLai, SucChuaToiDa, GiaThue, MaCN)))
     `)
     .eq('MaDatCoc', Number(maDatCoc))
     .single();
@@ -148,14 +152,15 @@ async function guiThongBao(phieu, trangThaiMoi, noiDung) {
     payload = { VaiTroNhan: 'Quản lý' };
   } else if (trangThaiMoi === TRANG_THAI_COC.CHO_TINH_COC) {
     payload = { VaiTroNhan: 'Kế toán' };
-  } else if ([TRANG_THAI_COC.HET_CHO, TRANG_THAI_COC.CON_TRONG_CHO_GUI_KE_TOAN, TRANG_THAI_COC.CHO_THANH_TOAN, TRANG_THAI_COC.DA_XAC_NHAN, TRANG_THAI_COC.TU_CHOI_CHUNG_TU].includes(trangThaiMoi)) {
+  } else if ([TRANG_THAI_COC.HET_CHO, TRANG_THAI_COC.CON_TRONG_CHO_GUI_KE_TOAN, TRANG_THAI_COC.CHO_THANH_TOAN, TRANG_THAI_COC.DA_XAC_NHAN, TRANG_THAI_COC.TU_CHOI_CHUNG_TU, TRANG_THAI_COC.QUA_HAN_TU_DONG_HUY].includes(trangThaiMoi)) {
     payload = { NguoiNhan: phieu.NVSale };
   }
   if (!payload) return;
-  const { error } = await supabase.from('ThongBaoDatCoc').insert({
+  const { error } = await supabase.from(BANG_THONG_BAO).insert({
     ...payload,
     MaDatCoc: phieu.MaDatCoc,
     NoiDung: noiDung,
+    LoaiThongBao: 'dat_coc',
   });
   if (error) throw error;
 
@@ -170,6 +175,62 @@ async function guiThongBao(phieu, trangThaiMoi, noiDung) {
     });
     console.log(`[Socket] Broadcasted thong_bao_moi to room: ${room}`);
   }
+}
+
+async function danhDauYeuCauThueDaTaoDatCoc(cccd, maNV) {
+  const targetCCCD = Number(cccd);
+  if (!Number.isFinite(targetCCCD)) return null;
+
+  const { data: yeuCauGanNhat, error: searchError } = await supabase
+    .from('YeuCauThue')
+    .select('MaYC, MaNV')
+    .eq('CCCD', targetCCCD)
+    .order('NgayTao', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (searchError) throw searchError;
+  if (!yeuCauGanNhat) return null;
+
+  const updates = { TrangThai: true };
+  if (maNV && !yeuCauGanNhat.MaNV) updates.MaNV = Number(maNV);
+
+  const { error: updateError } = await supabase
+    .from('YeuCauThue')
+    .update(updates)
+    .eq('MaYC', yeuCauGanNhat.MaYC);
+  if (updateError) throw updateError;
+  return yeuCauGanNhat.MaYC;
+}
+
+function ganCoPhongChotVaoGhiChu(ghiChu) {
+  const noiDung = String(ghiChu || '').trim();
+  return noiDung.startsWith('[PHONG_CHOT]') ? noiDung : `[PHONG_CHOT]${noiDung ? ` ${noiDung}` : ''}`;
+}
+
+async function khoaLichHenSauKhiDatCoc(maYC, maPhong) {
+  const maYCSo = Number(maYC);
+  const maPhongSo = Number(maPhong);
+  if (!maYCSo || !maPhongSo) return;
+
+  const { data: lichGanNhat, error: errLich } = await supabase
+    .from('LichXemPhong')
+    .select('MaLich, GhiChu')
+    .eq('MaYC', maYCSo)
+    .order('NgayGioHen', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (errLich) throw errLich;
+  if (!lichGanNhat) return;
+
+  const { error: errCapNhat } = await supabase
+    .from('LichXemPhong')
+    .update({
+      MaPhong: maPhongSo,
+      KetQua: 'Đã xem',
+      GhiChu: ganCoPhongChotVaoGhiChu(lichGanNhat.GhiChu),
+    })
+    .eq('MaLich', lichGanNhat.MaLich);
+  if (errCapNhat) throw errCapNhat;
 }
 
 async function capNhatTrangThai(phieu, trangThaiMoi, user, ghiChu, fields = {}) {
@@ -228,6 +289,26 @@ async function kiemTraLuaChonGiuong({ maDatCoc = null, maPhong, maGiuongs, loaiT
     throw new Error('Có giường đang được phiếu khác giữ chỗ');
   }
 
+  const { data: phieuDangGiu, error: phieuDangGiuError } = await supabase
+    .from('DatCoc')
+    .select('MaDatCoc')
+    .in('TrangThai', ACTIVE_LOCK_STATES);
+  if (phieuDangGiuError) throw phieuDangGiuError;
+  const maDatCocDangGiu = (phieuDangGiu || []).map((item) => Number(item.MaDatCoc)).filter(Number.isFinite);
+  let datCocLocks = [];
+  if (maDatCocDangGiu.length) {
+    const { data, error } = await supabase
+      .from('GiuongDatCoc')
+      .select('MaGiuong, MaDatCoc')
+      .in('MaGiuong', bedIds)
+      .in('MaDatCoc', maDatCocDangGiu);
+    if (error) throw error;
+    datCocLocks = data || [];
+  }
+  if ((datCocLocks || []).some((lock) => Number(lock.MaDatCoc) !== Number(maDatCoc))) {
+    throw new Error('Có giường đã được phiếu đặt cọc khác chọn');
+  }
+
   if (loaiThue === 'Thuê nguyên phòng') {
     const maxCapacity = Number(phong.SucChuaToiDa || allBeds.length);
     const availableBeds = allBeds.filter((bed) => bed.TinhTrang);
@@ -268,12 +349,29 @@ router.get('/phong-giuong-trong', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('Phong')
-      .select('MaPhong, LoaiPhong, SucChua, SucChuaToiDa, GioiTinhYeuCau, GiaThue, MaCN, ChiNhanh(TenCN), Giuong(MaGiuong, GiaThue, TinhTrang)')
+      .select('MaPhong, LoaiPhong, SucChuaConLai, SucChuaToiDa, GioiTinhYeuCau, GiaThue, MaCN, ChiNhanh(TenCN), Giuong(MaGiuong, GiaThue, TinhTrang)')
       .order('MaPhong');
     if (error) throw error;
-    const { data: locks, error: lockError } = await supabase.from('KhoaGiuongDatCoc').select('MaGiuong, MaDatCoc');
-    if (lockError) throw lockError;
-    const locked = new Set((locks || []).map((item) => item.MaGiuong));
+    const [khoaTamRes, phieuDangGiuRes] = await Promise.all([
+      supabase.from('KhoaGiuongDatCoc').select('MaGiuong, MaDatCoc'),
+      supabase.from('DatCoc').select('MaDatCoc').in('TrangThai', ACTIVE_LOCK_STATES),
+    ]);
+    if (khoaTamRes.error) throw khoaTamRes.error;
+    if (phieuDangGiuRes.error) throw phieuDangGiuRes.error;
+    const maDatCocDangGiu = (phieuDangGiuRes.data || []).map((item) => Number(item.MaDatCoc)).filter(Number.isFinite);
+    let giuongTrongPhieu = [];
+    if (maDatCocDangGiu.length) {
+      const { data: datCocBeds, error: datCocBedsError } = await supabase
+        .from('GiuongDatCoc')
+        .select('MaGiuong, MaDatCoc')
+        .in('MaDatCoc', maDatCocDangGiu);
+      if (datCocBedsError) throw datCocBedsError;
+      giuongTrongPhieu = datCocBeds || [];
+    }
+    const locked = new Set([
+      ...(khoaTamRes.data || []).map((item) => item.MaGiuong),
+      ...giuongTrongPhieu.map((item) => item.MaGiuong),
+    ]);
     res.json({
       ok: true,
       data: (data || []).map((phong) => ({
@@ -460,6 +558,8 @@ router.post('/phieu', async (req, res) => {
     const { error: bedError } = await supabase.from('GiuongDatCoc').insert(rows);
     if (bedError) throw bedError;
     await ghiLichSu({ ...data, TrangThai: null }, TRANG_THAI_COC.MOI, user, null);
+    const maYCDaTaoDatCoc = await danhDauYeuCauThueDaTaoDatCoc(targetCCCD, user.maNV);
+    await khoaLichHenSauKhiDatCoc(maYCDaTaoDatCoc, maPhong);
     res.status(201).json({ ok: true, data: { ...data, CCCD: dinhDangCCCD(data.CCCD) } });
   } catch (error) {
     loi(res, 400, thongBaoLoiDuLieu(error));
@@ -743,7 +843,7 @@ router.post('/phieu/:id/hanh-dong', async (req, res) => {
 router.get('/notifications', async (req, res) => {
   try {
     const user = nguoiDung(req);
-    let query = supabase.from('ThongBaoDatCoc').select('*').order('TaoLuc', { ascending: false }).limit(50);
+    let query = supabase.from(BANG_THONG_BAO).select('*').order('TaoLuc', { ascending: false }).limit(50);
     query = user.vaiTro === 'SALE'
       ? query.eq('NguoiNhan', user.maNV)
       : query.eq('VaiTroNhan', vaiTroDatabase(user.vaiTro));
@@ -758,7 +858,7 @@ router.get('/notifications', async (req, res) => {
 router.patch('/notifications/mark-all-read', async (req, res) => {
   try {
     const user = nguoiDung(req);
-    let query = supabase.from('ThongBaoDatCoc').update({ DaDoc: true });
+    let query = supabase.from(BANG_THONG_BAO).update({ DaDoc: true });
     query = user.vaiTro === 'SALE'
       ? query.eq('NguoiNhan', user.maNV)
       : query.eq('VaiTroNhan', vaiTroDatabase(user.vaiTro));
@@ -773,7 +873,7 @@ router.patch('/notifications/mark-all-read', async (req, res) => {
 router.patch('/notifications/:id/read', async (req, res) => {
   try {
     const user = nguoiDung(req);
-    let query = supabase.from('ThongBaoDatCoc').update({ DaDoc: true }).eq('MaThongBao', Number(req.params.id));
+    let query = supabase.from(BANG_THONG_BAO).update({ DaDoc: true }).eq('MaThongBao', Number(req.params.id));
     query = user.vaiTro === 'SALE'
       ? query.eq('NguoiNhan', user.maNV)
       : query.eq('VaiTroNhan', vaiTroDatabase(user.vaiTro));
@@ -787,9 +887,46 @@ router.patch('/notifications/:id/read', async (req, res) => {
 });
 
 export async function huyDatCocQuaHan() {
-  const { data, error } = await supabase.rpc('huy_dat_coc_qua_han');
+  const now = new Date().toISOString();
+  const { data: dsQuaHan, error } = await supabase
+    .from('DatCoc')
+    .select('MaDatCoc, TrangThai, HanThanhToan, NVSale')
+    .eq('TrangThai', TRANG_THAI_COC.CHO_THANH_TOAN)
+    .lt('HanThanhToan', now);
   if (error) throw error;
-  return Number(data || 0);
+
+  let soPhieuDaHuy = 0;
+  for (const phieu of dsQuaHan || []) {
+    const { data: updated, error: updateError } = await supabase
+      .from('DatCoc')
+      .update({
+        TrangThai: TRANG_THAI_COC.QUA_HAN_TU_DONG_HUY,
+        LyDoXuLy: 'Tu dong huy do qua han thanh toan coc',
+        CapNhatLuc: now,
+      })
+      .eq('MaDatCoc', phieu.MaDatCoc)
+      .eq('TrangThai', TRANG_THAI_COC.CHO_THANH_TOAN)
+      .select('MaDatCoc, TrangThai, NVSale')
+      .maybeSingle();
+    if (updateError) throw updateError;
+    if (!updated) continue;
+
+    await giaiPhongKhoa(phieu.MaDatCoc);
+    await ghiLichSu(
+      phieu,
+      TRANG_THAI_COC.QUA_HAN_TU_DONG_HUY,
+      { maNV: phieu.NVSale || null, vaiTro: 'HE_THONG' },
+      'Tu dong huy do qua han thanh toan coc',
+    );
+    await guiThongBao(
+      { ...phieu, ...updated },
+      TRANG_THAI_COC.QUA_HAN_TU_DONG_HUY,
+      `Phieu #${phieu.MaDatCoc} da qua han thanh toan coc va duoc tu dong huy.`,
+    );
+    soPhieuDaHuy += 1;
+  }
+
+  return soPhieuDaHuy;
 }
 
 export { ACTIVE_LOCK_STATES };

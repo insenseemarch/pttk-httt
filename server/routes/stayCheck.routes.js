@@ -228,7 +228,7 @@ async function thongBaoNhanVienLapHopDong(dc, soThanhVien) {
     'Vui lòng lập hợp đồng và hướng dẫn khách ký.',
   ].join(' ');
 
-  const { error } = await supabase.from('ThongBaoDatCoc').insert({
+  const { error } = await supabase.from('ThongBao').insert({
     MaDatCoc: dc.MaDatCoc,
     NguoiNhan: null,
     VaiTroNhan: 'Phụ trách',

@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import { layDanhSachTienIchHienThi } from '../../utils/tienIchPhong';
+import { dinhDangTienInput } from '../../utils/soTien';
 
 export default function TraCuuPhongGiuongPage({
   trangHienTai,
@@ -8,6 +10,8 @@ export default function TraCuuPhongGiuongPage({
   boLocTraCuu,
   tuyChonTraCuuPhong = { khuVuc: [], tienIch: [] },
   xuLyThayDoiBoLoc,
+  xuLyToggleTienIchTraCuu,
+  xuLyLuuTienIchTraCuu,
   dangTaiPhongTrong,
   danhSachTatCaPhongTrong,
   trangTraCuuHienTai,
@@ -27,7 +31,74 @@ export default function TraCuuPhongGiuongPage({
   dangXuLy,
   xuLyDatPhong,
   moChiTietPhong,
+  nguonTraCuuPhong = 'tab',
+  diDenDatLichHenTuTraCuu,
+  quayLaiTiepNhanTuTraCuu,
 }) {
+  const dangTraCuuTuTiepNhan = cheDoNhanVien && nguonTraCuuPhong === 'tiep-nhan';
+  const dangChonPhongChoLichHen = cheDoNhanVien && nguonTraCuuPhong === 'chon-lich-hen';
+  const dangTraCuuDeDatLich = dangTraCuuTuTiepNhan || dangChonPhongChoLichHen;
+  const choPhepHenCongKhai = !cheDoNhanVien;
+  const danhSachTienIchDaChon = Array.isArray(boLocTraCuu.yeuCauList) && boLocTraCuu.yeuCauList.length
+    ? boLocTraCuu.yeuCauList
+    : (boLocTraCuu.tienIch && boLocTraCuu.tienIch !== 'Tất cả' ? [boLocTraCuu.tienIch] : []);
+  const nhanTienIchDaChon = danhSachTienIchDaChon.length
+    ? `Đã chọn ${danhSachTienIchDaChon.length} tiện ích`
+    : 'Tất cả tiện ích';
+  const [moModalTienIch, setMoModalTienIch] = useState(false);
+  const [draftTienIch, setDraftTienIch] = useState([]);
+  const danhSachTienIchOption = Array.isArray(tuyChonTraCuuPhong.tienIch) ? tuyChonTraCuuPhong.tienIch : [];
+  const danhSachTienIchModal = [
+    ...danhSachTienIchOption,
+    ...danhSachTienIchDaChon
+      .filter((value) => !danhSachTienIchOption.some((option) => option.value === value))
+      .map((value) => ({ value, label: value })),
+  ];
+
+  useEffect(() => {
+    if (moModalTienIch) {
+      setDraftTienIch([...danhSachTienIchDaChon]);
+    }
+  }, [moModalTienIch, danhSachTienIchDaChon.join('|')]);
+
+  const toggleDraftTienIch = (value) => {
+    setDraftTienIch((prev) => (
+      prev.includes(value)
+        ? prev.filter((item) => item !== value)
+        : [...prev, value]
+    ));
+  };
+
+  const luuLuaChonTienIch = () => {
+    if (xuLyLuuTienIchTraCuu) {
+      xuLyLuuTienIchTraCuu(draftTienIch);
+    } else {
+      draftTienIch.forEach((value) => {
+        if (!danhSachTienIchDaChon.includes(value)) xuLyToggleTienIchTraCuu?.(value);
+      });
+      danhSachTienIchDaChon.forEach((value) => {
+        if (!draftTienIch.includes(value)) xuLyToggleTienIchTraCuu?.(value);
+      });
+    }
+    setMoModalTienIch(false);
+  };
+
+  const ActionTraCuuTuTiepNhan = ({ viTri = 'top' }) => {
+    if (!dangTraCuuDeDatLich) return null;
+    return (
+      <div className={`search-context-actions search-context-actions-${viTri}`}>
+        {dangTraCuuTuTiepNhan && (
+        <button type="button" className="btn-detail-outline" onClick={quayLaiTiepNhanTuTraCuu}>
+          Quay lại tiếp nhận đăng ký thuê
+        </button>
+        )}
+        <button type="button" className="btn-book-filled" onClick={diDenDatLichHenTuTraCuu}>
+          Đi đến đặt lịch hẹn
+        </button>
+      </div>
+    );
+  };
+
   return (
     <>
       {trangHienTai === 'search_vacancy' && (
@@ -78,12 +149,28 @@ export default function TraCuuPhongGiuongPage({
 
                   <div className="filter-group">
                     <label htmlFor="filter-mucGiaTu">Giá từ (VNĐ)</label>
-                    <input type="number" id="filter-mucGiaTu" name="mucGiaTu" placeholder="Ví dụ: 1,500,000" value={boLocTraCuu.mucGiaTu} onChange={xuLyThayDoiBoLoc} />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      id="filter-mucGiaTu"
+                      name="mucGiaTu"
+                      placeholder="Ví dụ: 1.500.000"
+                      value={dinhDangTienInput(boLocTraCuu.mucGiaTu)}
+                      onChange={xuLyThayDoiBoLoc}
+                    />
                   </div>
 
                   <div className="filter-group">
                     <label htmlFor="filter-mucGiaDen">Giá đến (VNĐ)</label>
-                    <input type="number" id="filter-mucGiaDen" name="mucGiaDen" placeholder="Ví dụ: 3,000,000" value={boLocTraCuu.mucGiaDen} onChange={xuLyThayDoiBoLoc} />
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      id="filter-mucGiaDen"
+                      name="mucGiaDen"
+                      placeholder="Ví dụ: 3.000.000"
+                      value={dinhDangTienInput(boLocTraCuu.mucGiaDen)}
+                      onChange={xuLyThayDoiBoLoc}
+                    />
                   </div>
 
                   <div className="filter-group">
@@ -100,14 +187,17 @@ export default function TraCuuPhongGiuongPage({
                     <input type="number" id="filter-soNguoi" name="soNguoi" placeholder="Số người tối thiểu" value={boLocTraCuu.soNguoi} onChange={xuLyThayDoiBoLoc} />
                   </div>
 
-                  <div className="filter-group">
-                    <label htmlFor="filter-tienIch">Tiện ích</label>
-                    <select id="filter-tienIch" name="tienIch" value={boLocTraCuu.tienIch} onChange={xuLyThayDoiBoLoc}>
-                      <option value="Tất cả">Tất cả tiện ích</option>
-                      {tuyChonTraCuuPhong.tienIch.map((option) => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                      ))}
-                    </select>
+                  <div className="filter-group amenity-filter-group">
+                    <label>Tiện ích</label>
+                    <div className="amenity-picker-summary">
+                      <div className="amenity-picked-state">
+                        <strong>{nhanTienIchDaChon}</strong>
+                        <span>{danhSachTienIchDaChon.length ? danhSachTienIchDaChon.slice(0, 2).join(', ') : 'Mặc định không lọc theo tiện ích'}</span>
+                      </div>
+                      <button type="button" className="btn-amenity-edit" onClick={() => setMoModalTienIch(true)}>
+                        Chỉnh sửa
+                      </button>
+                    </div>
                   </div>
 
                 </div>
@@ -137,10 +227,6 @@ export default function TraCuuPhongGiuongPage({
               <div>
                 <h2>Danh sách phòng khả dụng</h2>
                 <p>Tìm thấy {danhSachTatCaPhongTrong.length} kết quả phù hợp với tiêu chí của bạn</p>
-              </div>
-              <div className="layout-buttons">
-                <button className="layout-toggle active" aria-label="Grid view">Grid</button>
-                <button className="layout-toggle" aria-label="List view">List</button>
               </div>
             </div>
 
@@ -186,11 +272,7 @@ export default function TraCuuPhongGiuongPage({
                         <button type="button" className="btn-detail-outline" onClick={() => moChiTietPhong(item, 'search_vacancy')}>
                           Xem chi tiết
                         </button>
-                        {cheDoNhanVien && vaiTroNhanVien === 'sale' ? (
-                          <button type="button" className="btn-book-filled" onClick={() => xuLyDatPhong(item)}>
-                            Đặt lịch hẹn ngay
-                          </button>
-                        ) : !cheDoNhanVien ? (
+                        {choPhepHenCongKhai ? (
                           <button type="button" className="btn-book-filled" onClick={() => setHenXemPhongModal(item)}>
                             Chọn để hẹn
                           </button>
@@ -233,6 +315,8 @@ export default function TraCuuPhongGiuongPage({
                 >&gt;</button>
               </nav>
             )}
+
+            <ActionTraCuuTuTiepNhan viTri="bottom" />
 
           </main>
 
@@ -316,7 +400,9 @@ export default function TraCuuPhongGiuongPage({
                 </div>
                 <div className="modal-footer">
                   <button type="button" className="btn-detail-outline" onClick={() => setChiTietPhongModal(null)}>Đóng</button>
-                  <button type="button" className="btn-book-filled" onClick={() => { setHenXemPhongModal(chiTietPhongModal); setChiTietPhongModal(null); }}>Hẹn xem phòng</button>
+                  {choPhepHenCongKhai && (
+                    <button type="button" className="btn-book-filled" onClick={() => { setHenXemPhongModal(chiTietPhongModal); setChiTietPhongModal(null); }}>Hẹn xem phòng</button>
+                  )}
                 </div>
               </div>
             </div>
@@ -366,6 +452,45 @@ export default function TraCuuPhongGiuongPage({
                     </button>
                   </div>
                 </form>
+              </div>
+            </div>
+          )}
+
+          {moModalTienIch && (
+            <div className="modal-backdrop" onClick={() => setMoModalTienIch(false)}>
+              <div className="modal-content amenity-picker-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h3>Chọn tiện ích ưu tiên</h3>
+                  <button className="close-modal-btn" onClick={() => setMoModalTienIch(false)} aria-label="Đóng">×</button>
+                </div>
+                <div className="modal-body">
+                  <div className="amenity-modal-summary">
+                    <strong>{draftTienIch.length ? `Đang chọn ${draftTienIch.length} tiện ích` : 'Tất cả tiện ích'}</strong>
+                    <button type="button" className="btn-clear-amenities" onClick={() => setDraftTienIch([])}>
+                      Bỏ chọn tất cả
+                    </button>
+                  </div>
+                  {danhSachTienIchModal.length > 0 ? (
+                    <div className="amenity-modal-grid">
+                      {danhSachTienIchModal.map((option) => (
+                        <label key={option.value} className={`amenity-modal-option ${draftTienIch.includes(option.value) ? 'selected' : ''}`}>
+                          <input
+                            type="checkbox"
+                            checked={draftTienIch.includes(option.value)}
+                            onChange={() => toggleDraftTienIch(option.value)}
+                          />
+                          <span>{option.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="amenity-modal-empty">Chưa có tiện ích trong DB.</div>
+                  )}
+                </div>
+                <div className="modal-footer">
+                  <button type="button" className="btn-detail-outline" onClick={() => setMoModalTienIch(false)}>Hủy</button>
+                  <button type="button" className="btn-book-filled" onClick={luuLuaChonTienIch}>Lưu tiện ích</button>
+                </div>
               </div>
             </div>
           )}

@@ -1,4 +1,5 @@
 import { layDanhSachTienIchHienThi } from '../../utils/tienIchPhong';
+import { dinhDangTienInput } from '../../utils/soTien';
 
 export default function TiepNhanDangKyThuePage({
   trangHienTai,
@@ -20,6 +21,7 @@ export default function TiepNhanDangKyThuePage({
   xuLyDatPhong,
   moChiTietPhong,
   tuyChonTraCuuPhong = { khuVuc: [], tienIch: [] },
+  gioiHanSoNguoi = 1,
 }) {
   const khuVucOptions = Array.isArray(tuyChonTraCuuPhong.khuVuc) ? tuyChonTraCuuPhong.khuVuc : [];
   const tieuChiFallback = [
@@ -235,18 +237,20 @@ export default function TiepNhanDangKyThuePage({
                     <label>Khoảng giá (VNĐ)</label>
                     <div className="range-inputs">
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         name="mucGiaTu"
                         placeholder="Từ"
-                        value={formYeuCauThue.mucGiaTu}
+                        value={dinhDangTienInput(formYeuCauThue.mucGiaTu)}
                         onChange={xuLyThayDoiYeuCau}
                       />
                       <span>—</span>
                       <input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
                         name="mucGiaDen"
                         placeholder="Đến"
-                        value={formYeuCauThue.mucGiaDen}
+                        value={dinhDangTienInput(formYeuCauThue.mucGiaDen)}
                         onChange={xuLyThayDoiYeuCau}
                       />
                     </div>
@@ -261,9 +265,11 @@ export default function TiepNhanDangKyThuePage({
                       id="soNguoi"
                       name="soNguoi"
                       min="1"
+                      max={gioiHanSoNguoi}
                       value={formYeuCauThue.soNguoi}
                       onChange={xuLyThayDoiYeuCau}
                     />
+                    <small className="input-helper-text">Tối đa hiện có: {gioiHanSoNguoi} người</small>
                   </div>
                   <div className="input-group">
                     <label htmlFor="gioiTinh">Giới tính</label>
@@ -278,6 +284,19 @@ export default function TiepNhanDangKyThuePage({
                       <option value="Nữ">Nữ</option>
                     </select>
                   </div>
+                </div>
+
+                <div className="input-group">
+                  <label htmlFor="yeuCauThem">Yêu cầu / ghi chú thêm</label>
+                  <textarea
+                    id="yeuCauThem"
+                    name="yeuCauThem"
+                    className="form-control"
+                    rows="3"
+                    placeholder="Ví dụ: muốn phòng gần thang máy, ưu tiên cửa sổ, hẹn xem sau 18h..."
+                    value={formYeuCauThue.yeuCauThem || ''}
+                    onChange={xuLyThayDoiYeuCau}
+                  />
                 </div>
               </section>
 

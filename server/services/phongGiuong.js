@@ -1,6 +1,22 @@
 import { supabase } from '../config/supabase.js';
 import { dinhDangNgay, dinhDangTien } from '../utils/dinhDang.js';
 
+function chuanHoaChuoi(value = '') {
+  return String(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .trim();
+}
+
+function layTenLoaiPhong(phong = {}) {
+  return phong.LoaiPhongInfo?.TenLoaiPhong
+    || phong.LoaiPhong?.TenLoaiPhong
+    || (Number.isFinite(Number(phong.LoaiPhong)) ? `Loại phòng ${phong.LoaiPhong}` : String(phong.LoaiPhong || '—'));
+}
+
 async function layGiuongDangThue() {
   const { data, error } = await supabase
     .from('ChiTiet')
@@ -102,7 +118,8 @@ export async function layDanhSachPhong(boLoc = {}) {
     .from('Phong')
     .select(
       `
-      MaPhong, LoaiPhong, SucChua, SucChuaToiDa, GioiTinhYeuCau, GiaThue, TinhTrang, MaCN,
+      MaPhong, LoaiPhong, SucChuaConLai, SucChuaToiDa, GioiTinhYeuCau, GiaThue, TinhTrang, MaCN,
+      LoaiPhongInfo:LoaiPhong(TenLoaiPhong),
       ChiNhanh ( TenCN ),
       Giuong ( MaGiuong, GioiTinhYeuCau, GiaThue, TinhTrang )
     `,
@@ -112,7 +129,6 @@ export async function layDanhSachPhong(boLoc = {}) {
     .range(tu, den);
 
   if (maCN) query = query.eq('MaCN', Number(maCN));
-  if (loaiPhong) query = query.ilike('LoaiPhong', `%${loaiPhong}%`);
   if (timKiem.trim()) {
     const q = timKiem.trim();
     if (/^\d+$/.test(q)) query = query.eq('MaPhong', Number(q));
@@ -126,9 +142,12 @@ export async function layDanhSachPhong(boLoc = {}) {
 
   if (phongRes.error) throw phongRes.error;
 
-  let danhSach = (phongRes.data || []).map((p) => {
+  const loaiPhongKey = chuanHoaChuoi(loaiPhong);
+  let danhSach = (phongRes.data || [])
+    .filter((p) => !loaiPhongKey || chuanHoaChuoi(layTenLoaiPhong(p)).includes(loaiPhongKey))
+    .map((p) => {
     const giuongs = p.Giuong || [];
-    const tong = giuongs.length || p.SucChuaToiDa || p.SucChua || 1;
+    const tong = giuongs.length || p.SucChuaToiDa || p.SucChuaConLai || p.SucChua || 1;
     let daDung = 0;
     let hetHanCoc = null;
     giuongs.forEach((g) => {
@@ -143,7 +162,7 @@ export async function layDanhSachPhong(boLoc = {}) {
 
     return {
       maPhong: p.MaPhong,
-      loaiPhong: p.LoaiPhong,
+      loaiPhong: layTenLoaiPhong(p),
       gioiTinhYeuCau: p.GioiTinhYeuCau || 'Chưa phân loại',
       sucChua: p.SucChuaToiDa || tong,
       giaThue: dinhDangTien(p.GiaThue),
