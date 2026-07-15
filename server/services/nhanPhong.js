@@ -248,11 +248,31 @@ export async function layChiTietNhanPhong(maDatCoc) {
   };
 }
 
+function chuanHoaLoiDB(error, nguoi = 'Khách hàng') {
+  if (!error) return null;
+  const msg = error.message || '';
+  const constraint = error.constraint || (msg.match(/"([^"]+)"/) || [])[1] || '';
+  if (error.code === '23505') {
+    if (constraint.toLowerCase().includes('sdt') || msg.toLowerCase().includes('sdt')) {
+      return new Error(`${nguoi}: Số điện thoại này đã được đăng ký cho khách hàng khác trong hệ thống. Vui lòng kiểm tra lại.`);
+    }
+    if (constraint.toLowerCase().includes('cccd') || msg.toLowerCase().includes('cccd')) {
+      return new Error(`${nguoi}: CCCD/CMND đã tồn tại trong hệ thống.`);
+    }
+    if (constraint.toLowerCase().includes('email') || msg.toLowerCase().includes('email')) {
+      return new Error(`${nguoi}: Email này đã được đăng ký cho khách hàng khác.`);
+    }
+    return new Error(`${nguoi}: Dữ liệu bị trùng — ${constraint || msg}`);
+  }
+  return error;
+}
+
 async function upsertKhachHang(kh) {
   if (!kh?.cccd || !kh?.hoTen) {
     throw new Error('Thiếu CCCD hoặc họ tên khách hàng');
   }
 
+  const tenNguoi = kh.hoTen?.trim() || `CCCD ${kh.cccd}`;
   const payload = {
     CCCD: Number(kh.cccd),
     HoTen: kh.hoTen.trim(),
@@ -273,10 +293,10 @@ async function upsertKhachHang(kh) {
 
   if (existing) {
     const { error } = await supabase.from('KhachHang').update(payload).eq('CCCD', Number(kh.cccd));
-    if (error) throw error;
+    if (error) throw chuanHoaLoiDB(error, tenNguoi);
   } else {
     const { error } = await supabase.from('KhachHang').insert(payload);
-    if (error) throw error;
+    if (error) throw chuanHoaLoiDB(error, tenNguoi);
   }
 
   return payload;
