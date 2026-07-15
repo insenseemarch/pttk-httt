@@ -20,7 +20,7 @@ function dinhDangPhongTuDatCoc(datCoc, giuongDatCoc) {
       tenPhong: `P.${phong.MaPhong} — ${phong.LoaiPhong}`,
       loaiPhong: phong.LoaiPhong,
       gioiTinhYeuCau: phong.GioiTinhYeuCau,
-      sucChuaToiDa: phong.SucChuaToiDa || phong.SucChua || 1,
+      sucChuaToiDa: phong.SucChuaToiDa || phong.SucChuaConLai || phong.SucChua || 1,
       tenChiNhanh: phong.ChiNhanh?.TenCN || datCoc?.ChiNhanh?.TenCN || '—',
       maCN: phong.MaCN || datCoc?.MaCN,
     };
@@ -33,7 +33,7 @@ function dinhDangPhongTuDatCoc(datCoc, giuongDatCoc) {
       tenPhong: `P.${p.MaPhong} — ${p.LoaiPhong}`,
       loaiPhong: p.LoaiPhong,
       gioiTinhYeuCau: p.GioiTinhYeuCau,
-      sucChuaToiDa: p.SucChuaToiDa || p.SucChua || 1,
+      sucChuaToiDa: p.SucChuaToiDa || p.SucChuaConLai || p.SucChua || 1,
       tenChiNhanh: p.ChiNhanh?.TenCN || '—',
       maCN: p.MaCN,
     };
@@ -101,7 +101,7 @@ async function layDatCocDayDu(maDatCoc) {
     .select(`
       *,
       KhachHang ( CCCD, HoTen, NgaySinh, GioiTinh, QuocTich, DiaChi, SDT, Email, KhaNangTaiChinh ),
-      Phong ( MaPhong, LoaiPhong, SucChua, SucChuaToiDa, GioiTinhYeuCau, MaCN, ChiNhanh ( TenCN, DiaChi ) ),
+      Phong ( MaPhong, LoaiPhong, SucChuaConLai, SucChuaToiDa, GioiTinhYeuCau, MaCN, ChiNhanh ( TenCN, DiaChi ) ),
       ChiNhanh ( MaCN, TenCN, DiaChi ),
       NhomThue (
         MaNhom, SoThanhVienDangKy, SoThanhVienDuDieuKien, HinhThucThue, CCCD,
@@ -374,7 +374,7 @@ async function taoThongBaoChuyenKiemTraDKLuuTru(dc, phong, hoTenKhach) {
     'Vui lòng kiểm tra điều kiện lưu trú.',
   ].join(' ');
 
-  const { error } = await supabase.from('ThongBaoDatCoc').insert({
+  const { error } = await supabase.from('ThongBao').insert({
     MaDatCoc: dc.MaDatCoc,
     NguoiNhan: nguoiNhan,
     VaiTroNhan: 'Quản lý',

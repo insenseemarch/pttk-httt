@@ -10,7 +10,7 @@ import contractRoutes from './routes/contract.routes.js';
 import handoverRoutes from './routes/handover.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
 import liquidationRoutes from './routes/liquidation.routes.js';
-import datCocRoutes, { huyDatCocQuaHan } from './routes/datCoc.routes.js';
+import datCocRoutes, { huyDatCocQuaHan, TRANG_THAI_COC } from './routes/datCoc.routes.js';
 import { ganRouteAuthDashboard } from './routes/authDashboard.js';
 import { ganRouteQuanTri } from './routes/quanTri.js';
 import { syncPhongGiuong } from './syncPhongGiuong.js';
@@ -74,14 +74,34 @@ function chuanHoaNgayGioHenDB(value) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
+function suaLoiFontUtf8(value) {
+  const raw = String(value || '');
+  if (!/(Ã|Â|Ä|áº|Áº|á»|Á»)/.test(raw)) return raw;
+  try {
+    const fixed = Buffer.from(raw, 'latin1').toString('utf8');
+    return fixed.includes('�') ? raw : fixed;
+  } catch {
+    return raw;
+  }
+}
+
+function chuanHoaHienThi(value) {
+  return suaLoiFontUtf8(value).normalize('NFC');
+}
+
 function chuanHoaTimKiem(value) {
-  return String(value || '')
+  return chuanHoaHienThi(value)
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/đ/g, 'd')
     .replace(/Đ/g, 'D')
     .toLowerCase()
     .trim();
+}
+
+function laySoTienNumber(value) {
+  const digits = String(value ?? '').replace(/\D/g, '');
+  return digits ? Number(digits) : null;
 }
 
 const TU_KHOA_TIEN_ICH = {
@@ -94,7 +114,7 @@ const TU_KHOA_TIEN_ICH = {
 
 function coTienIchPhuHop(tienIch, yeuCau) {
   const noiDung = chuanHoaTimKiem(tienIch);
-  const yeuCauChuanHoa = chuanHoaTimKiem(yeuCau);
+  const yeuCauChuanHoa = chuanHoaTimKiem(yeuCau).replace(/^co\s+/, '');
   const tuKhoa = TU_KHOA_TIEN_ICH[yeuCauChuanHoa] || [yeuCauChuanHoa];
 
   return tuKhoa.some((keyword) => noiDung.includes(keyword));
@@ -120,16 +140,76 @@ function nhomGiuongTheoPhong(danhSachGiuong = []) {
   }, new Map());
 }
 
-function phongConTrongHoanToan(phong, giuongTheoPhong) {
+function laySucChuaKhaDungPhong(phong, danhSachGiuong = null, giuongDangKhoaSet = new Set()) {
+  const giuongs = Array.isArray(danhSachGiuong)
+    ? danhSachGiuong
+    : (Array.isArray(phong?.Giuong) ? phong.Giuong : []);
+  const tongGiuong = Math.max(
+    giuongs.length,
+    Number(phong?.SucChuaToiDa) || 0,
+    Number(phong?.SucChuaConLai) || Number(phong?.SucChua) || 0,
+    1,
+  );
+  const soGiuongTrongTheoDong = giuongs.filter((giuong) => giuong.TinhTrang === true && !giuongDangKhoaSet.has(Number(giuong.MaGiuong))).length;
+  const phongDangTrong = phong?.TinhTrang === true;
+  const tatCaGiuongDangTrong = giuongs.length === 0 || soGiuongTrongTheoDong === giuongs.length;
+  const soGiuongTrong = phongDangTrong && tatCaGiuongDangTrong
+    ? Math.max(soGiuongTrongTheoDong, tongGiuong)
+    : soGiuongTrongTheoDong;
+
+  return {
+    tongGiuong,
+    soGiuongTrong,
+  };
+}
+
+function phongConTrongHoanToan(phong, giuongTheoPhong, giuongDangKhoaSet = new Set()) {
   const danhSachGiuong = giuongTheoPhong.get(Number(phong.MaPhong)) || [];
   if (danhSachGiuong.length === 0) return phong.TinhTrang === true;
-  return phong.TinhTrang === true && danhSachGiuong.every((giuong) => giuong.TinhTrang === true);
+  return phong.TinhTrang === true && danhSachGiuong.every((giuong) => giuong.TinhTrang === true && !giuongDangKhoaSet.has(Number(giuong.MaGiuong)));
+}
+
+async function layGiuongDangKhoaSet(maGiuongList = []) {
+  const ids = [...new Set(maGiuongList.map(Number).filter(Number.isFinite))];
+  if (ids.length === 0) return new Set();
+  const khoaTamRes = await supabase
+    .from('KhoaGiuongDatCoc')
+    .select('MaGiuong')
+    .in('MaGiuong', ids);
+  if (khoaTamRes.error) {
+    if (khoaTamRes.error.code !== '42P01') throw khoaTamRes.error;
+  }
+  const { data: phieuDangGiu, error: errPhieuDangGiu } = await supabase
+    .from('DatCoc')
+    .select('MaDatCoc')
+    .in('TrangThai', TRANG_THAI_KHOA_PHONG_CHOT);
+  if (errPhieuDangGiu) {
+    if (errPhieuDangGiu.code !== '42P01') throw errPhieuDangGiu;
+  }
+  const maDatCocDangGiu = (phieuDangGiu || []).map((item) => Number(item.MaDatCoc)).filter(Number.isFinite);
+  let giuongTrongPhieu = [];
+  if (maDatCocDangGiu.length) {
+    const { data, error } = await supabase
+      .from('GiuongDatCoc')
+      .select('MaGiuong')
+      .in('MaGiuong', ids)
+      .in('MaDatCoc', maDatCocDangGiu);
+    if (error) {
+      if (error.code !== '42P01') throw error;
+    } else {
+      giuongTrongPhieu = data || [];
+    }
+  }
+  return new Set([
+    ...(khoaTamRes.data || []).map((item) => Number(item.MaGiuong)),
+    ...giuongTrongPhieu.map((item) => Number(item.MaGiuong)),
+  ]);
 }
 
 function laGiaTriTatCa(value) {
   const raw = String(value || '').trim().toLowerCase();
   const normalized = chuanHoaTimKiem(raw);
-  return !raw || normalized.includes('tat ca') || raw.includes('tất cả') || raw.includes('táº¥t');
+  return !raw || normalized.includes('tat ca') || raw.includes('tất cả');
 }
 
 function laTraCuuNguyenPhong(tc) {
@@ -144,9 +224,98 @@ function laTraCuuNguyenPhong(tc) {
   );
 }
 
+function gioiTinhGiuongPhuHop(gioiTinhGiuong, gioiTinhKhach) {
+  const khach = chuanHoaTimKiem(gioiTinhKhach);
+  if (!khach || khach.includes('tat ca')) return true;
+
+  const giuong = chuanHoaTimKiem(gioiTinhGiuong);
+  if (
+    !giuong ||
+    giuong.includes('tat ca') ||
+    giuong.includes('khong yeu cau') ||
+    giuong.includes('chung')
+  ) {
+    return true;
+  }
+
+  if (giuong.includes('nam') && giuong.includes('nu')) return true;
+  if (khach.includes('nam')) return giuong.includes('nam');
+  if (khach.includes('nu')) return giuong.includes('nu');
+  return giuong === khach;
+}
+
+function chuanHoaLoaiThue(value, fallback = 'Thuê giường lẻ') {
+  const raw = String(value || '').trim();
+  if (!raw) return fallback;
+  const key = chuanHoaTimKiem(raw);
+  if (key.includes('giuong') || key.includes('ghep') || key.includes('dorm') || key.includes('le')) {
+    return 'Thuê giường lẻ';
+  }
+  if (key.includes('nguyen') || key === 'phong' || (key.includes('phong') && !key.includes('giuong'))) {
+    return 'Thuê nguyên phòng';
+  }
+  return fallback;
+}
+
+function layMaLoaiPhongYeuCau(yc = {}) {
+  const raw = yc.maLoaiPhong ?? yc.MaLoaiPhong ?? yc.loaiPhongId ?? yc.LoaiPhong;
+  const value = Number(raw);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+function layTenLoaiPhong(phong = {}) {
+  return phong.LoaiPhongInfo?.TenLoaiPhong
+    || phong.LoaiPhong?.TenLoaiPhong
+    || (Number.isFinite(Number(phong.LoaiPhong)) ? `Loại phòng ${phong.LoaiPhong}` : String(phong.LoaiPhong || 'Chưa phân loại'));
+}
+
+const NOI_DUNG_HEN_XEM_PHONG = '\u0110\u0103ng k\u00fd h\u1eb9n xem ph\u00f2ng';
+
+function laNoiDungHeThongHenXemPhong(value) {
+  const key = chuanHoaTimKiem(value);
+  return key.includes('hen') && key.includes('xem') && key.includes('phong');
+}
+
+function chuanHoaNoiDungYeuCauMacDinh(value) {
+  const raw = String(value || '');
+  if (laNoiDungHeThongHenXemPhong(raw)) {
+    const maPhong = raw.match(/\d+\s*$/)?.[0]?.trim();
+    return maPhong ? `${NOI_DUNG_HEN_XEM_PHONG} ${maPhong}` : NOI_DUNG_HEN_XEM_PHONG;
+  }
+  return chuanHoaHienThi(raw);
+}
+
+function taoNoiDungYeuCauThue(yc = {}, fallback = '') {
+  const noiDungThem = String(yc.yeuCauThem ?? yc.YeuCauThem ?? yc.ghiChuYeuCau ?? '').trim();
+
+  const danhSachTienIch = Array.isArray(yc.yeuCauList)
+    ? yc.yeuCauList.map((item) => String(item || '').trim()).filter(Boolean)
+    : [];
+
+  const parts = [];
+  if (noiDungThem) parts.push(noiDungThem);
+  if (danhSachTienIch.length) {
+    parts.push(`Tiêu chí ưu tiên: ${danhSachTienIch.join(', ')}`);
+  }
+
+  return parts.join(' | ') || null;
+}
+
 function tachTienIch(tienIch) {
-  return String(tienIch || '')
-    .split(/[;,|\/\u00b7]+/)
+  const raw = tienIch == null ? '' : String(tienIch);
+  let noiDung = raw;
+  if (/^\s*[\[{]/.test(raw)) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) noiDung = parsed.join(',');
+      else if (parsed && typeof parsed === 'object') noiDung = Object.values(parsed).join(',');
+    } catch {
+      noiDung = raw;
+    }
+  }
+
+  return noiDung
+    .split(/[;,|\/\u00b7\r\n]+/)
     .map((item) => item.trim())
     .map((item) => {
       const key = chuanHoaTimKiem(item);
@@ -198,14 +367,16 @@ const CAC_QUAN_HUYEN_HCM = [
 ];
 
 function taoKhuVucOption(tenKhuVuc) {
+  const tenChuan = chuanHoaHienThi(tenKhuVuc);
   return {
-    value: tenKhuVuc,
-    label: `${tenKhuVuc}, TP.HCM`,
+    value: tenChuan,
+    label: `${tenChuan}, TP.HCM`,
   };
 }
 
 function layDanhSachKhuVucTuText(text) {
-  const normalized = chuanHoaTimKiem(text);
+  const textChuan = chuanHoaHienThi(text);
+  const normalized = chuanHoaTimKiem(textChuan);
   const khuVucMap = new Map();
 
   for (const match of normalized.matchAll(/\b(?:q|quan)\.?\s*(\d{1,2})\b/g)) {
@@ -245,7 +416,7 @@ function moTaKhachTrung(khach) {
   if (!khach) return '';
   const thongTin = [];
   if (khach.HoTen) thongTin.push(khach.HoTen);
-  if (khach.SDT) thongTin.push(`SĐT ${khach.SDT}`);
+  if (khach.SDT) thongTin.push(`SÄT ${khach.SDT}`);
   return thongTin.length > 0 ? ` (${thongTin.join(' - ')})` : '';
 }
 
@@ -258,7 +429,7 @@ async function kiemTraKhachHangDaTonTai(cccd, sdt) {
 
   if (loiCCCD) throw loiCCCD;
   if (trungCCCD && trungCCCD.length > 0) {
-    throw taoLoiNghiepVu(409, `CCCD ${cccd} đã tồn tại${moTaKhachTrung(trungCCCD[0])}. Vui lòng kiểm tra lại khách hàng cũ.`);
+    throw taoLoiNghiepVu(409, `CCCD ${cccd} Ä‘Ã£ tá»“n táº¡i${moTaKhachTrung(trungCCCD[0])}. Vui lÃ²ng kiá»ƒm tra láº¡i khÃ¡ch hÃ ng cÅ©.`);
   }
 
   const { data: trungSDT, error: loiSDT } = await supabase
@@ -269,7 +440,7 @@ async function kiemTraKhachHangDaTonTai(cccd, sdt) {
 
   if (loiSDT) throw loiSDT;
   if (trungSDT && trungSDT.length > 0) {
-    throw taoLoiNghiepVu(409, `Số điện thoại ${sdt} đã tồn tại${moTaKhachTrung(trungSDT[0])}. Vui lòng kiểm tra lại khách hàng cũ.`);
+    throw taoLoiNghiepVu(409, `Sá»‘ Ä‘iá»‡n thoáº¡i ${sdt} Ä‘Ã£ tá»“n táº¡i${moTaKhachTrung(trungSDT[0])}. Vui lÃ²ng kiá»ƒm tra láº¡i khÃ¡ch hÃ ng cÅ©.`);
   }
 }
 
@@ -282,10 +453,10 @@ async function luuThongTinKhachHang(kh) {
   const quocTich = String(kh.quocTich ?? kh.QuocTich ?? '').trim();
   const email = String(kh.email ?? kh.Email ?? '').trim();
 
-  if (!cccd) throw taoLoiNghiepVu(400, 'CCCD không hợp lệ.');
-  if (!sdt) throw taoLoiNghiepVu(400, 'Số điện thoại không hợp lệ.');
-  if (!ngaySinh) throw taoLoiNghiepVu(400, 'Ngày sinh khách hàng là bắt buộc.');
-  if (!gioiTinh) throw taoLoiNghiepVu(400, 'Giới tính khách hàng là bắt buộc.');
+  if (!cccd) throw taoLoiNghiepVu(400, 'CCCD khÃ´ng há»£p lá»‡.');
+  if (!sdt) throw taoLoiNghiepVu(400, 'Sá»‘ Ä‘iá»‡n thoáº¡i khÃ´ng há»£p lá»‡.');
+  if (!ngaySinh) throw taoLoiNghiepVu(400, 'NgÃ y sinh khÃ¡ch hÃ ng lÃ  báº¯t buá»™c.');
+  if (!gioiTinh) throw taoLoiNghiepVu(400, 'Giá»›i tÃ­nh khÃ¡ch hÃ ng lÃ  báº¯t buá»™c.');
 
   await kiemTraKhachHangDaTonTai(cccd, sdt);
 
@@ -300,7 +471,7 @@ async function luuThongTinKhachHang(kh) {
       DiaChi: diaChi || null,
       SDT: sdt,
       Email: email || null,
-      KhaNangTaiChinh: Number(kh.khaNangTaiChinh) || null,
+      KhaNangTaiChinh: laySoTienNumber(kh.khaNangTaiChinh),
       ThoaDK: true
     })
     .select()
@@ -312,6 +483,7 @@ async function luuThongTinKhachHang(kh) {
 
 async function taoYeuCauThue(yc, cccd, maNV = 101) {
   const thoiGianThueDate = tinhNgayKetThuc(yc.thoiGianVao, yc.thoiHanThue);
+  const loaiThue = chuanHoaLoaiThue(yc.loaiThue || yc.loaiPhong);
 
   const { data, error } = await supabase
     .from('YeuCauThue')
@@ -319,11 +491,12 @@ async function taoYeuCauThue(yc, cccd, maNV = 101) {
       SoNguoiDuKien: Number(yc.soNguoi),
       GioiTinh: yc.gioiTinh,
       KhuVucMongMuon: yc.khuVucMongMuon,
-      LoaiPhong: yc.loaiPhong,
-      MucGia: Number(yc.mucGiaDen) || null, // default to max budget
+      LoaiPhong: layMaLoaiPhongYeuCau(yc),
+      LoaiThue: loaiThue,
+      NganSach: laySoTienNumber(yc.mucGiaDen), // default to max budget
       ThoiGianVao: new Date(yc.thoiGianVao).toISOString(),
       ThoiGianThue: thoiGianThueDate,
-      YeuCau: yc.yeuCauList ? yc.yeuCauList.join(', ') : '',
+      YeuCau: taoNoiDungYeuCauThue(yc),
       TrangThai: true,
       NgayTao: new Date().toISOString(),
       MaNV: maNV,
@@ -338,17 +511,16 @@ async function taoYeuCauThue(yc, cccd, maNV = 101) {
 }
 
 async function layThongKePhongTrong() {
-  // Query single rooms (Nguyên phòng) in Bình Thạnh (MaCN = 2)
+  // Query single rooms (NguyÃªn phÃ²ng) in BÃ¬nh Tháº¡nh (MaCN = 2)
   const { data: phongs, error: errorPhong } = await supabase
     .from('Phong')
     .select('MaPhong')
-    .eq('LoaiPhong', 'Nguyên phòng')
     .eq('TinhTrang', true)
     .eq('MaCN', 2);
     
   if (errorPhong) throw errorPhong;
   
-  // Query dorm beds (Giường) that are vacant (TinhTrang = true)
+  // Query dorm beds (GiÆ°á»ng) that are vacant (TinhTrang = true)
   const { data: giuongs, error: errorGiuong } = await supabase
     .from('Giuong')
     .select('MaGiuong, GioiTinhYeuCau, Phong!inner(MaCN, LoaiPhong)')
@@ -356,7 +528,7 @@ async function layThongKePhongTrong() {
     
   if (errorGiuong) throw errorGiuong;
   
-  const countDormNuQ1 = giuongs.filter(g => g.GioiTinhYeuCau === 'Nữ' && g.Phong.MaCN === 1).length;
+  const countDormNuQ1 = giuongs.filter(g => g.GioiTinhYeuCau === 'Ná»¯' && g.Phong.MaCN === 1).length;
   const countDormNamQ3 = giuongs.filter(g => g.GioiTinhYeuCau === 'Nam' && g.Phong.MaCN === 3).length;
   const countPhongDonBT = phongs.length;
   
@@ -375,16 +547,16 @@ async function traCuuPhongPhuHop(tc) {
   // Filter branches by search text
   let selectedCNIds = chiNhanhs.map(c => c.MaCN);
   if (tc.khuVucMongMuon) {
-    const kvLower = tc.khuVucMongMuon.toLowerCase();
+    const kvLower = chuanHoaTimKiem(tc.khuVucMongMuon);
     selectedCNIds = chiNhanhs
-      .filter(c => c.TenCN.toLowerCase().includes(kvLower) || c.DiaChi.toLowerCase().includes(kvLower))
+      .filter(c => chuanHoaTimKiem(`${c.TenCN || ''} ${c.DiaChi || ''}`).includes(kvLower))
       .map(c => c.MaCN);
   }
 
   if (laTraCuuNguyenPhong(tc)) {
     let query = supabase
       .from('Phong')
-      .select('*, ChiNhanh(TenCN, DiaChi)')
+      .select('*, ChiNhanh(TenCN, DiaChi), LoaiPhongInfo:LoaiPhong(MaLoaiPhong, TenLoaiPhong)')
       .eq('TinhTrang', true)
       .in('MaCN', selectedCNIds);
 
@@ -394,27 +566,31 @@ async function traCuuPhongPhuHop(tc) {
     if (tc.mucGiaDen) {
       query = query.lte('GiaThue', Number(tc.mucGiaDen));
     }
-    if (tc.soNguoi) {
-      query = query.gte('SucChua', Number(tc.soNguoi));
-    }
-
     const { data: results, error: errPhong } = await query;
     if (errPhong) throw errPhong;
 
     const maPhongList = (results || []).map((phong) => phong.MaPhong);
     let giuongTheoPhong = new Map();
+    let giuongDangKhoaSet = new Set();
 
     if (maPhongList.length > 0) {
       const { data: giuongs, error: errGiuongTheoPhong } = await supabase
         .from('Giuong')
-        .select('MaPhong, TinhTrang')
+        .select('MaGiuong, MaPhong, TinhTrang')
         .in('MaPhong', maPhongList);
 
       if (errGiuongTheoPhong) throw errGiuongTheoPhong;
+      giuongDangKhoaSet = await layGiuongDangKhoaSet((giuongs || []).map((giuong) => giuong.MaGiuong));
       giuongTheoPhong = nhomGiuongTheoPhong(giuongs || []);
     }
 
-    let filtered = (results || []).filter((room) => phongConTrongHoanToan(room, giuongTheoPhong));
+    const soNguoiCanThue = Number(tc.soNguoi) || 0;
+    let filtered = (results || []).filter((room) => {
+      if (!phongConTrongHoanToan(room, giuongTheoPhong, giuongDangKhoaSet)) return false;
+      if (!soNguoiCanThue) return true;
+      const { tongGiuong } = laySucChuaKhaDungPhong(room, giuongTheoPhong.get(Number(room.MaPhong)) || [], giuongDangKhoaSet);
+      return tongGiuong >= soNguoiCanThue;
+    });
     if (tc.yeuCauList && tc.yeuCauList.length > 0) {
       filtered = locTheoTienIchUuTien(filtered, room => room.TienIch, tc.yeuCauList);
     }
@@ -424,25 +600,23 @@ async function traCuuPhongPhuHop(tc) {
       maId: r.MaPhong,
       maPhong: r.MaPhong,
       ten: `Phòng ${r.MaPhong}`,
-      loaiPhong: r.LoaiPhong,
+      loaiPhong: layTenLoaiPhong(r),
       giaThue: r.GiaThue,
-      sucChua: r.SucChua,
+      sucChua: laySucChuaKhaDungPhong(r, giuongTheoPhong.get(Number(r.MaPhong)) || [], giuongDangKhoaSet).tongGiuong,
+      soGiuongTrong: laySucChuaKhaDungPhong(r, giuongTheoPhong.get(Number(r.MaPhong)) || [], giuongDangKhoaSet).soGiuongTrong,
       tienIch: r.TienIch,
       chiNhanh: r.ChiNhanh?.TenCN || 'Chưa rõ',
       diaChi: r.ChiNhanh?.DiaChi || '',
-      gioiTinh: 'Tất cả'
+      gioiTinh: 'Táº¥t cáº£'
     }));
   } else {
     // Dorm search
     let query = supabase
       .from('Giuong')
-      .select('*, Phong!inner(*, ChiNhanh(TenCN, DiaChi))')
+      .select('*, Phong!inner(*, ChiNhanh(TenCN, DiaChi), LoaiPhongInfo:LoaiPhong(MaLoaiPhong, TenLoaiPhong))')
       .eq('TinhTrang', true)
       .in('Phong.MaCN', selectedCNIds);
 
-    if (tc.gioiTinh && !laGiaTriTatCa(tc.gioiTinh)) {
-      query = query.eq('GioiTinhYeuCau', tc.gioiTinh);
-    }
     if (tc.mucGiaTu) {
       query = query.gte('GiaThue', Number(tc.mucGiaTu));
     }
@@ -453,9 +627,25 @@ async function traCuuPhongPhuHop(tc) {
     const { data: results, error: errGiuong } = await query;
     if (errGiuong) throw errGiuong;
 
-    let filtered = results;
+    const giuongDangKhoaSet = await layGiuongDangKhoaSet((results || []).map((giuong) => giuong.MaGiuong));
+    let filtered = (results || []).filter((giuong) => (
+      !giuongDangKhoaSet.has(Number(giuong.MaGiuong)) &&
+      gioiTinhGiuongPhuHop(giuong.GioiTinhYeuCau, tc.gioiTinh)
+    ));
     if (tc.yeuCauList && tc.yeuCauList.length > 0) {
-      filtered = locTheoTienIchUuTien(results, giuong => giuong.Phong?.TienIch, tc.yeuCauList);
+      filtered = locTheoTienIchUuTien(filtered, giuong => giuong.Phong?.TienIch, tc.yeuCauList);
+    }
+    const soGiuongCanThue = Number(tc.soNguoi) || 0;
+    if (soGiuongCanThue > 0) {
+      const soGiuongTrongTheoPhong = filtered.reduce((map, giuong) => {
+        const maPhong = Number(giuong.Phong?.MaPhong);
+        map.set(maPhong, (map.get(maPhong) || 0) + 1);
+        return map;
+      }, new Map());
+      filtered = filtered.filter((giuong) => {
+        const maPhong = Number(giuong.Phong?.MaPhong);
+        return (soGiuongTrongTheoPhong.get(maPhong) || 0) >= soGiuongCanThue;
+      });
     }
 
     return filtered.map(g => ({
@@ -463,9 +653,10 @@ async function traCuuPhongPhuHop(tc) {
       maId: g.MaGiuong,
       maPhong: g.Phong.MaPhong,
       ten: `Giường #${g.MaGiuong} (Phòng ${g.Phong.MaPhong})`,
-      loaiPhong: `Dorm ${g.GioiTinhYeuCau}`,
+      loaiPhong: layTenLoaiPhong(g.Phong) || `Dorm ${g.GioiTinhYeuCau}`,
       giaThue: g.GiaThue,
       sucChua: 1,
+      soGiuongTrong: filtered.filter((item) => Number(item.Phong?.MaPhong) === Number(g.Phong.MaPhong)).length,
       tienIch: g.Phong.TienIch,
       chiNhanh: g.Phong.ChiNhanh?.TenCN || 'Chưa rõ',
       diaChi: g.Phong.ChiNhanh?.DiaChi || '',
@@ -474,13 +665,183 @@ async function traCuuPhongPhuHop(tc) {
   }
 }
 
+const TRANG_THAI_KHOA_PHONG_CHOT = [
+  TRANG_THAI_COC.MOI,
+  TRANG_THAI_COC.CHO_KIEM_TRA_PHONG,
+  TRANG_THAI_COC.CON_TRONG_CHO_GUI_KE_TOAN,
+  TRANG_THAI_COC.CHO_TINH_COC,
+  TRANG_THAI_COC.CHO_THANH_TOAN,
+  TRANG_THAI_COC.CHO_XAC_NHAN_THANH_TOAN,
+  TRANG_THAI_COC.DA_XAC_NHAN,
+  TRANG_THAI_COC.TU_CHOI_CHUNG_TU,
+];
+
+function tachYeuCauListTuText(value) {
+  const raw = String(value || '');
+  const cacPhan = raw.split('|').map((item) => item.trim()).filter(Boolean);
+  const phanTieuChi = cacPhan.find((item) => chuanHoaTimKiem(item).includes('tieu chi uu tien'));
+  if (!phanTieuChi) return [];
+  const nguonTach = phanTieuChi.replace(/^.*?:\s*/, '');
+
+  return nguonTach
+    .split(/[;,|]+/)
+    .map((item) => item.trim())
+    .map((item) => item.replace(/^.*tiÃªu chÃ­ Æ°u tiÃªn\s*:\s*/i, '').trim())
+    .filter((item) => {
+      if (!item) return false;
+      const key = chuanHoaTimKiem(item);
+      return !laNoiDungHeThongHenXemPhong(item) && !key.includes('phong #');
+    });
+}
+
+function taoTieuChiTraCuuTuYeuCau(yeuCauThue) {
+  const loaiThue = chuanHoaLoaiThue(yeuCauThue?.LoaiThue || yeuCauThue?.loaiThue || '', '');
+  const laNguyenPhong = loaiThue === 'Thuê nguyên phòng';
+  const khuVuc = String(yeuCauThue?.KhuVucMongMuon || '').trim();
+  const mucGia = Number(yeuCauThue?.NganSach) || '';
+
+  return {
+    kieuThue: laNguyenPhong ? 'PHONG' : 'GIUONG',
+    loaiPhong: laNguyenPhong ? 'Nguyên phòng' : 'Giường ghép',
+    khuVucMongMuon: laGiaTriTatCa(khuVuc) ? '' : khuVuc,
+    mucGiaTu: '',
+    mucGiaDen: mucGia,
+    gioiTinh: yeuCauThue?.GioiTinh || 'Tất cả',
+    soNguoi: Number(yeuCauThue?.SoNguoiDuKien) || 1,
+    yeuCauList: tachYeuCauListTuText(yeuCauThue?.YeuCau),
+  };
+}
+
+function gomKetQuaThanhPhongGoiY(danhSach = []) {
+  const phongMap = new Map();
+  danhSach.forEach((item) => {
+    const maPhong = Number(item?.maPhong || item?.maId);
+    if (!maPhong) return;
+    const daCo = phongMap.get(maPhong);
+    if (daCo) {
+      if (item.kieu === 'Giuong' && item.maId) {
+        daCo.maGiuongGoiY = Array.from(new Set([...(daCo.maGiuongGoiY || []), Number(item.maId)]));
+        daCo.soGiuongTrong = Math.max(Number(daCo.soGiuongTrong) || 0, Number(item.soGiuongTrong) || 1);
+      }
+      return;
+    }
+    phongMap.set(maPhong, {
+      ...item,
+      kieu: 'Phong',
+      maId: maPhong,
+      maPhong,
+      ten: `Phòng ${maPhong}`,
+      maGiuongGoiY: item.kieu === 'Giuong' && item.maId ? [Number(item.maId)] : [],
+    });
+  });
+  return Array.from(phongMap.values()).sort((a, b) => Number(a.maPhong) - Number(b.maPhong));
+}
+
+async function layPhongGoiYMacDinh() {
+  const [phongNguyen, giuongLe] = await Promise.all([
+    traCuuPhongPhuHop({ kieuThue: 'PHONG', loaiPhong: 'Nguyên phòng', soNguoi: 1 }),
+    traCuuPhongPhuHop({ kieuThue: 'GIUONG', loaiPhong: 'Giường ghép', soNguoi: 1 }),
+  ]);
+  return gomKetQuaThanhPhongGoiY([...(phongNguyen || []), ...(giuongLe || [])]);
+}
+
+async function layPhongGoiYTheoYeuCauThue(yeuCauThue) {
+  if (!yeuCauThue) return layPhongGoiYMacDinh();
+  const tieuChi = taoTieuChiTraCuuTuYeuCau(yeuCauThue);
+  const danhSach = await traCuuPhongPhuHop(tieuChi);
+  const coTieuChiCuThe = Boolean(
+    tieuChi.khuVucMongMuon ||
+    tieuChi.mucGiaTu ||
+    tieuChi.mucGiaDen ||
+    (Array.isArray(tieuChi.yeuCauList) && tieuChi.yeuCauList.length) ||
+    (Number(tieuChi.soNguoi) || 0) > 1 ||
+    !laGiaTriTatCa(tieuChi.gioiTinh)
+  );
+  if (!danhSach.length && !coTieuChiCuThe) {
+    return layPhongGoiYMacDinh();
+  }
+  return gomKetQuaThanhPhongGoiY(danhSach);
+}
+
+function giaNamTrongKhoang(giaTri, giaTu, giaDen) {
+  const gia = Number(giaTri) || 0;
+  const tu = Number(giaTu) || 0;
+  const den = Number(giaDen) || 0;
+  if (tu && gia < tu) return false;
+  if (den && gia > den) return false;
+  return true;
+}
+
+async function phongConKhaDungChoYeuCau(maPhong, yeuCauThue) {
+  const maPhongSo = Number(maPhong);
+  if (!maPhongSo) return false;
+
+  const tieuChi = taoTieuChiTraCuuTuYeuCau(yeuCauThue);
+  const { data: phong, error } = await supabase
+    .from('Phong')
+    .select('*, ChiNhanh(TenCN, DiaChi), LoaiPhongInfo:LoaiPhong(MaLoaiPhong, TenLoaiPhong), Giuong(MaGiuong, TinhTrang, GioiTinhYeuCau, GiaThue)')
+    .eq('MaPhong', maPhongSo)
+    .maybeSingle();
+  if (error) throw error;
+  if (!phong) return false;
+
+  const khuVuc = String(tieuChi.khuVucMongMuon || '').trim();
+  if (khuVuc) {
+    const khuVucPhong = chuanHoaTimKiem(`${phong.ChiNhanh?.TenCN || ''} ${phong.ChiNhanh?.DiaChi || ''}`);
+    if (!khuVucPhong.includes(chuanHoaTimKiem(khuVuc))) return false;
+  }
+
+  if (tieuChi.yeuCauList?.length && !locTheoTienIchUuTien([phong], item => item.TienIch, tieuChi.yeuCauList).length) {
+    return false;
+  }
+
+  const danhSachGiuong = Array.isArray(phong.Giuong) ? phong.Giuong : [];
+  const giuongDangKhoaSet = await layGiuongDangKhoaSet(danhSachGiuong.map((giuong) => giuong.MaGiuong));
+  const soNguoiCanThue = Number(tieuChi.soNguoi) || 1;
+
+  if (tieuChi.kieuThue === 'PHONG') {
+    if (phong.TinhTrang !== true) return false;
+    if (!giaNamTrongKhoang(phong.GiaThue, tieuChi.mucGiaTu, tieuChi.mucGiaDen)) return false;
+    const giuongTheoPhong = new Map([
+      [maPhongSo, danhSachGiuong.map((giuong) => ({ ...giuong, MaPhong: maPhongSo }))],
+    ]);
+    if (!phongConTrongHoanToan(phong, giuongTheoPhong, giuongDangKhoaSet)) return false;
+    const { tongGiuong } = laySucChuaKhaDungPhong(phong, danhSachGiuong, giuongDangKhoaSet);
+    return tongGiuong >= soNguoiCanThue;
+  }
+
+  const giuongConTrongPhuHop = danhSachGiuong.filter((giuong) => (
+    giuong.TinhTrang === true &&
+    !giuongDangKhoaSet.has(Number(giuong.MaGiuong)) &&
+    gioiTinhGiuongPhuHop(giuong.GioiTinhYeuCau, tieuChi.gioiTinh) &&
+    giaNamTrongKhoang(giuong.GiaThue, tieuChi.mucGiaTu, tieuChi.mucGiaDen)
+  ));
+
+  return giuongConTrongPhuHop.length >= soNguoiCanThue;
+}
+
+async function khachDaDatCocPhong(cccd, maPhong) {
+  const cccdSo = Number(String(cccd || '').replace(/\D/g, ''));
+  const maPhongSo = Number(maPhong);
+  if (!cccdSo || !maPhongSo) return false;
+  const { data, error } = await supabase
+    .from('DatCoc')
+    .select('MaDatCoc')
+    .eq('CCCD', cccdSo)
+    .eq('MaPhong', maPhongSo)
+    .in('TrangThai', TRANG_THAI_KHOA_PHONG_CHOT)
+    .limit(1);
+  if (error) throw error;
+  return Array.isArray(data) && data.length > 0;
+}
+
 // Route handlers
 async function xuLyLayThongKe(req, res) {
   try {
     const stats = await layThongKePhongTrong();
     res.json({ ok: true, data: stats });
   } catch (error) {
-    console.error('Lỗi lấy thống kê:', error);
+    console.error('Lá»—i láº¥y thá»‘ng kÃª:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 }
@@ -489,11 +850,14 @@ async function xuLyLayTuyChonTraCuuPhong(req, res) {
   try {
     const [chiNhanhRes, phongRes] = await Promise.all([
       supabase.from('ChiNhanh').select('MaCN, TenCN, DiaChi').order('MaCN', { ascending: true }),
-      supabase.from('Phong').select('MaCN, TienIch'),
+      supabase.from('Phong').select('MaPhong, MaCN, TienIch, TinhTrang, SucChuaConLai, SucChuaToiDa, Giuong(MaGiuong, TinhTrang)'),
     ]);
 
     if (chiNhanhRes.error) throw chiNhanhRes.error;
     if (phongRes.error) throw phongRes.error;
+    const giuongDangKhoaSet = await layGiuongDangKhoaSet(
+      (phongRes.data || []).flatMap((phong) => (Array.isArray(phong.Giuong) ? phong.Giuong : []).map((giuong) => giuong.MaGiuong)),
+    );
 
     const maChiNhanhCoPhong = new Set((phongRes.data || []).map((phong) => phong.MaCN).filter(Boolean));
     const khuVucMap = new Map();
@@ -515,15 +879,29 @@ async function xuLyLayTuyChonTraCuuPhong(req, res) {
       });
     });
 
+    const gioiHanSucChua = (phongRes.data || []).reduce((gioiHan, phong) => {
+      const giuongs = Array.isArray(phong.Giuong) ? phong.Giuong : [];
+      const { tongGiuong, soGiuongTrong } = laySucChuaKhaDungPhong(phong, giuongs, giuongDangKhoaSet);
+      const phongTrongHoanToan = phong.TinhTrang === true && (giuongs.length === 0 || giuongs.every((giuong) => giuong.TinhTrang === true && !giuongDangKhoaSet.has(Number(giuong.MaGiuong))));
+      if (phongTrongHoanToan) {
+        gioiHan.nguyenPhong = Math.max(gioiHan.nguyenPhong, tongGiuong);
+      }
+      if (soGiuongTrong > 0) {
+        gioiHan.giuongGhep = Math.max(gioiHan.giuongGhep, soGiuongTrong);
+      }
+      return gioiHan;
+    }, { nguyenPhong: 1, giuongGhep: 1 });
+
     res.json({
       ok: true,
       data: {
         khuVuc: Array.from(khuVucMap.values()).sort((a, b) => a.label.localeCompare(b.label, 'vi')),
         tienIch: Array.from(tienIchMap.values()).sort((a, b) => a.label.localeCompare(b.label, 'vi')),
+        gioiHanSucChua,
       },
     });
   } catch (error) {
-    console.error('Lỗi lấy tùy chọn tra cứu phòng:', error);
+    console.error('Lá»—i láº¥y tÃ¹y chá»n tra cá»©u phÃ²ng:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 }
@@ -533,7 +911,7 @@ async function xuLyTiepNhanThongTin(req, res) {
     const { khachHang, yeuCauThue, maNV } = req.body;
     
     if (!khachHang || !khachHang.cccd || !khachHang.hoTen || !khachHang.sdt) {
-      return res.status(400).json({ ok: false, error: 'Thiếu thông tin khách hàng bắt buộc (CCCD, Họ tên, SĐT)' });
+      return res.status(400).json({ ok: false, error: 'Thiáº¿u thÃ´ng tin khÃ¡ch hÃ ng báº¯t buá»™c (CCCD, Há» tÃªn, SÄT)' });
     }
 
     // Save customer details
@@ -544,18 +922,18 @@ async function xuLyTiepNhanThongTin(req, res) {
 
     res.json({
       ok: true,
-      message: 'Tiếp nhận thông tin thành công!',
+      message: 'Tiáº¿p nháº­n thÃ´ng tin thÃ nh cÃ´ng!',
       data: {
         khachHang: savedKhachHang,
         yeuCauThue: savedYeuCau
       }
     });
   } catch (error) {
-    console.error('Lỗi tiếp nhận thông tin:', error);
+    console.error('Lá»—i tiáº¿p nháº­n thÃ´ng tin:', error);
     const laLoiTrungDuLieu = error.code === '23505';
     const statusCode = error.statusCode || (laLoiTrungDuLieu ? 409 : 500);
     const message = laLoiTrungDuLieu
-      ? 'Thông tin khách hàng đã tồn tại trong hệ thống. Vui lòng kiểm tra lại CCCD hoặc số điện thoại.'
+      ? 'ThÃ´ng tin khÃ¡ch hÃ ng Ä‘Ã£ tá»“n táº¡i trong há»‡ thá»‘ng. Vui lÃ²ng kiá»ƒm tra láº¡i CCCD hoáº·c sá»‘ Ä‘iá»‡n thoáº¡i.'
       : error.message;
     res.status(statusCode).json({ ok: false, error: message });
   }
@@ -567,7 +945,7 @@ async function xuLyTraCuuPhong(req, res) {
     const ketQua = await traCuuPhongPhuHop(tieuChi);
     res.json({ ok: true, data: ketQua });
   } catch (error) {
-    console.error('Lỗi tra cứu phòng:', error);
+    console.error('Lá»—i tra cá»©u phÃ²ng:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 }
@@ -581,7 +959,6 @@ async function layThongKeTongHop() {
   const { count: vacantRooms, error: errVacRooms } = await supabase
     .from('Phong')
     .select('MaPhong', { count: 'exact', head: true })
-    .eq('LoaiPhong', 'Nguyên phòng')
     .eq('TinhTrang', true);
   if (errVacRooms) throw errVacRooms;
 
@@ -594,7 +971,6 @@ async function layThongKeTongHop() {
   const { count: rentedRooms, error: errRentRooms } = await supabase
     .from('Phong')
     .select('MaPhong', { count: 'exact', head: true })
-    .eq('LoaiPhong', 'Nguyên phòng')
     .eq('TinhTrang', false);
   if (errRentRooms) throw errRentRooms;
 
@@ -634,13 +1010,14 @@ async function luuYeuCauTuVan(yc) {
     .from('YeuCauThue')
     .insert({
       SoNguoiDuKien: 1,
-      GioiTinh: 'Tất cả',
-      KhuVucMongMuon: 'Tất cả',
-      LoaiPhong: 'Chưa xác định',
-      MucGia: null,
+      GioiTinh: 'Táº¥t cáº£',
+      KhuVucMongMuon: 'Táº¥t cáº£',
+      LoaiPhong: null,
+      LoaiThue: 'Chưa xác định',
+      NganSach: null,
       ThoiGianVao: new Date().toISOString(),
       ThoiGianThue: thoiGianThueDate,
-      YeuCau: `Khách đăng ký nhận tư vấn: ${noiDung || 'Cần tư vấn thông tin homestay/dorm'}`,
+      YeuCau: `KhÃ¡ch Ä‘Äƒng kÃ½ nháº­n tÆ° váº¥n: ${noiDung || 'Cáº§n tÆ° váº¥n thÃ´ng tin homestay/dorm'}`,
       TrangThai: false, // unprocessed
       NgayTao: new Date().toISOString(),
       CCCD: numericCCCD,
@@ -660,7 +1037,7 @@ async function xuLyLayThongKeTongHop(req, res) {
     const stats = await layThongKeTongHop();
     res.json({ ok: true, data: stats });
   } catch (error) {
-    console.error('Lỗi lấy thống kê tổng hợp:', error);
+    console.error('Lá»—i láº¥y thá»‘ng kÃª tá»•ng há»£p:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 }
@@ -669,22 +1046,27 @@ async function xuLyGuiYeuCauTuVan(req, res) {
   try {
     const dataTuVan = req.body;
     if (!dataTuVan.hoTen || !dataTuVan.sdt) {
-      return res.status(400).json({ ok: false, error: 'Thiếu thông tin bắt buộc (Họ tên, Số điện thoại)' });
+      return res.status(400).json({ ok: false, error: 'Thiáº¿u thÃ´ng tin báº¯t buá»™c (Há» tÃªn, Sá»‘ Ä‘iá»‡n thoáº¡i)' });
     }
     const ketQua = await luuYeuCauTuVan(dataTuVan);
-    res.json({ ok: true, message: 'Gửi yêu cầu tư vấn thành công!', data: ketQua });
+    res.json({ ok: true, message: 'Gá»­i yÃªu cáº§u tÆ° váº¥n thÃ nh cÃ´ng!', data: ketQua });
   } catch (error) {
-    console.error('Lỗi gửi yêu cầu tư vấn:', error);
+    console.error('Lá»—i gá»­i yÃªu cáº§u tÆ° váº¥n:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 }
 
 async function datLichXemPhong(yc) {
   const { hoTen, sdt, email, ngayGioHen, ghiChu, maPhong, loaiPhong, maYC, cccd, diaChi, ngaySinh, gioiTinh, maGiuong } = yc;
+  const maNVThucHien = Number(yc.maNV ?? yc.MaNV ?? yc.nvSale ?? yc.NVSale) || null;
   const diaChiKhachHang = String(diaChi ?? yc.DiaChi ?? '').trim();
   const ngaySinhKhachHang = String(ngaySinh ?? yc.NgaySinh ?? '').trim();
   const gioiTinhKhachHang = String(gioiTinh ?? yc.GioiTinh ?? '').trim();
+  const khaNangTaiChinhKhachHang = laySoTienNumber(
+    yc.khaNangTaiChinh ?? yc.KhaNangTaiChinh ?? yc.yeuCauThue?.mucGiaDen ?? yc.boLocTraCuu?.mucGiaDen
+  );
   const maGiuongHen = Number(maGiuong ?? yc.MaGiuong) || null;
+  const maPhongLichHen = Number(maPhong ?? yc.MaPhong) || null;
   const ghiChuLichHen = maGiuongHen
     ? `[MA_GIUONG:${maGiuongHen}]${ghiChu?.trim() ? ` ${ghiChu.trim()}` : ''}`
     : (ghiChu?.trim() || null);
@@ -701,11 +1083,21 @@ async function datLichXemPhong(yc) {
       .maybeSingle();
     if (errYeuCauDaCo) throw errYeuCauDaCo;
     savedReq = yeuCauDaCo ? [yeuCauDaCo] : [];
+    if (yeuCauDaCo && maNVThucHien && !yeuCauDaCo.MaNV) {
+      const { data: yeuCauCapNhat, error: errCapNhatYeuCau } = await supabase
+        .from('YeuCauThue')
+        .update({ MaNV: maNVThucHien })
+        .eq('MaYC', maYCHen)
+        .select();
+      if (errCapNhatYeuCau) throw errCapNhatYeuCau;
+      savedReq = yeuCauCapNhat;
+    }
     if (yeuCauDaCo?.CCCD) {
       const thongTinCapNhatKhach = {};
       if (diaChiKhachHang) thongTinCapNhatKhach.DiaChi = diaChiKhachHang;
       if (ngaySinhKhachHang) thongTinCapNhatKhach.NgaySinh = ngaySinhKhachHang;
       if (gioiTinhKhachHang) thongTinCapNhatKhach.GioiTinh = gioiTinhKhachHang;
+      if (khaNangTaiChinhKhachHang) thongTinCapNhatKhach.KhaNangTaiChinh = khaNangTaiChinhKhachHang;
       if (email) thongTinCapNhatKhach.Email = email;
       if (sdt) thongTinCapNhatKhach.SDT = String(sdt).replace(/\D/g, '');
       if (Object.keys(thongTinCapNhatKhach).length > 0) {
@@ -717,45 +1109,59 @@ async function datLichXemPhong(yc) {
       }
     }
   } else {
-    if (!ngaySinhKhachHang || !gioiTinhKhachHang) {
-      throw taoLoiNghiepVu(400, 'Vui lòng bổ sung ngày sinh và giới tính khách hàng trước khi đặt lịch hẹn.');
-    }
 
     // 1. Upsert customer
+    const payloadKhachHangHen = {
+      CCCD: numericCCCD,
+      HoTen: hoTen,
+      SDT: sdt,
+      QuocTich: 'Việt Nam',
+      ThoaDK: true
+    };
+    if (email) payloadKhachHangHen.Email = email;
+    if (diaChiKhachHang) payloadKhachHangHen.DiaChi = diaChiKhachHang;
+    if (ngaySinhKhachHang) payloadKhachHangHen.NgaySinh = ngaySinhKhachHang;
+    if (gioiTinhKhachHang) payloadKhachHangHen.GioiTinh = gioiTinhKhachHang;
+    if (khaNangTaiChinhKhachHang) payloadKhachHangHen.KhaNangTaiChinh = khaNangTaiChinhKhachHang;
+
     const { data: upsertedCustomer, error: errCust } = await supabase
       .from('KhachHang')
-      .upsert({
-        CCCD: numericCCCD,
-        HoTen: hoTen,
-        SDT: sdt,
-        Email: email,
-        DiaChi: diaChiKhachHang || null,
-        NgaySinh: ngaySinhKhachHang || null,
-        GioiTinh: gioiTinhKhachHang || null,
-        QuocTich: 'Việt Nam',
-        ThoaDK: true
-      }, { onConflict: 'CCCD' })
+      .upsert(payloadKhachHangHen, { onConflict: 'CCCD' })
       .select();
     if (errCust) throw errCust;
     savedCust = upsertedCustomer;
 
     // 2. Create YeuCauThue
     const thoiGianThueDate = tinhNgayKetThuc(new Date().toISOString().split('T')[0], 6);
+    const yeuCauHen = yc.yeuCauThue || {};
+    const boLocHen = yc.boLocTraCuu || {};
+    const loaiPhongBoLoc = chuanHoaTimKiem(boLocHen.loaiPhong || '');
+    const loaiPhongYeuCau = yeuCauHen.loaiPhong
+      || (loaiPhongBoLoc.includes('phong') && !loaiPhongBoLoc.includes('giuong') ? 'Nguyên phòng' : '')
+      || (loaiPhong === 'Giuong' ? 'Giường ghép' : 'Nguyên phòng');
+    const loaiThueYeuCau = chuanHoaLoaiThue(yeuCauHen.loaiThue || loaiPhongYeuCau || loaiPhong);
+    const yeuCauListHen = Array.isArray(yeuCauHen.yeuCauList) && yeuCauHen.yeuCauList.length
+      ? yeuCauHen.yeuCauList
+      : (Array.isArray(boLocHen.yeuCauList) ? boLocHen.yeuCauList : []);
     const { data: insertedReq, error: errReq } = await supabase
       .from('YeuCauThue')
       .insert({
-        SoNguoiDuKien: 1,
-        GioiTinh: 'Tất cả',
-        KhuVucMongMuon: 'Chưa xác định',
-        LoaiPhong: loaiPhong === 'Giuong' ? 'Giường ghép' : 'Nguyên phòng',
-        MucGia: null,
+        SoNguoiDuKien: Number(yeuCauHen.soNguoi || boLocHen.soNguoi) || 1,
+        NganSach: laySoTienNumber(yeuCauHen.mucGiaDen ?? boLocHen.mucGiaDen),
+        GioiTinh: yeuCauHen.gioiTinh || boLocHen.gioiTinh || 'Táº¥t cáº£',
+        KhuVucMongMuon: yeuCauHen.khuVucMongMuon || boLocHen.khuVuc || 'Táº¥t cáº£',
+        LoaiPhong: layMaLoaiPhongYeuCau(yeuCauHen),
+        LoaiThue: loaiThueYeuCau,
         ThoiGianVao: new Date().toISOString(),
         ThoiGianThue: thoiGianThueDate,
-        YeuCau: `Đăng ký hẹn xem phòng #${maPhong} qua website`,
         TrangThai: false,
+        YeuCau: taoNoiDungYeuCauThue(
+          { ...yeuCauHen, yeuCauList: yeuCauListHen },
+          maPhongLichHen ? `ÄÄƒng kÃ½ háº¹n xem phÃ²ng ${maPhongLichHen}` : 'ÄÄƒng kÃ½ háº¹n xem phÃ²ng'
+        ),
         NgayTao: new Date().toISOString(),
         CCCD: numericCCCD,
-        MaNV: null
+        MaNV: maNVThucHien
       })
       .select();
     if (errReq) throw errReq;
@@ -769,7 +1175,7 @@ async function datLichXemPhong(yc) {
     .insert({
       NgayGioHen: chuanHoaNgayGioHenDB(ngayGioHen),
       GhiChu: ghiChuLichHen,
-      MaPhong: Number(maPhong),
+      MaPhong: maPhongLichHen,
       MaYC: maYCHen,
       KetQua: 'Chưa xem'
     })
@@ -786,15 +1192,15 @@ async function datLichXemPhong(yc) {
 async function xuLyDatLichXemPhong(req, res) {
   try {
     const dataLich = req.body;
-    if (!dataLich.hoTen || !dataLich.sdt || !dataLich.ngayGioHen || !dataLich.maPhong) {
-      return res.status(400).json({ ok: false, error: 'Thiếu thông tin bắt buộc (Họ tên, Số điện thoại, Ngày giờ hẹn, Mã phòng)' });
+    if (!dataLich.hoTen || !dataLich.sdt || !dataLich.ngayGioHen) {
+      return res.status(400).json({ ok: false, error: 'Thiếu thông tin bắt buộc (Họ tên, Số điện thoại, Ngày giờ hẹn)' });
     }
     const thoiDiemHen = taoDateLocal(dataLich.ngayGioHen);
     if (Number.isNaN(thoiDiemHen.getTime()) || thoiDiemHen.getTime() < Date.now()) {
       return res.status(400).json({ ok: false, error: 'Thời điểm hẹn phải từ hiện tại trở đi.' });
     }
     const ketQua = await datLichXemPhong(dataLich);
-    res.json({ ok: true, message: 'Đăng ký lịch hẹn xem phòng thành công!', data: ketQua });
+    res.json({ ok: true, message: 'ÄÄƒng kÃ½ lá»‹ch háº¹n xem phÃ²ng thÃ nh cÃ´ng!', data: ketQua });
   } catch (error) {
     console.error('Lỗi đặt lịch hẹn xem phòng:', error);
     res.status(error.statusCode || 500).json({ ok: false, error: error.message });
@@ -814,6 +1220,13 @@ async function xuLyLayDanhSachLichHen(req, res) {
         YeuCauThue (
           MaYC,
           CCCD,
+          SoNguoiDuKien,
+          GioiTinh,
+          KhuVucMongMuon,
+          LoaiPhong,
+          LoaiThue,
+          NganSach,
+          YeuCau,
           KhachHang (
             CCCD,
             HoTen,
@@ -825,26 +1238,97 @@ async function xuLyLayDanhSachLichHen(req, res) {
       .order('NgayGioHen', { ascending: false });
 
     if (error) throw error;
-    res.json({ ok: true, data });
+    const dataCoGoiY = await Promise.all((data || []).map(async (lich) => {
+      const [phongGoiYRaw, khoaPhongChot] = await Promise.all([
+        layPhongGoiYTheoYeuCauThue(lich.YeuCauThue).catch((err) => {
+          console.error('Loi lay phong goi y lich hen:', err);
+          return [];
+        }),
+        khachDaDatCocPhong(lich.YeuCauThue?.CCCD, lich.MaPhong),
+      ]);
+      const phongGoiY = Array.isArray(phongGoiYRaw) ? [...phongGoiYRaw] : [];
+      const maPhongChot = Number(lich.MaPhong) || null;
+      if (maPhongChot && !phongGoiY.some((room) => Number(room?.maPhong || room?.maId) === maPhongChot)) {
+        const { data: phongChot, error: errPhongChot } = await supabase
+          .from('Phong')
+          .select('MaPhong, ChiNhanh(TenCN)')
+          .eq('MaPhong', maPhongChot)
+          .maybeSingle();
+        if (errPhongChot) throw errPhongChot;
+        if (phongChot) {
+          phongGoiY.push({
+            maId: Number(phongChot.MaPhong),
+            maPhong: Number(phongChot.MaPhong),
+            ten: `Phòng ${phongChot.MaPhong}`,
+            chiNhanh: phongChot.ChiNhanh?.TenCN || '',
+          });
+        }
+      }
+
+      return {
+        ...lich,
+        PhongGoiY: phongGoiY,
+        KhoaPhongChot: khoaPhongChot,
+      };
+    }));
+
+    res.json({ ok: true, data: dataCoGoiY });
   } catch (error) {
-    console.error('Lỗi khi lấy danh sách lịch hẹn:', error);
+    console.error('Lá»—i khi láº¥y danh sÃ¡ch lá»‹ch háº¹n:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 }
 
 async function xuLyCapNhatTrangThaiHen(req, res) {
   try {
-    const { maLich, ketQua, ghiChu } = req.body;
-    if (!maLich || !ketQua) {
-      return res.status(400).json({ ok: false, error: 'Thiếu thông tin maLich hoặc ketQua' });
+    const { maLich, ketQua, ghiChu, maPhong } = req.body;
+    const coKetQua = Object.prototype.hasOwnProperty.call(req.body, 'ketQua');
+    const coGhiChu = Object.prototype.hasOwnProperty.call(req.body, 'ghiChu');
+    const coMaPhong = Object.prototype.hasOwnProperty.call(req.body, 'maPhong');
+    if (!maLich || (!coKetQua && !coGhiChu && !coMaPhong)) {
+      return res.status(400).json({ ok: false, error: 'Thiáº¿u thÃ´ng tin maLich hoáº·c ketQua' });
     }
-    const trangThaiHopLe = ['Chưa xem', 'Đã xem'];
-    if (!trangThaiHopLe.includes(ketQua)) {
-      return res.status(400).json({ ok: false, error: 'Trạng thái lịch hẹn không hợp lệ' });
+    const duLieuCapNhat = {};
+    if (coKetQua) {
+      const trangThaiHopLe = ['Chưa xem', 'Đã xem'];
+      if (!trangThaiHopLe.includes(ketQua)) {
+        return res.status(400).json({ ok: false, error: 'Tráº¡ng thÃ¡i lá»‹ch háº¹n khÃ´ng há»£p lá»‡' });
+      }
+      duLieuCapNhat.KetQua = ketQua;
     }
-    const duLieuCapNhat = { KetQua: ketQua };
-    if (Object.prototype.hasOwnProperty.call(req.body, 'ghiChu')) {
+    if (coGhiChu) {
       duLieuCapNhat.GhiChu = ghiChu?.trim() || null;
+    }
+    if (coMaPhong) {
+      const maPhongMoi = maPhong === null || maPhong === '' ? null : Number(maPhong);
+      if (maPhongMoi !== null && (!Number.isInteger(maPhongMoi) || maPhongMoi <= 0)) {
+        return res.status(400).json({ ok: false, error: 'MÃ£ phÃ²ng chá»‘t khÃ´ng há»£p lá»‡' });
+      }
+      const { data: lichHienTai, error: errLichHienTai } = await supabase
+        .from('LichXemPhong')
+        .select('MaPhong, YeuCauThue(*)')
+        .eq('MaLich', Number(maLich))
+        .maybeSingle();
+      if (errLichHienTai) throw errLichHienTai;
+      if (!lichHienTai) {
+        return res.status(404).json({ ok: false, error: 'Không tìm thấy lịch hẹn' });
+      }
+      const maPhongHienTai = Number(lichHienTai.MaPhong) || null;
+      const daKhoaPhongChot = await khachDaDatCocPhong(lichHienTai?.YeuCauThue?.CCCD, lichHienTai?.MaPhong);
+      if (daKhoaPhongChot && maPhongMoi !== maPhongHienTai) {
+        return res.status(409).json({ ok: false, error: 'Khach hang da co dat coc cho phong nay, khong the doi phong chot.' });
+      }
+      if (maPhongMoi !== null && maPhongMoi !== maPhongHienTai) {
+        const phongGoiY = await layPhongGoiYTheoYeuCauThue(lichHienTai.YeuCauThue);
+        let phongConHopLe = phongGoiY.some((room) => Number(room?.maPhong || room?.maId) === maPhongMoi);
+        if (!phongConHopLe) {
+          phongConHopLe = await phongConKhaDungChoYeuCau(maPhongMoi, lichHienTai.YeuCauThue);
+        }
+        if (!phongConHopLe) {
+          return res.status(409).json({ ok: false, error: 'Phòng này không còn phù hợp hoặc đã được đặt cọc.' });
+        }
+      }
+      duLieuCapNhat.MaPhong = maPhongMoi;
     }
     const { data, error } = await supabase
       .from('LichXemPhong')
@@ -911,7 +1395,7 @@ async function taiPhieuDoiSoatDatCoc(maDatCoc) {
     .eq('MaDatCoc', maDatCoc)
     .order('MaPhieu', { ascending: false })
     .limit(1);
-  if (error) console.error('Lỗi taiPhieuDoiSoatDatCoc:', error);
+  if (error) console.error('Lá»—i taiPhieuDoiSoatDatCoc:', error);
   return data && data.length > 0 ? data[0] : null;
 }
 
@@ -926,7 +1410,7 @@ async function luuPhieuDoiSoatDatCoc(maDatCoc, fields) {
   if (existing?.MaPhieu) {
     const { error } = await supabase.from('PhieuDoiSoat').update(payload).eq('MaPhieu', existing.MaPhieu);
     if (error) {
-      console.error('LỖI UPDATE PHIẾU ĐỐI SOÁT CỌC:', error);
+      console.error('Lá»–I UPDATE PHIáº¾U Äá»I SOÃT Cá»ŒC:', error);
       throw error;
     }
     return;
@@ -991,8 +1475,8 @@ async function layHopDongDayDu(maHopDong) {
 
 async function layItemQuyetToanTuMaSo(maSo) {
   const datCocMap = await layDatCocMap();
-  if (maSo.startsWith('HĐ-')) {
-    const id = Number(maSo.replace('HĐ-', ''));
+  if (maSo.startsWith('HÄ-')) {
+    const id = Number(maSo.replace('HÄ-', ''));
     const h = await layHopDongDayDu(id);
     if (!h) return null;
     return mapHopDongRaDTO(h, datCocMap);
@@ -1013,7 +1497,7 @@ function ensureCheckoutSupabase(res) {
   if (!isUsingSupabaseForCheckout) {
     res.status(503).json({
       ok: false,
-      error: 'Checkout đang yêu cầu Supabase nhưng chưa kết nối được. Hãy cấu hình SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY và đảm bảo các bảng checkout đã tồn tại.'
+      error: 'Checkout Ä‘ang yÃªu cáº§u Supabase nhÆ°ng chÆ°a káº¿t ná»‘i Ä‘Æ°á»£c. HÃ£y cáº¥u hÃ¬nh SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY vÃ  Ä‘áº£m báº£o cÃ¡c báº£ng checkout Ä‘Ã£ tá»“n táº¡i.'
     });
     return false;
   }
@@ -1029,12 +1513,12 @@ async function checkSupabaseTable() {
     const { data, error } = await supabase.from('HopDong').select('MaHopDong').limit(1);
     if (!error) {
       isUsingSupabaseForCheckout = true;
-      console.log('✅ [Supabase] Connection established successfully! Database schema is ready.');
+      console.log('âœ… [Supabase] Connection established successfully! Database schema is ready.');
     } else {
-      console.error('❌ [Supabase] Table verification failed. Please check table existence.', error.message);
+      console.error('âŒ [Supabase] Table verification failed. Please check table existence.', error.message);
     }
   } catch (err) {
-    console.error('❌ [Supabase] Database connection failed. Please check environment variables.', err.message);
+    console.error('âŒ [Supabase] Database connection failed. Please check environment variables.', err.message);
   }
 }
 
@@ -1123,7 +1607,7 @@ app.get('/api/checkout/detail', async (req, res) => {
   try {
     const item = await layItemQuyetToanTuMaSo(maSo);
     if (!item) {
-      return res.status(404).json({ ok: false, error: 'Không tìm thấy hồ sơ quyết toán!' });
+      return res.status(404).json({ ok: false, error: 'KhÃ´ng tÃ¬m tháº¥y há»“ sÆ¡ quyáº¿t toÃ¡n!' });
     }
     res.json({ ok: true, data: item });
   } catch (err) {
@@ -1131,7 +1615,7 @@ app.get('/api/checkout/detail', async (req, res) => {
   }
 });
 
-// 3. POST /api/checkout/request — Sale tiếp nhận yêu cầu trả phòng / hủy cọc
+// 3. POST /api/checkout/request â€” Sale tiáº¿p nháº­n yÃªu cáº§u tráº£ phÃ²ng / há»§y cá»c
 app.post('/api/checkout/request', async (req, res) => {
   const { maSoChungTu, loaiHinhTraPhong, ngayTraDuKien, lyDo, phuongThucHoanTien } = req.body;
   if (!ensureCheckoutSupabase(res)) {
@@ -1139,20 +1623,20 @@ app.post('/api/checkout/request', async (req, res) => {
   }
 
   try {
-    const nextTrangThai = 'Chờ kiểm tra';
+    const nextTrangThai = 'Chá» kiá»ƒm tra';
     if (!maSoChungTu) {
-      return res.status(400).json({ ok: false, error: 'Thiếu mã chứng từ' });
+      return res.status(400).json({ ok: false, error: 'Thiáº¿u mÃ£ chá»©ng tá»«' });
     }
 
-    // Chấp nhận HĐ-12 hoặc HD-00012
+    // Cháº¥p nháº­n HÄ-12 hoáº·c HD-00012
     const isHopDong =
-      String(maSoChungTu).startsWith('HĐ-') ||
+      String(maSoChungTu).startsWith('HÄ-') ||
       /^HD-/i.test(String(maSoChungTu));
 
     if (isHopDong) {
-      const id = Number(String(maSoChungTu).replace(/^(HĐ-|HD-)/i, ''));
+      const id = Number(String(maSoChungTu).replace(/^(HÄ-|HD-)/i, ''));
       if (!Number.isFinite(id) || id <= 0) {
-        return res.status(400).json({ ok: false, error: 'Mã hợp đồng không hợp lệ' });
+        return res.status(400).json({ ok: false, error: 'MÃ£ há»£p Ä‘á»“ng khÃ´ng há»£p lá»‡' });
       }
 
       await supabase.from('HopDong').update({ TrangThai: nextTrangThai }).eq('MaHopDong', id);
@@ -1201,7 +1685,7 @@ app.post('/api/checkout/request', async (req, res) => {
   }
 });
 
-// 4. POST /api/checkout/inspect — Quản lý kiểm phòng / xác nhận hủy cọc
+// 4. POST /api/checkout/inspect â€” Quáº£n lÃ½ kiá»ƒm phÃ²ng / xÃ¡c nháº­n há»§y cá»c
 app.post('/api/checkout/inspect', async (req, res) => {
   const {
     maChungTu,
@@ -1216,10 +1700,10 @@ app.post('/api/checkout/inspect', async (req, res) => {
   }
 
   try {
-    const nextTrangThai = 'Chờ đối soát';
+    const nextTrangThai = 'Chá» Ä‘á»‘i soÃ¡t';
 
-    if (maChungTu.startsWith('HĐ-')) {
-      const id = Number(maChungTu.replace('HĐ-', ''));
+    if (maChungTu.startsWith('HÄ-')) {
+      const id = Number(maChungTu.replace('HÄ-', ''));
 
       await supabase.from('HopDong').update({ TrangThai: nextTrangThai }).eq('MaHopDong', id);
       await supabase.from('PhieuDoiSoat').update({
@@ -1228,10 +1712,10 @@ app.post('/api/checkout/inspect', async (req, res) => {
       }).eq('MaHopDong', id);
 
       const bbPayload = {
-        TinhTrangPhong: 'Nghiệm thu thu hồi',
+        TinhTrangPhong: 'Nghiá»‡m thu thu há»“i',
         MoTaHuHong: moTaHuHong || '',
         NgayBanGiao: new Date().toISOString().split('T')[0],
-        TrangThai: 'Đã nghiệm thu'
+        TrangThai: 'ÄÃ£ nghiá»‡m thu'
       };
 
       const { data: existingBB } = await supabase.from('BienBanBanGiao').select('MaBB').eq('MaHopDong', id).maybeSingle();
@@ -1240,7 +1724,7 @@ app.post('/api/checkout/inspect', async (req, res) => {
       } else {
         await supabase.from('BienBanBanGiao').insert({
           ...bbPayload,
-          LoaiBB: 'Thu Hồi',
+          LoaiBB: 'Thu Há»“i',
           MaHopDong: id
         });
       }
@@ -1263,7 +1747,7 @@ app.post('/api/checkout/inspect', async (req, res) => {
   }
 });
 
-// 5. POST /api/checkout/reconcile — Kế toán lập phiếu đối soát
+// 5. POST /api/checkout/reconcile â€” Káº¿ toÃ¡n láº­p phiáº¿u Ä‘á»‘i soÃ¡t
 app.post('/api/checkout/reconcile', async (req, res) => {
   const { maChungTu, tiLeHoanCoc, noThue, noDienNuoc, chiPhiHuHong, moTaKhauTru, danhSachKhauTruKhac } = req.body;
   if (!ensureCheckoutSupabase(res)) {
@@ -1271,10 +1755,10 @@ app.post('/api/checkout/reconcile', async (req, res) => {
   }
 
   try {
-    const nextTrangThai = 'Chờ xác nhận đối soát';
+    const nextTrangThai = 'Chá» xÃ¡c nháº­n Ä‘á»‘i soÃ¡t';
 
-    if (maChungTu.startsWith('HĐ-')) {
-      const id = Number(maChungTu.replace('HĐ-', ''));
+    if (maChungTu.startsWith('HÄ-')) {
+      const id = Number(maChungTu.replace('HÄ-', ''));
 
       const h = await layHopDongDayDu(id);
       let soTienHoan = 0;
@@ -1328,8 +1812,8 @@ app.post('/api/checkout/reconcile', async (req, res) => {
     if (io) {
       // Notify manager and sale that there is a new reconciliation to confirm with customer
       io.to('role:QUAN_LY').emit('thong_bao_moi', {
-        noiDung: `Có phiếu đối soát mới cần khách hàng xác nhận cho ${maChungTu}.`,
-        loaiSuKien: 'Chờ xác nhận đối soát'
+        noiDung: `CÃ³ phiáº¿u Ä‘á»‘i soÃ¡t má»›i cáº§n khÃ¡ch hÃ ng xÃ¡c nháº­n cho ${maChungTu}.`,
+        loaiSuKien: 'Chá» xÃ¡c nháº­n Ä‘á»‘i soÃ¡t'
       });
       // Currently sale role might also need this, let's emit to QUAN_LY for now as they handle checkout confirmation
     }
@@ -1340,7 +1824,7 @@ app.post('/api/checkout/reconcile', async (req, res) => {
   }
 });
 
-// 6. POST /api/checkout/confirm — Quản lý xác nhận đối soát với khách
+// 6. POST /api/checkout/confirm â€” Quáº£n lÃ½ xÃ¡c nháº­n Ä‘á»‘i soÃ¡t vá»›i khÃ¡ch
 app.post('/api/checkout/confirm', async (req, res) => {
   console.log('--- POST /api/checkout/confirm CALLED ---', req.body);
   const { maChungTu, phanHoiKhach, yKienTranhChap } = req.body;
@@ -1350,25 +1834,25 @@ app.post('/api/checkout/confirm', async (req, res) => {
 
   try {
     const isDongY = phanHoiKhach === 'dong_y';
-    let nextTrangThai = 'Chờ đối soát';
+    let nextTrangThai = 'Chá» Ä‘á»‘i soÃ¡t';
 
-    if (maChungTu.startsWith('HĐ-')) {
-      const id = Number(maChungTu.replace('HĐ-', ''));
+    if (maChungTu.startsWith('HÄ-')) {
+      const id = Number(maChungTu.replace('HÄ-', ''));
 
       if (isDongY) {
-        const item = await layItemQuyetToanTuMaSo(`HĐ-${id}`);
+        const item = await layItemQuyetToanTuMaSo(`HÄ-${id}`);
         if (item) {
           const soTien = tinhSoTienQuyetToan(item);
-          nextTrangThai = soTien < 0 ? 'Chờ thanh toán thêm' : 'Chờ hoàn cọc';
+          nextTrangThai = soTien < 0 ? 'Chá» thanh toÃ¡n thÃªm' : 'Chá» hoÃ n cá»c';
         } else {
-          nextTrangThai = 'Chờ hoàn cọc';
+          nextTrangThai = 'Chá» hoÃ n cá»c';
         }
       }
 
       await supabase.from('HopDong').update({ TrangThai: nextTrangThai }).eq('MaHopDong', id);
       await supabase.from('PhieuDoiSoat').update({
         TrangThai: nextTrangThai,
-        YKienTranhChap: isDongY ? '' : (yKienTranhChap || 'Khách hàng khiếu nại.')
+        YKienTranhChap: isDongY ? '' : (yKienTranhChap || 'KhÃ¡ch hÃ ng khiáº¿u náº¡i.')
       }).eq('MaHopDong', id);
     } else {
       const id = Number(maChungTu.replace('PC-', ''));
@@ -1377,26 +1861,26 @@ app.post('/api/checkout/confirm', async (req, res) => {
         const item = await layItemQuyetToanTuMaSo(`PC-${id}`);
         if (item) {
           const soTien = tinhSoTienQuyetToan(item);
-          nextTrangThai = soTien < 0 ? 'Chờ thanh toán thêm' : 'Chờ hoàn cọc';
+          nextTrangThai = soTien < 0 ? 'Chá» thanh toÃ¡n thÃªm' : 'Chá» hoÃ n cá»c';
         } else {
-          nextTrangThai = 'Chờ hoàn cọc';
+          nextTrangThai = 'Chá» hoÃ n cá»c';
         }
       }
 
       await supabase.from('DatCoc').update({ TrangThai: nextTrangThai }).eq('MaDatCoc', id);
-      await luuPhieuDoiSoatDatCoc(id, { TrangThai: nextTrangThai, YKienTranhChap: isDongY ? '' : (yKienTranhChap || 'Khách hàng khiếu nại.') });
+      await luuPhieuDoiSoatDatCoc(id, { TrangThai: nextTrangThai, YKienTranhChap: isDongY ? '' : (yKienTranhChap || 'KhÃ¡ch hÃ ng khiáº¿u náº¡i.') });
     }
 
     const io = getIO();
     if (io) {
       if (isDongY) {
         io.to('role:KE_TOAN').emit('thong_bao_moi', {
-          noiDung: `Khách hàng đã đồng ý đối soát cho ${maChungTu}. Vui lòng tiến hành hoàn cọc hoặc thu thêm.`,
+          noiDung: `KhÃ¡ch hÃ ng Ä‘Ã£ Ä‘á»“ng Ã½ Ä‘á»‘i soÃ¡t cho ${maChungTu}. Vui lÃ²ng tiáº¿n hÃ nh hoÃ n cá»c hoáº·c thu thÃªm.`,
           loaiSuKien: nextTrangThai
         });
       } else {
         io.to('role:KE_TOAN').emit('thong_bao_moi', {
-          noiDung: `Khách hàng khiếu nại đối soát cho ${maChungTu}. Vui lòng kiểm tra lại.`,
+          noiDung: `KhÃ¡ch hÃ ng khiáº¿u náº¡i Ä‘á»‘i soÃ¡t cho ${maChungTu}. Vui lÃ²ng kiá»ƒm tra láº¡i.`,
           loaiSuKien: nextTrangThai
         });
       }
@@ -1408,7 +1892,7 @@ app.post('/api/checkout/confirm', async (req, res) => {
   }
 });
 
-// Thêm API mới để cập nhật trạng thái hợp đồng và phiếu đối soát
+// ThÃªm API má»›i Ä‘á»ƒ cáº­p nháº­t tráº¡ng thÃ¡i há»£p Ä‘á»“ng vÃ  phiáº¿u Ä‘á»‘i soÃ¡t
 app.post('/api/phieu-doi-soat/xac-nhan-khach', async (req, res) => {
   const { maHD, trangThai } = req.body;
   if (!ensureCheckoutSupabase(res)) return;
@@ -1418,28 +1902,28 @@ app.post('/api/phieu-doi-soat/xac-nhan-khach', async (req, res) => {
     const id = parseInt(maHD.replace(/\D/g, ''), 10);
     
     if (isDatCoc) {
-      // Cập nhật phiếu đối soát (mã đặt cọc)
+      // Cáº­p nháº­t phiáº¿u Ä‘á»‘i soÃ¡t (mÃ£ Ä‘áº·t cá»c)
       const { error: errPDS } = await supabase.from('PhieuDoiSoat').update({ TrangThai: trangThai }).eq('MaDatCoc', id);
       if (errPDS) throw errPDS;
 
-      // Cập nhật Đặt Cọc
+      // Cáº­p nháº­t Äáº·t Cá»c
       const { error: errDC } = await supabase.from('DatCoc').update({ TrangThai: trangThai }).eq('MaDatCoc', id);
       if (errDC) throw errDC;
     } else {
-      // Cập nhật phiếu đối soát (mã hợp đồng)
+      // Cáº­p nháº­t phiáº¿u Ä‘á»‘i soÃ¡t (mÃ£ há»£p Ä‘á»“ng)
       const { error: errPDS } = await supabase.from('PhieuDoiSoat').update({ TrangThai: trangThai }).eq('MaHopDong', id);
       if (errPDS) throw errPDS;
 
-      // Cập nhật Hợp đồng
+      // Cáº­p nháº­t Há»£p Ä‘á»“ng
       const { error: errHD } = await supabase.from('HopDong').update({ TrangThai: trangThai }).eq('MaHopDong', id);
       if (errHD) throw errHD;
     }
 
     const io = getIO();
     if (io) {
-      if (trangThai === 'Chờ hoàn cọc' || trangThai === 'Chờ thanh toán thêm') {
+      if (trangThai === 'Chá» hoÃ n cá»c' || trangThai === 'Chá» thanh toÃ¡n thÃªm') {
         io.to('role:KE_TOAN').emit('thong_bao_moi', {
-          noiDung: `Khách hàng đã đồng ý đối soát cho ${maHD}. Vui lòng tiến hành hoàn cọc hoặc thu thêm.`,
+          noiDung: `KhÃ¡ch hÃ ng Ä‘Ã£ Ä‘á»“ng Ã½ Ä‘á»‘i soÃ¡t cho ${maHD}. Vui lÃ²ng tiáº¿n hÃ nh hoÃ n cá»c hoáº·c thu thÃªm.`,
           loaiSuKien: trangThai
         });
       }
@@ -1448,11 +1932,11 @@ app.post('/api/phieu-doi-soat/xac-nhan-khach', async (req, res) => {
     res.json({ ok: true });
   } catch (error) {
     console.error('Error updating PDS status:', error);
-    res.status(500).json({ ok: false, message: 'Lỗi server: ' + error.message });
+    res.status(500).json({ ok: false, message: 'Lá»—i server: ' + error.message });
   }
 });
 
-// Thêm API mới để hoàn tất trả phòng / thanh lý
+// ThÃªm API má»›i Ä‘á»ƒ hoÃ n táº¥t tráº£ phÃ²ng / thanh lÃ½
 app.post('/api/phieu-doi-soat/hoan-tat-tra-phong', async (req, res) => {
   const { maHD, trangThai } = req.body;
   if (!ensureCheckoutSupabase(res)) return;
@@ -1460,22 +1944,22 @@ app.post('/api/phieu-doi-soat/hoan-tat-tra-phong', async (req, res) => {
   try {
     const isDatCoc = maHD.startsWith('PC');
     const id = parseInt(maHD.replace(/\D/g, ''), 10);
-    const newStatus = trangThai || 'Đã trả phòng';
+    const newStatus = trangThai || 'ÄÃ£ tráº£ phÃ²ng';
     
     if (isDatCoc) {
-      // Cập nhật phiếu đối soát (mã đặt cọc)
+      // Cáº­p nháº­t phiáº¿u Ä‘á»‘i soÃ¡t (mÃ£ Ä‘áº·t cá»c)
       const { error: errPDS } = await supabase.from('PhieuDoiSoat').update({ TrangThai: newStatus }).eq('MaDatCoc', id);
       if (errPDS) throw errPDS;
 
-      // Cập nhật Đặt Cọc
+      // Cáº­p nháº­t Äáº·t Cá»c
       const { error: errDC } = await supabase.from('DatCoc').update({ TrangThai: newStatus }).eq('MaDatCoc', id);
       if (errDC) throw errDC;
     } else {
-      // Cập nhật phiếu đối soát (mã hợp đồng)
+      // Cáº­p nháº­t phiáº¿u Ä‘á»‘i soÃ¡t (mÃ£ há»£p Ä‘á»“ng)
       const { error: errPDS } = await supabase.from('PhieuDoiSoat').update({ TrangThai: newStatus }).eq('MaHopDong', id);
       if (errPDS) throw errPDS;
 
-      // Cập nhật Hợp đồng
+      // Cáº­p nháº­t Há»£p Ä‘á»“ng
       const { error: errHD } = await supabase.from('HopDong').update({ TrangThai: newStatus }).eq('MaHopDong', id);
       if (errHD) throw errHD;
     }
@@ -1483,19 +1967,19 @@ app.post('/api/phieu-doi-soat/hoan-tat-tra-phong', async (req, res) => {
     const io = getIO();
     if (io) {
       io.to('role:KE_TOAN').emit('thong_bao_moi', {
-        noiDung: `Quản lý đã hoàn tất thanh lý phòng cho ${maHD}. Hợp đồng đã đóng.`,
+        noiDung: `Quáº£n lÃ½ Ä‘Ã£ hoÃ n táº¥t thanh lÃ½ phÃ²ng cho ${maHD}. Há»£p Ä‘á»“ng Ä‘Ã£ Ä‘Ã³ng.`,
         loaiSuKien: newStatus
       });
     }
 
     res.json({ ok: true });
   } catch (error) {
-    console.error('Error updating to Đã trả phòng:', error);
-    res.status(500).json({ ok: false, message: 'Lỗi server: ' + error.message });
+    console.error('Error updating to ÄÃ£ tráº£ phÃ²ng:', error);
+    res.status(500).json({ ok: false, message: 'Lá»—i server: ' + error.message });
   }
 });
 
-// 7. POST /api/checkout/liquidate — Ký biên bản thanh lý hợp đồng / phiếu cọc
+// 7. POST /api/checkout/liquidate â€” KÃ½ biÃªn báº£n thanh lÃ½ há»£p Ä‘á»“ng / phiáº¿u cá»c
 app.post('/api/checkout/liquidate', async (req, res) => {
   const { maChungTu } = req.body;
   if (!ensureCheckoutSupabase(res)) {
@@ -1503,19 +1987,19 @@ app.post('/api/checkout/liquidate', async (req, res) => {
   }
 
   try {
-    if (maChungTu.startsWith('HĐ-')) {
-      const id = Number(maChungTu.replace('HĐ-', ''));
-      const item = await layItemQuyetToanTuMaSo(`HĐ-${id}`);
+    if (maChungTu.startsWith('HÄ-')) {
+      const id = Number(maChungTu.replace('HÄ-', ''));
+      const item = await layItemQuyetToanTuMaSo(`HÄ-${id}`);
 
-      let nextTrangThai = 'Đã thanh lý';
+      let nextTrangThai = 'ÄÃ£ thanh lÃ½';
       if (item) {
         const soTien = tinhSoTienQuyetToan(item);
-        nextTrangThai = 'Đã thanh lý';
+        nextTrangThai = 'ÄÃ£ thanh lÃ½';
       }
 
       await supabase.from('HopDong').update({ TrangThai: nextTrangThai }).eq('MaHopDong', id);
       await supabase.from('PhieuDoiSoat').update({ TrangThai: nextTrangThai }).eq('MaHopDong', id);
-      await supabase.from('BienBanBanGiao').update({ TrangThai: 'Hoàn tất thanh lý' }).eq('MaHopDong', id);
+      await supabase.from('BienBanBanGiao').update({ TrangThai: 'HoÃ n táº¥t thanh lÃ½' }).eq('MaHopDong', id);
 
       const { data: details } = await supabase.from('ChiTiet').select('MaGiuong').eq('MaHopDong', id);
       if (details?.length) {
@@ -1532,10 +2016,10 @@ app.post('/api/checkout/liquidate', async (req, res) => {
       const id = Number(maChungTu.replace('PC-', ''));
       const item = await layItemQuyetToanTuMaSo(`PC-${id}`);
 
-      let nextTrangThai = 'Đã thanh lý';
+      let nextTrangThai = 'ÄÃ£ thanh lÃ½';
       if (item) {
         const soTien = tinhSoTienQuyetToan(item);
-        nextTrangThai = 'Đã thanh lý';
+        nextTrangThai = 'ÄÃ£ thanh lÃ½';
       }
 
       await supabase.from('DatCoc').update({ TrangThai: nextTrangThai }).eq('MaDatCoc', id);
@@ -1554,7 +2038,7 @@ app.post('/api/checkout/liquidate', async (req, res) => {
   }
 });
 
-// 8. POST /api/checkout/payment — Kế toán hoàn cọc / thu chênh lệch
+// 8. POST /api/checkout/payment â€” Káº¿ toÃ¡n hoÃ n cá»c / thu chÃªnh lá»‡ch
 app.post('/api/checkout/payment', async (req, res) => {
   const { maChungTu, maGiaoDich, soTaiKhoan, tenNguoiNhan, nganHang } = req.body;
   if (!ensureCheckoutSupabase(res)) {
@@ -1562,12 +2046,12 @@ app.post('/api/checkout/payment', async (req, res) => {
   }
 
   try {
-    if (maChungTu.startsWith('HĐ-')) {
-      const id = Number(maChungTu.replace('HĐ-', ''));
+    if (maChungTu.startsWith('HÄ-')) {
+      const id = Number(maChungTu.replace('HÄ-', ''));
 
       const { data: pds } = await supabase.from('PhieuDoiSoat').select('TrangThai').eq('MaHopDong', id).maybeSingle();
-      const isThuThem = pds?.TrangThai === 'Chờ thanh toán' || pds?.TrangThai === 'Chờ thanh toán thêm';
-      const nextTrangThai = 'Chờ thanh lý';
+      const isThuThem = pds?.TrangThai === 'Chá» thanh toÃ¡n' || pds?.TrangThai === 'Chá» thanh toÃ¡n thÃªm';
+      const nextTrangThai = 'Chá» thanh lÃ½';
 
       await supabase.from('HopDong').update({ TrangThai: nextTrangThai }).eq('MaHopDong', id);
       await supabase.from('PhieuDoiSoat').update({
@@ -1578,8 +2062,8 @@ app.post('/api/checkout/payment', async (req, res) => {
       const io = getIO();
       if (io) {
         io.to('role:QUAN_LY').emit('thong_bao_moi', {
-          noiDung: `Kế toán đã hoàn tất đối soát cho HĐ-${id}. Hợp đồng đang chờ thanh lý phòng.`,
-          loaiSuKien: 'Chờ thanh lý'
+          noiDung: `Káº¿ toÃ¡n Ä‘Ã£ hoÃ n táº¥t Ä‘á»‘i soÃ¡t cho HÄ-${id}. Há»£p Ä‘á»“ng Ä‘ang chá» thanh lÃ½ phÃ²ng.`,
+          loaiSuKien: 'Chá» thanh lÃ½'
         });
       }
 
@@ -1587,8 +2071,8 @@ app.post('/api/checkout/payment', async (req, res) => {
       const id = Number(maChungTu.replace('PC-', ''));
       const pds = await taiPhieuDoiSoatDatCoc(id);
       const trangThaiHienTai = pds?.TrangThai || (await supabase.from('DatCoc').select('TrangThai').eq('MaDatCoc', id).single()).data?.TrangThai;
-      const isThuThem = trangThaiHienTai === 'Chờ thanh toán' || trangThaiHienTai === 'Chờ thanh toán thêm';
-      const nextTrangThai = 'Chờ thanh lý';
+      const isThuThem = trangThaiHienTai === 'Chá» thanh toÃ¡n' || trangThaiHienTai === 'Chá» thanh toÃ¡n thÃªm';
+      const nextTrangThai = 'Chá» thanh lÃ½';
 
       await supabase.from('DatCoc').update({ TrangThai: nextTrangThai }).eq('MaDatCoc', id);
       await luuPhieuDoiSoatDatCoc(id, {
@@ -1612,8 +2096,8 @@ httpServer.listen(port, () => {
 
 if (process.env.ENABLE_DEPOSIT_EXPIRY_JOB !== 'false') {
   const depositExpiryJob = setInterval(() => {
-    huyDatCocQuaHan().catch((error) => console.error('Lỗi job hủy cọc quá hạn:', error.message));
+    huyDatCocQuaHan().catch((error) => console.error('Lá»—i job há»§y cá»c quÃ¡ háº¡n:', error.message));
   }, 60 * 1000);
   depositExpiryJob.unref();
-  huyDatCocQuaHan().catch((error) => console.warn('Chưa chạy được job đặt cọc:', error.message));
+  huyDatCocQuaHan().catch((error) => console.warn('ChÆ°a cháº¡y Ä‘Æ°á»£c job Ä‘áº·t cá»c:', error.message));
 }

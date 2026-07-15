@@ -256,7 +256,7 @@ router.post('/tao-moi', async (req, res) => {
         GhiChu: `Đã lập & khách ký hợp đồng (Mã HĐ: ${newHopDong.MaHopDong}) — chuyển kế toán thu tiền kỳ đầu.`,
       });
 
-      await supabase.from('ThongBaoDatCoc').insert({
+      await supabase.from('ThongBao').insert({
         MaDatCoc: maDatCoc,
         NguoiNhan: dc.NVKT || null,
         VaiTroNhan: 'Kế toán',

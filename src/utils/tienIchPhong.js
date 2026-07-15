@@ -50,7 +50,7 @@ function rutGonTienIch(value) {
 export function layDanhSachTienIchHienThi(tienIch, gioiHan = Infinity) {
   const daCo = new Set();
   const danhSach = String(tienIch || '')
-    .split(/[;,|\/\u00b7]+/)
+    .split(/[;,|\/\u00b7\r\n]+/)
     .map((item) => item.trim())
     .map(rutGonTienIch)
     .filter(Boolean)

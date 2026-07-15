@@ -12,6 +12,7 @@ import { useRef } from 'react';
 import {
   chuanHoaVaiTroNhanVien,
   docNguoiDungDangNhap,
+  layMaNhanVien,
   xoaNguoiDungDangNhap,
 } from './utils/nhanVienSession';
 import TraCuuPhongGiuongPage from './features/traCuuPhongGiuong/TraCuuPhongGiuongPage';
@@ -24,6 +25,7 @@ import {
   taoPayloadTiepNhanDangKyThue,
 } from './features/tiepNhanDangKyThue/tiepNhanDangKyThue';
 import { layDanhSachTienIchHienThi } from './utils/tienIchPhong';
+import { chiLayChuSo, laySoTienNumber } from './utils/soTien';
 
 function AnimatedCounter({ end, duration = 1500, suffix = "" }) {
   const [count, setCount] = useState(0);
@@ -185,13 +187,16 @@ export default function App({
   const [phongDaChon, setPhongDaChon] = useState(null);
 
   // --- TRANG ĐẶT LỊCH HẸN NHÂN VIÊN (STAFF BOOKING) ---
+  const SO_PHONG_GOI_Y_MOI_LAN = 6;
   const [danhSachPhongDatHen, setDanhSachPhongDatHen] = useState([]);
+  const [danhSachPhongGoiYLichHen, setDanhSachPhongGoiYLichHen] = useState([]);
   const [ngayHen, setNgayHen] = useState(new Date(Date.now() + 86400000).toISOString().split('T')[0]);
   const [gioHen, setGioHen] = useState('09:00');
   const [tuKhoaKhachHangLichHen, setTuKhoaKhachHangLichHen] = useState('');
   const [danhSachGoiYKhachHang, setDanhSachGoiYKhachHang] = useState([]);
   const [dangTimKhachHang, setDangTimKhachHang] = useState(false);
   const [khachHangDaChon, setKhachHangDaChon] = useState(null);
+  const [soPhongGoiYHienThi, setSoPhongGoiYHienThi] = useState(SO_PHONG_GOI_Y_MOI_LAN);
   const [bookingSuccessModal, setBookingSuccessModal] = useState(false);
 
   // --- TRANG DANH SÁCH LỊCH HẸN NHÂN VIÊN (STAFF CONTRACTS/APPOINTMENTS) ---
@@ -200,7 +205,7 @@ export default function App({
   const [tuKhoaLichHen, setTuKhoaLichHen] = useState('');
   const [trangHienHen, setTrangHienHen] = useState(1);
   const [lichHenDangSua, setLichHenDangSua] = useState(null);
-  const [formSuaLichHen, setFormSuaLichHen] = useState({ ketQua: 'Chưa xem', ghiChu: '' });
+  const [formSuaLichHen, setFormSuaLichHen] = useState({ ketQua: 'Chưa xem', ghiChu: '', maPhong: '' });
   const [trangTruocChiTietPhong, setTrangTruocChiTietPhong] = useState('search_vacancy');
 
   // Thống kê tổng hợp trang chủ (Khách, Đang thuê, Còn trống)
@@ -246,13 +251,15 @@ export default function App({
   // State form Yêu cầu thuê (Trang nhân viên)
   const [formYeuCauThue, setFormYeuCauThue] = useState({
     loaiPhong: 'Giường ghép',
+    loaiThue: 'Thuê giường lẻ',
     khuVucMongMuon: 'Tất cả',
     mucGiaTu: '',
     mucGiaDen: '',
     soNguoi: 1,
     gioiTinh: 'Tất cả',
     thoiGianVao: new Date().toISOString().split('T')[0],
-    thoiHanThue: '6'
+    thoiHanThue: '6',
+    yeuCauThem: ''
   });
   const [yeuCauThueDaLuu, setYeuCauThueDaLuu] = useState(null);
 
@@ -279,6 +286,7 @@ export default function App({
   const [danhSachTatCaPhongTrong, setDanhSachTatCaPhongTrong] = useState([]);
   const [trangTraCuuHienTai, setTrangTraCuuHienTai] = useState(1);
   const SO_LUONG_MOI_TRANG = 6;
+  const SO_LICH_HEN_MOI_TRANG = 10;
   const [dangTaiPhongTrong, setDangTaiPhongTrong] = useState(false);
   const [boLocTraCuu, setBoLocTraCuu] = useState({
     khuVuc: 'Tất cả',
@@ -291,6 +299,8 @@ export default function App({
     yeuCauList: []
   });
   const [tuyChonTraCuuPhong, setTuyChonTraCuuPhong] = useState({ khuVuc: [], tienIch: [] });
+  const [gioiHanSucChua, setGioiHanSucChua] = useState({ nguyenPhong: 1, giuongGhep: 1 });
+  const [nguonTraCuuPhong, setNguonTraCuuPhong] = useState('tab'); // tab | tiep-nhan | chon-lich-hen
 
   // Hộp thoại modal xem chi tiết
   const [chiTietPhongModal, setChiTietPhongModal] = useState(null);
@@ -320,6 +330,32 @@ export default function App({
     }, 4000);
   };
 
+  const taoContextTiepNhanDangKyThue = (override = {}) => ({
+    formKhachHang,
+    formYeuCauThue,
+    tieuChiUuTien,
+    yeuCauThueDaLuu,
+    khachHangDaChon,
+    tuKhoaKhachHangLichHen,
+    ...override,
+  });
+
+  const apDungContextTiepNhanDangKyThue = (context) => {
+    if (!context) return;
+    if (context.formKhachHang) setFormKhachHang(context.formKhachHang);
+    if (context.formYeuCauThue) setFormYeuCauThue(context.formYeuCauThue);
+    if (context.tieuChiUuTien) setTieuChiUuTien(context.tieuChiUuTien);
+    if (Object.prototype.hasOwnProperty.call(context, 'yeuCauThueDaLuu')) {
+      setYeuCauThueDaLuu(context.yeuCauThueDaLuu || null);
+    }
+    if (Object.prototype.hasOwnProperty.call(context, 'khachHangDaChon')) {
+      setKhachHangDaChon(context.khachHangDaChon || null);
+    }
+    if (Object.prototype.hasOwnProperty.call(context, 'tuKhoaKhachHangLichHen')) {
+      setTuKhoaKhachHangLichHen(context.tuKhoaKhachHangLichHen || '');
+    }
+  };
+
   const layNgayInputLocal = (date = new Date()) => {
     const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
     return local.toISOString().split('T')[0];
@@ -328,6 +364,89 @@ export default function App({
   const layGioInputLocal = (date = new Date()) => (
     `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
   );
+
+  const taoFormKhachHangRong = () => ({
+    cccd: '',
+    hoTen: '',
+    ngaySinh: '',
+    gioiTinh: '',
+    quocTich: '',
+    sdt: '',
+    email: '',
+    diaChi: '',
+    khaNangTaiChinh: ''
+  });
+
+  const taoFormYeuCauThueRong = () => ({
+    loaiPhong: '',
+    loaiThue: '',
+    khuVucMongMuon: '',
+    mucGiaTu: '',
+    mucGiaDen: '',
+    soNguoi: '',
+    gioiTinh: '',
+    thoiGianVao: '',
+    thoiHanThue: '',
+    yeuCauThem: ''
+  });
+
+  const taoTieuChiUuTienRong = () => ({
+    yenTinh: false,
+    guiXe: false,
+    dieuHoa: false,
+    wifiRieng: false,
+    gioGiacTuDo: false
+  });
+
+  const taoBoLocTraCuuRong = () => ({
+    khuVuc: 'Tất cả',
+    loaiPhong: 'Tất cả',
+    mucGiaTu: '',
+    mucGiaDen: '',
+    gioiTinh: 'Tất cả',
+    soNguoi: '',
+    tienIch: 'Tất cả',
+    yeuCauList: []
+  });
+
+  const resetTiepNhanVaLichHenMoi = () => {
+    sessionStorage.removeItem('bookingContext');
+    sessionStorage.removeItem('tiepNhanDangKyThueContext');
+    sessionStorage.removeItem('traCuuPhongContext');
+    setFormKhachHang(taoFormKhachHangRong());
+    setFormYeuCauThue(taoFormYeuCauThueRong());
+    setTieuChiUuTien(taoTieuChiUuTienRong());
+    setBoLocTraCuu(taoBoLocTraCuuRong());
+    setYeuCauThueDaLuu(null);
+    setKhachHangDaChon(null);
+    setTuKhoaKhachHangLichHen('');
+    setDanhSachGoiYKhachHang([]);
+    setDanhSachPhongDatHen([]);
+    setDanhSachPhongGoiYLichHen([]);
+    setDanhSachPhong([]);
+    setDaTraCuu(false);
+    setNguonTraCuuPhong('tab');
+    setPhongDaChon(null);
+    setSoPhongGoiYHienThi(SO_PHONG_GOI_Y_MOI_LAN);
+    setNgayHen(new Date(Date.now() + 86400000).toISOString().split('T')[0]);
+    setGioHen('09:00');
+  };
+
+  const batDauLichHenMoi = () => {
+    resetTiepNhanVaLichHenMoi();
+    setCheDoNhanVien(true);
+    setTrangHienTai('staff_booking');
+    navigate(ROUTES.lichHen, { state: { bookingContext: { manHinhKhoiTao: 'staff_booking' } } });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const batDauTiepNhanMoi = () => {
+    resetTiepNhanVaLichHenMoi();
+    setCheDoNhanVien(true);
+    setTrangHienTai('staff_reception');
+    navigate(ROUTES.tiepNhanDangKyThue, { state: { manHinhKhoiTao: 'staff_reception' } });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const xuLyDoiNgayHen = (value) => {
     const ngayHomNay = layNgayInputLocal();
@@ -390,6 +509,10 @@ export default function App({
     };
   }, [tuKhoaKhachHangLichHen, trangHienTai, khachHangDaChon]);
 
+  useEffect(() => {
+    setSoPhongGoiYHienThi(SO_PHONG_GOI_Y_MOI_LAN);
+  }, [danhSachPhongGoiYLichHen.length]);
+
   const chonKhachHangChoLichHen = (khachHang) => {
     setKhachHangDaChon(khachHang);
     setYeuCauThueDaLuu(null);
@@ -415,22 +538,7 @@ export default function App({
   };
 
   const chuyenTiepNhanKhachHangMoi = () => {
-    setKhachHangDaChon(null);
-    setTuKhoaKhachHangLichHen('');
-    setDanhSachGoiYKhachHang([]);
-    setFormKhachHang({
-      cccd: '',
-      hoTen: '',
-      ngaySinh: '',
-      gioiTinh: 'Nam',
-      quocTich: 'Việt Nam',
-      sdt: '',
-      email: '',
-      diaChi: '',
-      khaNangTaiChinh: ''
-    });
-    setCheDoNhanVien(true);
-    chuyenTrang('staff_reception');
+    batDauTiepNhanMoi();
   };
 
   // 2. Tải thống kê tổng hợp cho trang chủ Guest
@@ -471,6 +579,12 @@ export default function App({
           khuVuc: Array.isArray(resData.data?.khuVuc) ? resData.data.khuVuc : [],
           tienIch: Array.isArray(resData.data?.tienIch) ? resData.data.tienIch : [],
         });
+        if (resData.data?.gioiHanSucChua) {
+          setGioiHanSucChua({
+            nguyenPhong: Number(resData.data.gioiHanSucChua.nguyenPhong) || 1,
+            giuongGhep: Number(resData.data.gioiHanSucChua.giuongGhep) || 1,
+          });
+        }
       }
     } catch (err) {
       console.error('Lỗi kết nối API tùy chọn tra cứu phòng:', err);
@@ -520,6 +634,7 @@ export default function App({
             mucGiaTu: boLocHienTai.mucGiaTu,
             mucGiaDen: boLocHienTai.mucGiaDen,
             gioiTinh: boLocHienTai.gioiTinh,
+            soNguoi: boLocHienTai.soNguoi,
             yeuCauList: paramYeuCauList
           })
         ]);
@@ -543,6 +658,9 @@ export default function App({
       }
 
       setDanhSachTatCaPhongTrong(ketQuaGop);
+      if (nguonTraCuuPhong !== 'tab') {
+        setDanhSachPhongGoiYLichHen(ketQuaGop);
+      }
       setTrangTraCuuHienTai(1);
       return ketQuaGop;
     } catch (err) {
@@ -556,10 +674,45 @@ export default function App({
 
   const xuLyThayDoiBoLoc = (e) => {
     const { name, value } = e.target;
+    const giaTriMoi = ['mucGiaTu', 'mucGiaDen'].includes(name) ? chiLayChuSo(value) : value;
     setBoLocTraCuu(prev => ({
       ...prev,
-      [name]: value,
+      [name]: giaTriMoi,
       ...(name === 'tienIch' ? { yeuCauList: [] } : {})
+    }));
+    if (nguonTraCuuPhong === 'chon-lich-hen' && name === 'mucGiaDen') {
+      setFormKhachHang(prev => ({
+        ...prev,
+        khaNangTaiChinh: giaTriMoi,
+      }));
+      setFormYeuCauThue(prev => ({
+        ...prev,
+        mucGiaDen: giaTriMoi,
+      }));
+    }
+  };
+
+  const xuLyToggleTienIchTraCuu = (value) => {
+    setBoLocTraCuu(prev => {
+      const danhSachHienTai = Array.isArray(prev.yeuCauList) ? prev.yeuCauList : [];
+      const daChon = danhSachHienTai.includes(value);
+      const yeuCauList = daChon
+        ? danhSachHienTai.filter((item) => item !== value)
+        : [...danhSachHienTai, value];
+      return {
+        ...prev,
+        yeuCauList,
+        tienIch: yeuCauList.length === 1 ? yeuCauList[0] : 'Tất cả',
+      };
+    });
+  };
+
+  const xuLyLuuTienIchTraCuu = (danhSachTienIch = []) => {
+    const yeuCauList = [...new Set((Array.isArray(danhSachTienIch) ? danhSachTienIch : []).filter(Boolean))];
+    setBoLocTraCuu(prev => ({
+      ...prev,
+      yeuCauList,
+      tienIch: yeuCauList.length === 1 ? yeuCauList[0] : 'Tất cả',
     }));
   };
 
@@ -667,25 +820,53 @@ export default function App({
     chuyenTrang('search_vacancy');
   };
 
-  const layMaPhongDatHen = (room) => Number(room?.maPhong || room?.maId);
-  const layMaGiuongDatHen = (room) => (room?.kieu === 'Giuong' ? Number(room?.maId) : null);
+  const layMaPhongDatHen = (room) => Number(room?.maPhong ?? room?.MaPhong ?? room?.maId ?? room?.MaId);
+  const layMaGiuongDatHen = (room) => (room?.kieu === 'Giuong' ? Number(room?.maId ?? room?.MaGiuong) : null);
   const layTenPhongDatHen = (room) => {
     const maGiuong = layMaGiuongDatHen(room);
     const maPhong = layMaPhongDatHen(room);
     return maGiuong ? `Giường ${maGiuong} - Phòng ${maPhong}` : `Phòng ${maPhong}`;
   };
+  const layDanhSachPhongTuKetQuaTraCuu = (danhSach = []) => {
+    const phongMap = new Map();
+    (Array.isArray(danhSach) ? danhSach : []).forEach((room) => {
+      const maPhong = layMaPhongDatHen(room);
+      if (!maPhong) return;
+      const daCo = phongMap.get(maPhong);
+      if (daCo) {
+        if (room?.kieu === 'Giuong') {
+          daCo.soGiuongTrong = Math.max(Number(daCo.soGiuongTrong) || 0, Number(room.soGiuongTrong) || 1);
+        }
+        return;
+      }
+      phongMap.set(maPhong, {
+        ...room,
+        kieu: 'Phong',
+        maId: maPhong,
+        maPhong,
+        ten: `Phòng ${maPhong}`,
+        tenPhongHienThi: `Phòng ${maPhong}${room?.chiNhanh ? ` (${room.chiNhanh})` : ''}`,
+      });
+    });
+    return Array.from(phongMap.values()).sort((a, b) => Number(a.maPhong) - Number(b.maPhong));
+  };
   const MA_GIUONG_GHI_CHU_REGEX = /^\[MA_GIUONG:(\d+)\]\s*/;
+  const PHONG_CHOT_GHI_CHU_REGEX = /^\[PHONG_CHOT\]\s*/;
   const tachGhiChuLichHen = (ghiChu = '') => {
-    const noiDung = String(ghiChu || '');
+    let noiDung = String(ghiChu || '');
+    const daChotPhong = PHONG_CHOT_GHI_CHU_REGEX.test(noiDung);
+    noiDung = noiDung.replace(PHONG_CHOT_GHI_CHU_REGEX, '').trim();
     const match = noiDung.match(MA_GIUONG_GHI_CHU_REGEX);
     return {
       maGiuong: match ? Number(match[1]) : null,
+      daChotPhong,
       ghiChuHienThi: match ? noiDung.replace(MA_GIUONG_GHI_CHU_REGEX, '').trim() : noiDung,
     };
   };
-  const taoGhiChuLichHen = (ghiChu = '', maGiuong = null) => {
+  const taoGhiChuLichHen = (ghiChu = '', maGiuong = null, daChotPhong = false) => {
     const noiDung = String(ghiChu || '').trim();
-    return maGiuong ? `[MA_GIUONG:${maGiuong}]${noiDung ? ` ${noiDung}` : ''}` : noiDung;
+    const ghiChuGiuong = maGiuong ? `[MA_GIUONG:${maGiuong}]${noiDung ? ` ${noiDung}` : ''}` : noiDung;
+    return daChotPhong ? `[PHONG_CHOT]${ghiChuGiuong ? ` ${ghiChuGiuong}` : ''}` : ghiChuGiuong;
   };
 
   const xuLyXoaPhongLichHen = (room) => {
@@ -696,26 +877,85 @@ export default function App({
     }
   };
 
+  const diDenManHinhDatLichHen = (phongDuocChon = danhSachPhongDatHen, danhSachGoiYOverride = null) => {
+    const danhSachChon = Array.isArray(phongDuocChon) ? phongDuocChon : [phongDuocChon].filter(Boolean);
+    const danhSachGoiYNguon = Array.isArray(danhSachGoiYOverride)
+      ? danhSachGoiYOverride
+      : (danhSachPhongGoiYLichHen.length ? danhSachPhongGoiYLichHen : danhSachTatCaPhongTrong);
+    const danhSachGoiY = layDanhSachPhongTuKetQuaTraCuu(danhSachGoiYNguon);
+    const bookingContext = {
+      manHinhKhoiTao: 'staff_booking',
+      tabHopDongNhanVien: 'danh-sach-hen',
+      formKhachHang,
+      formYeuCauThue,
+      boLocTraCuu,
+      tieuChiUuTien,
+      yeuCauThueDaLuu,
+      khachHangDaChon,
+      tuKhoaKhachHangLichHen,
+      danhSachPhongDatHen: danhSachChon,
+      danhSachPhongGoiYLichHen: danhSachGoiY,
+    };
+    sessionStorage.setItem('bookingContext', JSON.stringify(bookingContext));
+    setCheDoNhanVien(true);
+    setTabHopDongNhanVien('danh-sach-hen');
+    setTrangHienTai('staff_booking');
+    navigate(ROUTES.lichHen, { state: { bookingContext } });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const diDenDatLichHenTuTraCuu = () => {
+    const danhSachGoiY = layDanhSachPhongTuKetQuaTraCuu(
+      danhSachTatCaPhongTrong.length ? danhSachTatCaPhongTrong : danhSachPhongGoiYLichHen
+    );
+    if (danhSachGoiY.length === 0) {
+      hienThongBao('error', 'Chưa có phòng/giường phù hợp để đặt lịch hẹn.');
+      return;
+    }
+    setDanhSachPhongDatHen([]);
+    setDanhSachPhongGoiYLichHen(danhSachGoiY);
+    setPhongDaChon(null);
+    diDenManHinhDatLichHen([], danhSachGoiY);
+  };
+
+  const quayLaiTiepNhanTuTraCuu = () => {
+    const context = taoContextTiepNhanDangKyThue();
+    sessionStorage.setItem('tiepNhanDangKyThueContext', JSON.stringify(context));
+    sessionStorage.removeItem('traCuuPhongContext');
+    setNguonTraCuuPhong('tab');
+    navigate(ROUTES.tiepNhanDangKyThue, { state: { manHinhKhoiTao: 'staff_reception', tiepNhanDangKyThueContext: context } });
+    setTrangHienTai('staff_reception');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const xuLyThemPhongLichHen = () => {
     setPhongDaChon(null);
     setCheDoNhanVien(true);
     setTabPhongGiuongNhanVien('danh-sach');
-    setBoLocTraCuu(prev => ({
-      ...prev,
-      loaiPhong: 'Phòng đơn',
-      tienIch: 'Tất cả',
-      yeuCauList: [],
-    }));
-    chuyenTrang('search_vacancy');
-    hienThongBao('info', 'Chọn một phòng trong danh sách tra cứu để thêm vào lịch hẹn.');
+    const danhSachTieuChi = layDanhSachTieuChiDangKyThue(tieuChiUuTien, tuyChonTraCuuPhong.tienIch);
+    const gioiTinhKhachHang = ['Nam', 'Nữ'].includes(formKhachHang.gioiTinh) ? formKhachHang.gioiTinh : formYeuCauThue.gioiTinh;
+    const yeuCauThueChoTraCuu = {
+      ...formYeuCauThue,
+      gioiTinh: gioiTinhKhachHang || 'Tất cả',
+      loaiThue: formYeuCauThue.loaiPhong === 'Nguyên phòng' ? 'Thuê nguyên phòng' : 'Thuê giường lẻ',
+    };
+    const newFilters = mapYeuCauThueSangBoLoc(yeuCauThueChoTraCuu, danhSachTieuChi);
+    setBoLocTraCuu(newFilters);
+    setNguonTraCuuPhong('chon-lich-hen');
+    const context = {
+      nguonTraCuuPhong: 'chon-lich-hen',
+      boLocTraCuu: newFilters,
+      formKhachHang,
+      formYeuCauThue: yeuCauThueChoTraCuu,
+      tieuChiUuTien,
+    };
+    sessionStorage.setItem('traCuuPhongContext', JSON.stringify(context));
+    navigate(ROUTES.phongGiuong, { state: { traCuuPhongContext: context } });
+    hienThongBao('info', 'Lọc phòng/giường phù hợp rồi bấm "Đi đến đặt lịch hẹn".');
   };
 
   const guiLichHenNhanVien = async (e) => {
     if (e) e.preventDefault();
-    if (danhSachPhongDatHen.length === 0) {
-      hienThongBao('error', 'Vui lòng chọn ít nhất một phòng để đặt hẹn!');
-      return;
-    }
 
     const ngayGioHenCombined = `${ngayHen}T${gioHen}:00`;
     const thoiDiemHen = new Date(ngayGioHenCombined);
@@ -733,33 +973,47 @@ export default function App({
       if (!customerName || !customerPhone) {
         throw new Error('Vui lòng nhập họ tên và số điện thoại thật của khách hàng.');
       }
-      if (!String(formKhachHang.ngaySinh || '').trim() || !String(formKhachHang.gioiTinh || '').trim()) {
-        throw new Error('Vui lòng nhập ngày sinh và giới tính khách hàng trước khi đặt lịch hẹn.');
+      const danhSachGoiY = layDanhSachPhongTuKetQuaTraCuu(
+        danhSachPhongGoiYLichHen.length
+          ? danhSachPhongGoiYLichHen
+          : (danhSachTatCaPhongTrong.length ? danhSachTatCaPhongTrong : danhSachPhongDatHen)
+      );
+      if (!danhSachGoiY.length) {
+        throw new Error('Chưa có phòng phù hợp để tạo lịch hẹn. Vui lòng tra cứu phòng/giường trước.');
       }
+      const yeuCauListLichHen = Array.isArray(boLocTraCuu.yeuCauList) && boLocTraCuu.yeuCauList.length
+        ? boLocTraCuu.yeuCauList
+        : layDanhSachTieuChiDangKyThue(tieuChiUuTien, tuyChonTraCuuPhong.tienIch);
 
-      for (const room of danhSachPhongDatHen) {
-        const response = await fetch('/api/dat-lich-hen', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            maYC: yeuCauThueDaLuu?.MaYC || null,
-            hoTen: customerName,
-            sdt: customerPhone,
-            email: customerEmail,
-            cccd: formKhachHang.cccd || khachHangDaChon?.cccd || '',
-            diaChi: formKhachHang.diaChi || '',
-            ngaySinh: formKhachHang.ngaySinh || '',
-            gioiTinh: formKhachHang.gioiTinh || '',
-            ngayGioHen: ngayGioHenCombined,
-            maPhong: layMaPhongDatHen(room),
-            maGiuong: layMaGiuongDatHen(room),
-            loaiPhong: room.kieu
-          })
-        });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok || !data.ok) {
-          throw new Error(data.error || 'Không thể tạo lịch hẹn xem phòng.');
-        }
+      const response = await fetch('/api/dat-lich-hen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...(yeuCauThueDaLuu?.MaYC ? { maYC: yeuCauThueDaLuu.MaYC } : {}),
+          hoTen: customerName,
+          sdt: customerPhone,
+          email: customerEmail,
+          cccd: formKhachHang.cccd || khachHangDaChon?.cccd || '',
+          diaChi: formKhachHang.diaChi || '',
+          ngaySinh: formKhachHang.ngaySinh || '',
+          gioiTinh: formKhachHang.gioiTinh || '',
+          khaNangTaiChinh: laySoTienNumber(formYeuCauThue.mucGiaDen || boLocTraCuu.mucGiaDen || formKhachHang.khaNangTaiChinh),
+          maNV: layMaNhanVien(nguoiDungDangNhap),
+          ngayGioHen: ngayGioHenCombined,
+          maPhong: null,
+          maGiuong: null,
+          loaiPhong: formYeuCauThue.loaiPhong === 'Giường ghép' ? 'Giuong' : 'Phong',
+            yeuCauThue: {
+              ...formYeuCauThue,
+              loaiThue: formYeuCauThue.loaiPhong === 'Nguyên phòng' ? 'Thuê nguyên phòng' : 'Thuê giường lẻ',
+              yeuCauList: yeuCauListLichHen,
+            },
+          boLocTraCuu,
+        })
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error || 'Không thể tạo lịch hẹn xem phòng.');
       }
 
       hienThongBao('success', `Đã đặt lịch hẹn xem phòng cho khách hàng ${customerName}!`);
@@ -778,25 +1032,111 @@ export default function App({
       const tenKhach = lich.YeuCauThue?.KhachHang?.HoTen || 'Khách Vãng Lai';
       const sdt = lich.YeuCauThue?.KhachHang?.SDT || 'Không có';
       const initials = tenKhach.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
-      const ketQuaChuanHoa = lich.KetQua === 'Đã xem' ? 'Đã xem' : 'Chưa xem';
       const thongTinGhiChu = tachGhiChuLichHen(lich.GhiChu);
+      const phongGoiY = Array.isArray(lich.PhongGoiY) ? lich.PhongGoiY : [];
+      const khoaPhongChot = Boolean(lich.KhoaPhongChot);
+      const ketQuaChuanHoa = khoaPhongChot || lich.KetQua === 'Đã xem' ? 'Đã xem' : 'Chưa xem';
+      const maPhongLich = Number(lich.MaPhong) || null;
+      const daChotPhong = Boolean(maPhongLich && (thongTinGhiChu.daChotPhong || khoaPhongChot));
+      const phongChotGoiY = phongGoiY.find((room) => layMaPhongDatHen(room) === maPhongLich);
+      const nhanChiNhanhChot = phongChotGoiY?.chiNhanh ? ` - ${phongChotGoiY.chiNhanh}` : '';
+      const tenPhongChot = daChotPhong && maPhongLich ? `Phòng ${maPhongLich}${nhanChiNhanhChot}` : '';
       return {
         MaLich: lich.MaLich,
         NgayGioHen: lich.NgayGioHen,
         KetQua: ketQuaChuanHoa,
         GhiChu: thongTinGhiChu.ghiChuHienThi,
-        MaPhong: lich.MaPhong,
+        MaPhong: maPhongLich,
         MaGiuong: thongTinGhiChu.maGiuong,
+        PhongGoiY: phongGoiY,
+        KhoaPhongChot: khoaPhongChot,
+        DaChotPhong: daChotPhong,
+        TenPhongChot: tenPhongChot,
         TenKhach: tenKhach,
         SDT: sdt,
         AvatarName: initials,
-        TenPhongGiuong: thongTinGhiChu.maGiuong
-          ? `Giường ${thongTinGhiChu.maGiuong} - Phòng ${lich.MaPhong}`
-          : `Phòng ${lich.MaPhong} (${lich.MaPhong % 2 === 0 ? 'Dorm A' : 'Dorm B'})`
+        TenPhongGiuong: tenPhongChot || ''
       };
     });
 
-    return listDBMapped;
+    return listDBMapped.sort((a, b) => new Date(b.NgayGioHen).getTime() - new Date(a.NgayGioHen).getTime());
+  };
+
+  const locDanhSachLichHenTheoBoLoc = (danhSach) => {
+    const tuKhoa = tuKhoaLichHen.trim().toLowerCase();
+    return danhSach.filter((item) => {
+      const matchSearch = !tuKhoa ||
+        item.TenKhach.toLowerCase().includes(tuKhoa) ||
+        String(item.SDT || '').includes(tuKhoa) ||
+        String(item.MaPhong || '').includes(tuKhoa);
+      if (!matchSearch) return false;
+
+      if (boLocLichHen === 'hom-nay') {
+        const d = new Date(item.NgayGioHen);
+        const today = new Date();
+        return d.getDate() === today.getDate() &&
+          d.getMonth() === today.getMonth() &&
+          d.getFullYear() === today.getFullYear();
+      }
+      if (boLocLichHen === 'tuan-nay') {
+        const diffTime = Math.abs(new Date() - new Date(item.NgayGioHen));
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays <= 7;
+      }
+      if (boLocLichHen === 'cho-xem') {
+        return item.KetQua === 'Chưa xem';
+      }
+      if (boLocLichHen === 'da-xem') {
+        return item.KetQua === 'Đã xem';
+      }
+      return true;
+    });
+  };
+
+  const layTrangLichHen = () => {
+    const danhSachSauLoc = locDanhSachLichHenTheoBoLoc(layDanhSachLichHenGop());
+    const tongTrang = Math.max(1, Math.ceil(danhSachSauLoc.length / SO_LICH_HEN_MOI_TRANG));
+    const trangAnToan = Math.min(Math.max(1, trangHienHen), tongTrang);
+    const viTriDau = (trangAnToan - 1) * SO_LICH_HEN_MOI_TRANG;
+    return {
+      danhSachSauLoc,
+      danhSachTrang: danhSachSauLoc.slice(viTriDau, viTriDau + SO_LICH_HEN_MOI_TRANG),
+      tongTrang,
+      trangAnToan,
+      viTriDau,
+    };
+  };
+
+  const layLuaChonPhongChotLichHen = (lichHen) => {
+    const options = new Map();
+    const themOption = (maPhong, label) => {
+      const maPhongSo = Number(maPhong);
+      if (!maPhongSo) return;
+      if (options.has(maPhongSo)) {
+        const labelHienTai = options.get(maPhongSo);
+        if (label && !labelHienTai.includes(' - ') && label.includes(' - ')) {
+          options.set(maPhongSo, label);
+        }
+        return;
+      }
+      options.set(maPhongSo, label || `Phòng ${maPhongSo}`);
+    };
+
+    if (lichHen.DaChotPhong || lichHen.KhoaPhongChot) {
+      themOption(lichHen.MaPhong, lichHen.TenPhongChot || `Phòng ${lichHen.MaPhong}`);
+    }
+    const nguonGoiY = Array.isArray(lichHen.PhongGoiY) && lichHen.PhongGoiY.length
+      ? lichHen.PhongGoiY
+      : [...danhSachPhongGoiYLichHen, ...danhSachTatCaPhongTrong];
+
+    nguonGoiY.forEach((room) => {
+      const maPhong = layMaPhongDatHen(room);
+      const nhanChiNhanh = room?.chiNhanh ? ` - ${room.chiNhanh}` : '';
+      themOption(maPhong, `Phòng ${maPhong}${nhanChiNhanh}`);
+    });
+
+    return Array.from(options, ([value, label]) => ({ value, label }))
+      .sort((a, b) => a.value - b.value);
   };
 
   const taiDanhSachLichHen = async () => {
@@ -811,17 +1151,31 @@ export default function App({
     }
   };
 
-  const capNhatTrangThaiLichHen = async (maLich, trangThaiMoi, ghiChuMoi = '') => {
+  const capNhatTrangThaiLichHen = async (maLich, trangThaiMoi, ghiChuMoi = '', maPhongChot = undefined) => {
     try {
       if (typeof maLich === 'number') {
+        const coGuiPhongChot = maPhongChot !== undefined;
+        const coChotPhongMoi = coGuiPhongChot && maPhongChot !== null && maPhongChot !== '';
+        const daChotSauCapNhat = Boolean(
+          lichHenDangSua?.KhoaPhongChot || (coGuiPhongChot ? coChotPhongMoi : lichHenDangSua?.DaChotPhong)
+        );
         const ghiChuLuu = taoGhiChuLichHen(
           ghiChuMoi,
-          lichHenDangSua?.MaLich === maLich ? lichHenDangSua.MaGiuong : null
+          null,
+          daChotSauCapNhat
         );
+        const body = {
+          maLich,
+          ketQua: lichHenDangSua?.KhoaPhongChot ? 'Đã xem' : trangThaiMoi,
+          ghiChu: ghiChuLuu
+        };
+        if (coGuiPhongChot && !lichHenDangSua?.KhoaPhongChot) {
+          body.maPhong = coChotPhongMoi ? Number(maPhongChot) : null;
+        }
         const res = await fetch('/api/cap-nhat-trang-thai-hen', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ maLich, ketQua: trangThaiMoi, ghiChu: ghiChuLuu })
+          body: JSON.stringify(body)
         });
         const json = await res.json().catch(() => ({}));
         if (!res.ok || !json.ok) {
@@ -836,9 +1190,130 @@ export default function App({
       }
     } catch (err) {
       console.error('Lỗi khi cập nhật trạng thái lịch hẹn:', err);
-      hienThongBao('error', 'Không thể cập nhật trạng thái lịch hẹn!');
+      hienThongBao('error', err.message || 'Không thể cập nhật trạng thái lịch hẹn!');
     }
   };
+
+  const capNhatPhongChotLichHen = async (lichHen, maPhongMoi) => {
+    try {
+      if (lichHen?.KhoaPhongChot) {
+        hienThongBao('error', 'Khách đã có đặt cọc cho phòng này nên không thể đổi phòng chốt.');
+        return;
+      }
+      const maPhong = Number(maPhongMoi);
+      if (!lichHen?.MaLich) {
+        hienThongBao('error', 'Vui lòng tải lại lịch hẹn.');
+        return;
+      }
+      const coChotPhong = Number.isInteger(maPhong) && maPhong > 0;
+
+      const res = await fetch('/api/cap-nhat-trang-thai-hen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          maLich: lichHen.MaLich,
+          maPhong: coChotPhong ? maPhong : null,
+          ghiChu: taoGhiChuLichHen(lichHen.GhiChu || '', null, coChotPhong)
+        })
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || 'Không thể cập nhật phòng chốt.');
+      }
+
+      hienThongBao('success', coChotPhong ? `Đã cập nhật phòng chốt sang phòng ${maPhong}.` : 'Đã chuyển lịch hẹn về chưa chốt phòng.');
+      taiDanhSachLichHen();
+    } catch (err) {
+      console.error('Lỗi khi cập nhật phòng chốt:', err);
+      hienThongBao('error', err.message || 'Không thể cập nhật phòng chốt.');
+    }
+  };
+
+  useEffect(() => {
+    if (location.pathname === ROUTES.tiepNhanDangKyThue) {
+      const rawContext = location.state?.tiepNhanDangKyThueContext || (() => {
+        try {
+          return JSON.parse(sessionStorage.getItem('tiepNhanDangKyThueContext') || 'null');
+        } catch {
+          return null;
+        }
+      })();
+
+      setCheDoNhanVien(true);
+      setTrangHienTai('staff_reception');
+      if (rawContext) {
+        apDungContextTiepNhanDangKyThue(rawContext);
+      }
+      return;
+    }
+
+    if (location.pathname === ROUTES.phongGiuong) {
+      const rawContext = location.state?.traCuuPhongContext || (() => {
+        try {
+          return JSON.parse(sessionStorage.getItem('traCuuPhongContext') || 'null');
+        } catch {
+          return null;
+        }
+      })();
+
+      if (rawContext?.boLocTraCuu) {
+        setCheDoNhanVien(true);
+        setNguonTraCuuPhong(rawContext.nguonTraCuuPhong || 'tab');
+        setBoLocTraCuu(rawContext.boLocTraCuu);
+        if (rawContext.formKhachHang) setFormKhachHang(rawContext.formKhachHang);
+        if (rawContext.formYeuCauThue) setFormYeuCauThue(rawContext.formYeuCauThue);
+        if (rawContext.tieuChiUuTien) setTieuChiUuTien(rawContext.tieuChiUuTien);
+        boQuaTaiTuDongPhongTrongRef.current = true;
+        taiTatCaPhongTrong(rawContext.boLocTraCuu).then((ketQua) => {
+          setDanhSachPhong(ketQua);
+          setDanhSachPhongGoiYLichHen(ketQua);
+        });
+        return;
+      }
+
+      setNguonTraCuuPhong('tab');
+      setDanhSachPhongGoiYLichHen([]);
+    }
+
+    if (location.pathname === ROUTES.lichHen) {
+      const rawBooking = location.state?.bookingContext || (() => {
+        try {
+          return JSON.parse(sessionStorage.getItem('bookingContext') || 'null');
+        } catch {
+          return null;
+        }
+      })();
+
+      if (rawBooking) {
+        setCheDoNhanVien(true);
+        setTrangHienTai(rawBooking.manHinhKhoiTao || 'staff_booking');
+        setTabHopDongNhanVien(rawBooking.tabHopDongNhanVien || 'danh-sach-hen');
+        if (rawBooking.formKhachHang) setFormKhachHang(rawBooking.formKhachHang);
+        if (rawBooking.formYeuCauThue) setFormYeuCauThue(rawBooking.formYeuCauThue);
+        if (rawBooking.boLocTraCuu) setBoLocTraCuu(rawBooking.boLocTraCuu);
+        if (rawBooking.tieuChiUuTien) setTieuChiUuTien(rawBooking.tieuChiUuTien);
+        if (Object.prototype.hasOwnProperty.call(rawBooking, 'yeuCauThueDaLuu')) {
+          setYeuCauThueDaLuu(rawBooking.yeuCauThueDaLuu || null);
+        }
+        if (Object.prototype.hasOwnProperty.call(rawBooking, 'khachHangDaChon')) {
+          setKhachHangDaChon(rawBooking.khachHangDaChon || null);
+        }
+        if (Object.prototype.hasOwnProperty.call(rawBooking, 'tuKhoaKhachHangLichHen')) {
+          setTuKhoaKhachHangLichHen(rawBooking.tuKhoaKhachHangLichHen || '');
+        }
+        if (Array.isArray(rawBooking.danhSachPhongDatHen)) setDanhSachPhongDatHen(rawBooking.danhSachPhongDatHen);
+        if (Array.isArray(rawBooking.danhSachPhongGoiYLichHen)) setDanhSachPhongGoiYLichHen(rawBooking.danhSachPhongGoiYLichHen);
+      } else {
+        setCheDoNhanVien(true);
+        setTrangHienTai('staff_contracts');
+        setTabHopDongNhanVien('danh-sach-hen');
+      }
+    }
+  }, [location.key]);
+
+  useEffect(() => {
+    setTrangHienHen(1);
+  }, [boLocLichHen, tuKhoaLichHen, danhSachLichHenDB.length]);
 
   useEffect(() => {
     taiTuyChonTraCuuPhong();
@@ -966,20 +1441,50 @@ export default function App({
     }
   };
 
+  const layGioiHanSoNguoiTheoLoai = (loaiPhong = formYeuCauThue.loaiPhong) => (
+    loaiPhong === 'Nguyên phòng'
+      ? (Number(gioiHanSucChua.nguyenPhong) || 1)
+      : (Number(gioiHanSucChua.giuongGhep) || 1)
+  );
+
   const xuLyThayDoiYeuCau = (e) => {
     const { name, value } = e.target;
+    let giaTriMoi = value;
+    if (['mucGiaTu', 'mucGiaDen'].includes(name)) {
+      giaTriMoi = chiLayChuSo(value);
+    }
+    if (name === 'soNguoi') {
+      const gioiHan = layGioiHanSoNguoiTheoLoai(formYeuCauThue.loaiPhong);
+      const soNguoi = Number(value);
+      if (value && soNguoi > gioiHan) {
+        giaTriMoi = String(gioiHan);
+        hienThongBao('error', `Số người tối đa hiện có cho hình thức thuê này là ${gioiHan}.`);
+      } else if (value && soNguoi < 1) {
+        giaTriMoi = '1';
+      }
+    }
     setYeuCauThueDaLuu(null);
     setFormYeuCauThue(prev => ({
       ...prev,
-      [name]: value
+      [name]: giaTriMoi
     }));
+    if (name === 'mucGiaDen') {
+      setFormKhachHang(prev => ({
+        ...prev,
+        khaNangTaiChinh: giaTriMoi,
+      }));
+    }
   };
 
   const xuLyChonLoaiPhong = (loai) => {
+    const gioiHan = layGioiHanSoNguoiTheoLoai(loai);
+    const loaiThue = loai === 'Nguyên phòng' ? 'Thuê nguyên phòng' : 'Thuê giường lẻ';
     setYeuCauThueDaLuu(null);
     setFormYeuCauThue(prev => ({
       ...prev,
-      loaiPhong: loai
+      loaiPhong: loai,
+      loaiThue,
+      soNguoi: Math.min(Number(prev.soNguoi) || 1, gioiHan)
     }));
   };
 
@@ -1000,21 +1505,43 @@ export default function App({
       return;
     }
 
+    const gioiHanSoNguoi = layGioiHanSoNguoiTheoLoai(formYeuCauThue.loaiPhong);
+    if (Number(formYeuCauThue.soNguoi) > gioiHanSoNguoi) {
+      hienThongBao('error', `Số người tối đa hiện có cho hình thức thuê này là ${gioiHanSoNguoi}.`);
+      return;
+    }
+
     const gioiTinhKhachHang = ['Nam', 'Nữ'].includes(formKhachHang.gioiTinh) ? formKhachHang.gioiTinh : 'Tất cả';
     const yeuCauThueChoTraCuu = {
       ...formYeuCauThue,
       gioiTinh: gioiTinhKhachHang,
+      loaiThue: formYeuCauThue.loaiPhong === 'Nguyên phòng' ? 'Thuê nguyên phòng' : 'Thuê giường lẻ',
     };
     const newFilters = mapYeuCauThueSangBoLoc(yeuCauThueChoTraCuu, danhSachTieuChi);
 
     setBoLocTraCuu(newFilters);
     setCheDoNhanVien(true);
     setTabPhongGiuongNhanVien('danh-sach');
+    setNguonTraCuuPhong('tiep-nhan');
 
     const ketQuaPhong = await taiTatCaPhongTrong(newFilters);
     setDanhSachPhong(ketQuaPhong);
+    setDanhSachPhongGoiYLichHen(ketQuaPhong);
     setDaTraCuu(false);
-    chuyenTrang('search_vacancy');
+    const context = {
+      nguonTraCuuPhong: 'tiep-nhan',
+      boLocTraCuu: newFilters,
+      formKhachHang,
+      formYeuCauThue: yeuCauThueChoTraCuu,
+      tieuChiUuTien,
+    };
+    const tiepNhanContext = taoContextTiepNhanDangKyThue({
+      formYeuCauThue: yeuCauThueChoTraCuu,
+      tieuChiUuTien,
+    });
+    sessionStorage.setItem('traCuuPhongContext', JSON.stringify(context));
+    sessionStorage.setItem('tiepNhanDangKyThueContext', JSON.stringify(tiepNhanContext));
+    navigate(ROUTES.phongGiuong, { state: { traCuuPhongContext: context } });
     hienThongBao('success', `Đã chuyển sang Tra cứu phòng/giường với ${ketQuaPhong.length} kết quả phù hợp.`);
   };
 
@@ -1034,15 +1561,21 @@ export default function App({
   const moPopupChinhSuaLichHen = (lichHen) => {
     setLichHenDangSua(lichHen);
     setFormSuaLichHen({
-      ketQua: lichHen.KetQua || 'Chưa xem',
+      ketQua: lichHen.KhoaPhongChot ? 'Đã xem' : (lichHen.KetQua || 'Chưa xem'),
       ghiChu: lichHen.GhiChu || '',
+      maPhong: (lichHen.DaChotPhong || lichHen.KhoaPhongChot) && lichHen.MaPhong ? String(lichHen.MaPhong) : '',
     });
   };
 
   const luuChinhSuaLichHen = async (e) => {
     if (e) e.preventDefault();
     if (!lichHenDangSua) return;
-    await capNhatTrangThaiLichHen(lichHenDangSua.MaLich, formSuaLichHen.ketQua, formSuaLichHen.ghiChu);
+    await capNhatTrangThaiLichHen(
+      lichHenDangSua.MaLich,
+      formSuaLichHen.ketQua,
+      formSuaLichHen.ghiChu,
+      lichHenDangSua.KhoaPhongChot ? undefined : formSuaLichHen.maPhong
+    );
     setLichHenDangSua(null);
   };
 
@@ -1103,12 +1636,10 @@ export default function App({
         window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
+      const danhSachChon = [item];
       setPhongDaChon(item);
-      setDanhSachPhongDatHen(prev => {
-        if (prev.some(room => layMaPhongDatHen(room) === layMaPhongDatHen(item))) return prev;
-        return [...prev, item];
-      });
-      setTrangHienTai('staff_booking');
+      setDanhSachPhongDatHen(danhSachChon);
+      diDenManHinhDatLichHen(danhSachChon);
       hienThongBao('success', `Đã chọn ${item.ten}. Tiếp tục đặt lịch hẹn xem phòng.`);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
@@ -1206,11 +1737,15 @@ export default function App({
     setCheDoNhanVien(true);
 
     if (item.path === ROUTES.tiepNhanDangKyThue) {
-      chuyenTrang('staff_reception');
+      batDauTiepNhanMoi();
     } else if (item.path === ROUTES.phongGiuong) {
+      sessionStorage.removeItem('traCuuPhongContext');
+      setNguonTraCuuPhong('tab');
+      setDanhSachPhongGoiYLichHen([]);
       setTabPhongGiuongNhanVien('danh-sach');
       chuyenTrang('search_vacancy');
     } else if (item.path === ROUTES.lichHen) {
+      sessionStorage.removeItem('bookingContext');
       setTabHopDongNhanVien('danh-sach-hen');
       chuyenTrang('staff_contracts');
     } else if (item.path === ROUTES.hopDong) {
@@ -1750,6 +2285,8 @@ export default function App({
         boLocTraCuu={boLocTraCuu}
         tuyChonTraCuuPhong={tuyChonTraCuuPhong}
         xuLyThayDoiBoLoc={xuLyThayDoiBoLoc}
+        xuLyToggleTienIchTraCuu={xuLyToggleTienIchTraCuu}
+        xuLyLuuTienIchTraCuu={xuLyLuuTienIchTraCuu}
         dangTaiPhongTrong={dangTaiPhongTrong}
         danhSachTatCaPhongTrong={danhSachTatCaPhongTrong}
         trangTraCuuHienTai={trangTraCuuHienTai}
@@ -1769,6 +2306,9 @@ export default function App({
         dangXuLy={dangXuLy}
         xuLyDatPhong={xuLyDatPhong}
         moChiTietPhong={moChiTietPhong}
+        nguonTraCuuPhong={nguonTraCuuPhong}
+        diDenDatLichHenTuTraCuu={diDenDatLichHenTuTraCuu}
+        quayLaiTiepNhanTuTraCuu={quayLaiTiepNhanTuTraCuu}
       />
       {trangHienTai === 'room_detail' && phongDaChon && (
         <div className="room-detail-page">
@@ -1909,9 +2449,9 @@ export default function App({
                   <button
                     type="button"
                     className="btn-action-orange btn-choose-room"
-                    onClick={() => vaiTroNhanVien === 'sale' ? xuLyDatPhong(phongDaChon) : chuyenTrang('search_vacancy')}
+                    onClick={() => chuyenTrang(trangTruocChiTietPhong)}
                   >
-                    {vaiTroNhanVien === 'sale' ? 'Chọn và đặt lịch hẹn' : 'Quay lại danh sách phòng/giường'}
+                    Quay lại danh sách phòng/giường
                   </button>
                 ) : (
                   <>
@@ -2064,29 +2604,77 @@ export default function App({
             </div>
 
             <form onSubmit={guiLichHenNhanVien}>
-
-              {/* 2. Selected Rooms Section */}
-              <div className="booking-section">
+              <div className="booking-section booking-viewing-note">
                 <h4>
-                  <span className="icon-house">🏢</span> Phòng được chọn
+                  <span className="icon-house">🏢</span> Lịch hẹn xem phòng
                 </h4>
-                <div className="selected-rooms-container">
-                  {danhSachPhongDatHen.length > 0 ? (
-                    danhSachPhongDatHen.map((room, idx) => (
-                      <span key={idx} className="room-tag-badge">
-                        {layTenPhongDatHen(room)}
-                        <button type="button" className="btn-remove-tag" onClick={() => xuLyXoaPhongLichHen(room)} aria-label="Xóa">×</button>
-                      </span>
-                    ))
-                  ) : (
-                    <span className="no-rooms-selected-warning">Chưa có phòng nào được chọn. Vui lòng bấm thêm phòng.</span>
-                  )}
-
-                  <button type="button" className="btn-add-room" onClick={xuLyThemPhongLichHen}>
-                    + Thêm phòng
-                  </button>
-                </div>
+                <p>
+                  Lịch hẹn chỉ ghi nhận thời điểm khách đến xem. Phòng chốt sẽ được chọn trong danh sách lịch hẹn sau khi khách xem xong.
+                </p>
               </div>
+
+              {(() => {
+                const danhSachPhongGoiY = layDanhSachPhongTuKetQuaTraCuu(danhSachPhongGoiYLichHen);
+                const danhSachHienThi = danhSachPhongGoiY.slice(0, soPhongGoiYHienThi);
+                const soPhongConLai = Math.max(0, danhSachPhongGoiY.length - soPhongGoiYHienThi);
+                const soPhongSeXemThem = Math.min(SO_PHONG_GOI_Y_MOI_LAN, soPhongConLai);
+                const daMoRongDanhSach = soPhongGoiYHienThi > SO_PHONG_GOI_Y_MOI_LAN && danhSachPhongGoiY.length > SO_PHONG_GOI_Y_MOI_LAN;
+
+                return (
+                  <div className="booking-room-suggestions">
+                    <div className="booking-room-suggestions-head">
+                      <div>
+                        <h4>Phòng phù hợp để xem</h4>
+                        <p>
+                          {danhSachPhongGoiY.length
+                            ? `Có ${danhSachPhongGoiY.length} phòng thỏa tiêu chí. Chỉ hiển thị tên phòng để đặt lịch nhanh.`
+                            : 'Chưa có danh sách phòng phù hợp. Hãy tra cứu phòng/giường trước khi đặt lịch.'}
+                        </p>
+                      </div>
+                      <button type="button" className="btn-detail-outline btn-search-room-for-booking" onClick={xuLyThemPhongLichHen}>
+                        Tra cứu phòng/giường
+                      </button>
+                    </div>
+
+                    {danhSachHienThi.length > 0 ? (
+                      <div className="booking-room-chip-list">
+                        {danhSachHienThi.map((room) => (
+                          <span key={room.maPhong} className="booking-room-chip">
+                            {room.tenPhongHienThi || `Phòng ${room.maPhong}`}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="booking-room-empty">
+                        Bấm “Tra cứu phòng/giường” để lọc danh sách phòng khách có thể đến xem.
+                      </div>
+                    )}
+
+                    {(soPhongConLai > 0 || daMoRongDanhSach) && (
+                      <div className="booking-room-more-actions">
+                        {soPhongConLai > 0 && (
+                          <button
+                            type="button"
+                            className="btn-show-more-rooms"
+                            onClick={() => setSoPhongGoiYHienThi(prev => prev + SO_PHONG_GOI_Y_MOI_LAN)}
+                          >
+                            Xem thêm {soPhongSeXemThem} phòng nữa
+                          </button>
+                        )}
+                        {daMoRongDanhSach && (
+                          <button
+                            type="button"
+                            className="btn-collapse-rooms"
+                            onClick={() => setSoPhongGoiYHienThi(SO_PHONG_GOI_Y_MOI_LAN)}
+                          >
+                            Thu gọn
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* 3. Date & Time Selection Section */}
               <div className="booking-datetime-row">
@@ -2125,6 +2713,7 @@ export default function App({
                     setTrangHienTai('room_detail');
                   } else {
                     setTrangHienTai('search_vacancy');
+                    navigate(ROUTES.phongGiuong);
                   }
                 }}>
                   Hủy
@@ -2159,6 +2748,7 @@ export default function App({
         xuLyDatPhong={xuLyDatPhong}
         moChiTietPhong={moChiTietPhong}
         tuyChonTraCuuPhong={tuyChonTraCuuPhong}
+        gioiHanSoNguoi={layGioiHanSoNguoiTheoLoai()}
       />
       {trangHienTai === 'review_info' && (
         <div className="deposit-flow-page">
@@ -2502,7 +3092,7 @@ export default function App({
                   <button
                     type="button"
                     className="btn-add-appointment"
-                    onClick={() => chuyenTrang('staff_booking')}
+                    onClick={batDauLichHenMoi}
                   >
                     + Thêm lịch hẹn
                   </button>
@@ -2556,43 +3146,18 @@ export default function App({
                       <tr>
                         <th style={{ width: '60px' }}>STT</th>
                         <th>Tên khách</th>
-                        <th>Phòng hẹn</th>
+                        <th>Phòng chốt</th>
                         <th>Ngày giờ</th>
                         <th>Trạng thái</th>
+                        <th>Thao tác</th>
                         <th>Ghi chú</th>
-                        <th style={{ textAlign: 'right' }}>Thao tác</th>
                       </tr>
                     </thead>
                     <tbody>
                       {(() => {
-                        const merged = layDanhSachLichHenGop();
-                        const filtered = merged.filter(item => {
-                          const matchSearch = item.TenKhach.toLowerCase().includes(tuKhoaLichHen.toLowerCase()) ||
-                            String(item.MaPhong).includes(tuKhoaLichHen);
-                          if (!matchSearch) return false;
+                        const { danhSachSauLoc, danhSachTrang, viTriDau } = layTrangLichHen();
 
-                          if (boLocLichHen === 'hom-nay') {
-                            const d = new Date(item.NgayGioHen);
-                            const today = new Date();
-                            return d.getDate() === today.getDate() &&
-                              d.getMonth() === today.getMonth() &&
-                              d.getFullYear() === today.getFullYear();
-                          }
-                          if (boLocLichHen === 'tuan-nay') {
-                            const diffTime = Math.abs(new Date() - new Date(item.NgayGioHen));
-                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                            return diffDays <= 7;
-                          }
-                          if (boLocLichHen === 'cho-xem') {
-                            return item.KetQua === 'Chưa xem';
-                          }
-                          if (boLocLichHen === 'da-xem') {
-                            return item.KetQua === 'Đã xem';
-                          }
-                          return true;
-                        });
-
-                        if (filtered.length === 0) {
+                        if (danhSachSauLoc.length === 0) {
                           return (
                             <tr>
                               <td colSpan="7" style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-muted)' }}>
@@ -2602,9 +3167,9 @@ export default function App({
                           );
                         }
 
-                        return filtered.map((item, idx) => (
+                        return danhSachTrang.map((item, idx) => (
                           <tr key={item.MaLich}>
-                            <td>{String(idx + 1).padStart(2, '0')}</td>
+                            <td>{String(viTriDau + idx + 1).padStart(2, '0')}</td>
                             <td>
                               <div className="table-client-cell">
                                 <span className={`client-initials-badge initials-color-${(idx % 4) + 1}`}>
@@ -2617,9 +3182,15 @@ export default function App({
                               </div>
                             </td>
                             <td>
-                              <span className="room-badge-table">
-                                {item.TenPhongGiuong}
+                              <span
+                                className={`room-final-text ${item.DaChotPhong ? 'has-room' : 'empty-room'}`}
+                                title={item.DaChotPhong ? item.TenPhongChot : 'Chưa chốt phòng'}
+                              >
+                                {item.DaChotPhong ? item.TenPhongChot : '—'}
                               </span>
+                              {item.KhoaPhongChot && (
+                                <span className="room-lock-hint">Đã đặt cọc</span>
+                              )}
                             </td>
                             <td>
                               <span className="datetime-cell-content">
@@ -2632,12 +3203,12 @@ export default function App({
                               </span>
                             </td>
                             <td>
-                              <span className="appointment-note-cell">{item.GhiChu || '—'}</span>
-                            </td>
-                            <td style={{ textAlign: 'right' }}>
                               <button type="button" className="btn-detail-outline btn-table-edit" onClick={() => moPopupChinhSuaLichHen(item)}>
                                 Chỉnh sửa
                               </button>
+                            </td>
+                            <td>
+                              <span className="appointment-note-cell">{item.GhiChu || '—'}</span>
                             </td>
                           </tr>
                         ));
@@ -2648,9 +3219,52 @@ export default function App({
 
                 {/* Table Footer */}
                 <div className="table-footer-row">
-                  <span className="footer-entries-info">
-                    Hiển thị {layDanhSachLichHenGop().length} lịch hẹn
-                  </span>
+                  {(() => {
+                    const { danhSachSauLoc, danhSachTrang, tongTrang, trangAnToan, viTriDau } = layTrangLichHen();
+                    const tongLichHen = danhSachSauLoc.length;
+                    const hienTu = tongLichHen === 0 ? 0 : viTriDau + 1;
+                    const hienDen = Math.min(viTriDau + danhSachTrang.length, tongLichHen);
+                    return (
+                      <>
+                        <span className="footer-entries-info">
+                          Hiển thị {hienTu}-{hienDen} / {tongLichHen} lịch hẹn
+                        </span>
+                        {tongTrang > 1 && (
+                          <div className="table-pagination">
+                            <button
+                              type="button"
+                              className="pag-btn"
+                              disabled={trangAnToan === 1}
+                              onClick={() => setTrangHienHen((page) => Math.max(1, page - 1))}
+                            >
+                              ‹
+                            </button>
+                            {Array.from({ length: tongTrang }).map((_, index) => {
+                              const page = index + 1;
+                              return (
+                                <button
+                                  type="button"
+                                  key={page}
+                                  className={`pag-btn ${trangAnToan === page ? 'active' : ''}`}
+                                  onClick={() => setTrangHienHen(page)}
+                                >
+                                  {page}
+                                </button>
+                              );
+                            })}
+                            <button
+                              type="button"
+                              className="pag-btn"
+                              disabled={trangAnToan === tongTrang}
+                              onClick={() => setTrangHienHen((page) => Math.min(tongTrang, page + 1))}
+                            >
+                              ›
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
               </div>
@@ -3161,18 +3775,41 @@ export default function App({
               <div className="modal-body">
                 <div className="appointment-edit-summary">
                   <strong>{lichHenDangSua.TenKhach}</strong>
-                  <span>{lichHenDangSua.TenPhongGiuong} • {dinhDangNgayGio(lichHenDangSua.NgayGioHen)}</span>
+                  <span>{lichHenDangSua.TenPhongChot || 'Chưa chốt phòng'} • {dinhDangNgayGio(lichHenDangSua.NgayGioHen)}</span>
+                </div>
+                <div className="input-group">
+                  <label htmlFor="phongChotLichHen">Phòng chốt</label>
+                  <select
+                    id="phongChotLichHen"
+                    value={formSuaLichHen.maPhong}
+                    disabled={lichHenDangSua.KhoaPhongChot}
+                    onChange={(e) => setFormSuaLichHen(prev => ({ ...prev, maPhong: e.target.value }))}
+                  >
+                    <option value="">Chưa chốt phòng</option>
+                    {layLuaChonPhongChotLichHen(lichHenDangSua).map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  {lichHenDangSua.KhoaPhongChot && (
+                    <small className="input-helper-text">Khách đã đặt cọc phòng này nên không thể đổi phòng chốt.</small>
+                  )}
                 </div>
                 <div className="input-group">
                   <label htmlFor="trangThaiLichHen">Trạng thái</label>
                   <select
                     id="trangThaiLichHen"
                     value={formSuaLichHen.ketQua}
+                    disabled={lichHenDangSua.KhoaPhongChot}
                     onChange={(e) => setFormSuaLichHen(prev => ({ ...prev, ketQua: e.target.value }))}
                   >
                     <option value="Chưa xem">Chưa xem</option>
                     <option value="Đã xem">Đã xem</option>
                   </select>
+                  {lichHenDangSua.KhoaPhongChot && (
+                    <small className="input-helper-text">Lịch đã có đặt cọc nên trạng thái được khóa ở Đã xem; bạn chỉ có thể sửa ghi chú.</small>
+                  )}
                 </div>
                 <div className="input-group">
                   <label htmlFor="ghiChuSuaLichHen">Ghi chú</label>
@@ -3215,7 +3852,10 @@ export default function App({
                   onClick={() => {
                     setBookingSuccessModal(false);
                     setCheDoNhanVien(true);
-                    navigate(ROUTES.lichHen);
+                    sessionStorage.removeItem('bookingContext');
+                    setTabHopDongNhanVien('danh-sach-hen');
+                    setTrangHienTai('staff_contracts');
+                    navigate(ROUTES.lichHen, { state: { bookingContext: { manHinhKhoiTao: 'staff_contracts', tabHopDongNhanVien: 'danh-sach-hen' } } });
                   }}
                 >
                   Đến Danh sách lịch hẹn 📅
@@ -3228,6 +3868,7 @@ export default function App({
                   onClick={() => {
                     setBookingSuccessModal(false);
                     setCheDoNhanVien(true);
+                    sessionStorage.removeItem('bookingContext');
                     navigate(ROUTES.dashboard);
                   }}
                 >
@@ -3240,8 +3881,7 @@ export default function App({
                   style={{ width: '100%', padding: '10px', borderRadius: '10px', fontSize: '13px' }}
                   onClick={() => {
                     setBookingSuccessModal(false);
-                    setCheDoNhanVien(true);
-                    navigate(ROUTES.tiepNhanDangKyThue);
+                    batDauTiepNhanMoi();
                   }}
                 >
                   Quay lại Tiếp nhận thông tin
