@@ -23,8 +23,8 @@ export default function StepTracker({ currentStatus, currentStep, loai, selected
     { s: 'inspect',    l: 'Xác nhận điều kiện hủy cọc' },
     { s: 'reconcile',  l: 'Lập phiếu đối soát hoàn cọc' },
     { s: 'confirm',    l: 'Quản lý xác nhận với khách' },
-    { s: 'liquidate',  l: 'Ký biên bản thanh lý cọc' },
-    { s: 'payout',     l: 'Kế toán hoàn trả tiền cọc' }
+    { s: 'payout',     l: 'Kế toán hoàn trả tiền cọc' },
+    { s: 'liquidate',  l: 'Ký biên bản thanh lý cọc' }
   ] : [
     { s: 'create',     l: 'Tiếp nhận yêu cầu trả phòng' },
     { s: 'inspect',    l: 'Quản lý kiểm tra phòng ngủ' },
@@ -53,12 +53,27 @@ export default function StepTracker({ currentStatus, currentStep, loai, selected
         let isCompleted = false;
         let isActive = currentStep === step.s;
 
-        if (idx === 0 && currentStatusIdx >= 1) isCompleted = true;
-        if (idx === 1 && currentStatusIdx >= 2) isCompleted = true;
-        if (idx === 2 && currentStatusIdx >= 3) isCompleted = true;
-        if (idx === 3 && currentStatusIdx >= 4) isCompleted = true;
-        if (idx === 4 && (currentStatusIdx >= 5 || currentStatus === 'Chờ thanh toán')) isCompleted = true;
-        if (idx === 5 && currentStatus === 'Đã thanh lý') isCompleted = true;
+        if (isDatCoc) {
+          if (idx === 0 && currentStatusIdx >= 1) isCompleted = true;
+          if (idx === 1 && currentStatusIdx >= 2) isCompleted = true;
+          if (idx === 2 && currentStatusIdx >= 3) isCompleted = true;
+          if (idx === 3 && (currentStatusIdx >= 5 || currentStatus === 'Chờ thanh toán' || currentStatus === 'Đã thanh lý')) isCompleted = true;
+          if (idx === 4 && currentStatus === 'Đã thanh lý') isCompleted = true;
+          if (idx === 5 && currentStatus === 'Đã thanh lý') isCompleted = true;
+        } else {
+          if (idx === 0 && currentStatusIdx >= 1) isCompleted = true;
+          if (idx === 1 && currentStatusIdx >= 2) isCompleted = true;
+          if (idx === 2 && currentStatusIdx >= 3) isCompleted = true;
+          if (idx === 3 && currentStatusIdx >= 4) isCompleted = true;
+          if (idx === 4 && (currentStatusIdx >= 5 || currentStatus === 'Chờ thanh toán')) isCompleted = true;
+          if (idx === 5 && currentStatus === 'Đã thanh lý') isCompleted = true;
+        }
+
+        // Đảm bảo nguyên tắc: nếu đang ở bước N, các bước trước đó (N-1, N-2...) BẮT BUỘC phải màu xanh (đã hoàn thành)
+        const activeStepIndex = steps.findIndex(s => s.s === currentStep);
+        if (activeStepIndex !== -1 && idx < activeStepIndex) {
+          isCompleted = true;
+        }
 
         return (
           <div key={step.s} className={`checkout-step-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', position: 'relative', flex: 1, minWidth: '100px' }}>

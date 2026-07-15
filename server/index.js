@@ -31,7 +31,7 @@ const app = express();
 const port = process.env.PORT || 3001;
 
 app.use(cors());
-app.use(express.json({ limit: '15mb' }));
+app.use(express.json({ limit: '5mb' }));
 
 // Helper function to calculate end date from lease duration
 function tinhNgayKetThuc(ngayVaoStr, soThangStr) {
@@ -74,12 +74,31 @@ function chuanHoaNgayGioHenDB(value) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 
+const CP1252_REVERSE = new Map([
+  [0x20AC, 0x80], [0x201A, 0x82], [0x0192, 0x83], [0x201E, 0x84], [0x2026, 0x85],
+  [0x2020, 0x86], [0x2021, 0x87], [0x02C6, 0x88], [0x2030, 0x89], [0x0160, 0x8A],
+  [0x2039, 0x8B], [0x0152, 0x8C], [0x017D, 0x8E], [0x2018, 0x91], [0x2019, 0x92],
+  [0x201C, 0x93], [0x201D, 0x94], [0x2022, 0x95], [0x2013, 0x96], [0x2014, 0x97],
+  [0x02DC, 0x98], [0x2122, 0x99], [0x0161, 0x9A], [0x203A, 0x9B], [0x0153, 0x9C],
+  [0x017E, 0x9E], [0x0178, 0x9F],
+]);
+
 function suaLoiFontUtf8(value) {
   const raw = String(value || '');
   if (!/(Ã|Â|Ä|áº|Áº|á»|Á»)/.test(raw)) return raw;
   try {
-    const fixed = Buffer.from(raw, 'latin1').toString('utf8');
-    return fixed.includes('�') ? raw : fixed;
+    const bytes = [];
+    for (const ch of raw) {
+      const c = ch.codePointAt(0);
+      if (c <= 0xff) bytes.push(c);
+      else {
+        const b = CP1252_REVERSE.get(c);
+        if (b === undefined) return raw;
+        bytes.push(b);
+      }
+    }
+    const fixed = Buffer.from(bytes).toString('utf8');
+    return fixed.includes('\uFFFD') ? raw : fixed;
   } catch {
     return raw;
   }
@@ -416,7 +435,7 @@ function moTaKhachTrung(khach) {
   if (!khach) return '';
   const thongTin = [];
   if (khach.HoTen) thongTin.push(khach.HoTen);
-  if (khach.SDT) thongTin.push(`SÄT ${khach.SDT}`);
+  if (khach.SDT) thongTin.push(`SĐT ${khach.SDT}`);
   return thongTin.length > 0 ? ` (${thongTin.join(' - ')})` : '';
 }
 
@@ -429,7 +448,7 @@ async function kiemTraKhachHangDaTonTai(cccd, sdt) {
 
   if (loiCCCD) throw loiCCCD;
   if (trungCCCD && trungCCCD.length > 0) {
-    throw taoLoiNghiepVu(409, `CCCD ${cccd} Ä‘Ã£ tá»“n táº¡i${moTaKhachTrung(trungCCCD[0])}. Vui lÃ²ng kiá»ƒm tra láº¡i khÃ¡ch hÃ ng cÅ©.`);
+    throw taoLoiNghiepVu(409, `CCCD ${cccd} đã tồn tại${moTaKhachTrung(trungCCCD[0])}. Vui lòng kiểm tra lại khách hàng cũ.`);
   }
 
   const { data: trungSDT, error: loiSDT } = await supabase
@@ -440,7 +459,7 @@ async function kiemTraKhachHangDaTonTai(cccd, sdt) {
 
   if (loiSDT) throw loiSDT;
   if (trungSDT && trungSDT.length > 0) {
-    throw taoLoiNghiepVu(409, `Sá»‘ Ä‘iá»‡n thoáº¡i ${sdt} Ä‘Ã£ tá»“n táº¡i${moTaKhachTrung(trungSDT[0])}. Vui lÃ²ng kiá»ƒm tra láº¡i khÃ¡ch hÃ ng cÅ©.`);
+    throw taoLoiNghiepVu(409, `Số điện thoại ${sdt} đã tồn tại${moTaKhachTrung(trungSDT[0])}. Vui lòng kiểm tra lại khách hàng cũ.`);
   }
 }
 
@@ -453,10 +472,10 @@ async function luuThongTinKhachHang(kh) {
   const quocTich = String(kh.quocTich ?? kh.QuocTich ?? '').trim();
   const email = String(kh.email ?? kh.Email ?? '').trim();
 
-  if (!cccd) throw taoLoiNghiepVu(400, 'CCCD khÃ´ng há»£p lá»‡.');
-  if (!sdt) throw taoLoiNghiepVu(400, 'Sá»‘ Ä‘iá»‡n thoáº¡i khÃ´ng há»£p lá»‡.');
-  if (!ngaySinh) throw taoLoiNghiepVu(400, 'NgÃ y sinh khÃ¡ch hÃ ng lÃ  báº¯t buá»™c.');
-  if (!gioiTinh) throw taoLoiNghiepVu(400, 'Giá»›i tÃ­nh khÃ¡ch hÃ ng lÃ  báº¯t buá»™c.');
+  if (!cccd) throw taoLoiNghiepVu(400, 'CCCD không hợp lệ.');
+  if (!sdt) throw taoLoiNghiepVu(400, 'Số điện thoại không hợp lệ.');
+  if (!ngaySinh) throw taoLoiNghiepVu(400, 'Ngày sinh khách hàng là bắt buộc.');
+  if (!gioiTinh) throw taoLoiNghiepVu(400, 'Giới tính khách hàng là bắt buộc.');
 
   await kiemTraKhachHangDaTonTai(cccd, sdt);
 
@@ -511,27 +530,27 @@ async function taoYeuCauThue(yc, cccd, maNV = 101) {
 }
 
 async function layThongKePhongTrong() {
-  // Query single rooms (NguyÃªn phÃ²ng) in BÃ¬nh Tháº¡nh (MaCN = 2)
+  // Query single rooms (Nguyên phòng) in Bình Thạnh (MaCN = 2)
   const { data: phongs, error: errorPhong } = await supabase
     .from('Phong')
     .select('MaPhong')
     .eq('TinhTrang', true)
     .eq('MaCN', 2);
-    
+
   if (errorPhong) throw errorPhong;
-  
-  // Query dorm beds (GiÆ°á»ng) that are vacant (TinhTrang = true)
+
+  // Query dorm beds (Giường) that are vacant (TinhTrang = true)
   const { data: giuongs, error: errorGiuong } = await supabase
     .from('Giuong')
     .select('MaGiuong, GioiTinhYeuCau, Phong!inner(MaCN, LoaiPhong)')
     .eq('TinhTrang', true);
-    
+
   if (errorGiuong) throw errorGiuong;
-  
-  const countDormNuQ1 = giuongs.filter(g => g.GioiTinhYeuCau === 'Ná»¯' && g.Phong.MaCN === 1).length;
+
+  const countDormNuQ1 = giuongs.filter(g => g.GioiTinhYeuCau === 'Nữ' && g.Phong.MaCN === 1).length;
   const countDormNamQ3 = giuongs.filter(g => g.GioiTinhYeuCau === 'Nam' && g.Phong.MaCN === 3).length;
   const countPhongDonBT = phongs.length;
-  
+
   return {
     dormNuQ1: countDormNuQ1,
     phongDonBT: countPhongDonBT,
@@ -607,7 +626,7 @@ async function traCuuPhongPhuHop(tc) {
       tienIch: r.TienIch,
       chiNhanh: r.ChiNhanh?.TenCN || 'Chưa rõ',
       diaChi: r.ChiNhanh?.DiaChi || '',
-      gioiTinh: 'Táº¥t cáº£'
+      gioiTinh: 'Tất cả'
     }));
   } else {
     // Dorm search
@@ -686,7 +705,7 @@ function tachYeuCauListTuText(value) {
   return nguonTach
     .split(/[;,|]+/)
     .map((item) => item.trim())
-    .map((item) => item.replace(/^.*tiÃªu chÃ­ Æ°u tiÃªn\s*:\s*/i, '').trim())
+    .map((item) => item.replace(/^.*tiêu chí ưu tiên\s*:\s*/i, '').trim())
     .filter((item) => {
       if (!item) return false;
       const key = chuanHoaTimKiem(item);
@@ -841,7 +860,7 @@ async function xuLyLayThongKe(req, res) {
     const stats = await layThongKePhongTrong();
     res.json({ ok: true, data: stats });
   } catch (error) {
-    console.error('Lá»—i láº¥y thá»‘ng kÃª:', error);
+    console.error('Lỗi lấy thống kê:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 }
@@ -901,7 +920,7 @@ async function xuLyLayTuyChonTraCuuPhong(req, res) {
       },
     });
   } catch (error) {
-    console.error('Lá»—i láº¥y tÃ¹y chá»n tra cá»©u phÃ²ng:', error);
+    console.error('Lỗi lấy tùy chọn tra cứu phòng:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 }
@@ -909,9 +928,9 @@ async function xuLyLayTuyChonTraCuuPhong(req, res) {
 async function xuLyTiepNhanThongTin(req, res) {
   try {
     const { khachHang, yeuCauThue, maNV } = req.body;
-    
+
     if (!khachHang || !khachHang.cccd || !khachHang.hoTen || !khachHang.sdt) {
-      return res.status(400).json({ ok: false, error: 'Thiáº¿u thÃ´ng tin khÃ¡ch hÃ ng báº¯t buá»™c (CCCD, Há» tÃªn, SÄT)' });
+      return res.status(400).json({ ok: false, error: 'Thiếu thông tin khách hàng bắt buộc (CCCD, Họ tên, SĐT)' });
     }
 
     // Save customer details
@@ -922,18 +941,18 @@ async function xuLyTiepNhanThongTin(req, res) {
 
     res.json({
       ok: true,
-      message: 'Tiáº¿p nháº­n thÃ´ng tin thÃ nh cÃ´ng!',
+      message: 'Tiếp nhận thông tin thành công!',
       data: {
         khachHang: savedKhachHang,
         yeuCauThue: savedYeuCau
       }
     });
   } catch (error) {
-    console.error('Lá»—i tiáº¿p nháº­n thÃ´ng tin:', error);
+    console.error('Lỗi tiếp nhận thông tin:', error);
     const laLoiTrungDuLieu = error.code === '23505';
     const statusCode = error.statusCode || (laLoiTrungDuLieu ? 409 : 500);
     const message = laLoiTrungDuLieu
-      ? 'ThÃ´ng tin khÃ¡ch hÃ ng Ä‘Ã£ tá»“n táº¡i trong há»‡ thá»‘ng. Vui lÃ²ng kiá»ƒm tra láº¡i CCCD hoáº·c sá»‘ Ä‘iá»‡n thoáº¡i.'
+      ? 'Thông tin khách hàng đã tồn tại trong hệ thống. Vui lòng kiểm tra lại CCCD hoặc số điện thoại.'
       : error.message;
     res.status(statusCode).json({ ok: false, error: message });
   }
@@ -945,7 +964,7 @@ async function xuLyTraCuuPhong(req, res) {
     const ketQua = await traCuuPhongPhuHop(tieuChi);
     res.json({ ok: true, data: ketQua });
   } catch (error) {
-    console.error('Lá»—i tra cá»©u phÃ²ng:', error);
+    console.error('Lỗi tra cứu phòng:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 }
@@ -1010,14 +1029,14 @@ async function luuYeuCauTuVan(yc) {
     .from('YeuCauThue')
     .insert({
       SoNguoiDuKien: 1,
-      GioiTinh: 'Táº¥t cáº£',
-      KhuVucMongMuon: 'Táº¥t cáº£',
+      GioiTinh: 'Tất cả',
+      KhuVucMongMuon: 'Tất cả',
       LoaiPhong: null,
       LoaiThue: 'Chưa xác định',
       NganSach: null,
       ThoiGianVao: new Date().toISOString(),
       ThoiGianThue: thoiGianThueDate,
-      YeuCau: `KhÃ¡ch Ä‘Äƒng kÃ½ nháº­n tÆ° váº¥n: ${noiDung || 'Cáº§n tÆ° váº¥n thÃ´ng tin homestay/dorm'}`,
+      YeuCau: `Khách đăng ký nhận tư vấn: ${noiDung || 'Cần tư vấn thông tin homestay/dorm'}`,
       TrangThai: false, // unprocessed
       NgayTao: new Date().toISOString(),
       CCCD: numericCCCD,
@@ -1037,7 +1056,7 @@ async function xuLyLayThongKeTongHop(req, res) {
     const stats = await layThongKeTongHop();
     res.json({ ok: true, data: stats });
   } catch (error) {
-    console.error('Lá»—i láº¥y thá»‘ng kÃª tá»•ng há»£p:', error);
+    console.error('Lỗi lấy thống kê tổng hợp:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 }
@@ -1046,12 +1065,12 @@ async function xuLyGuiYeuCauTuVan(req, res) {
   try {
     const dataTuVan = req.body;
     if (!dataTuVan.hoTen || !dataTuVan.sdt) {
-      return res.status(400).json({ ok: false, error: 'Thiáº¿u thÃ´ng tin báº¯t buá»™c (Há» tÃªn, Sá»‘ Ä‘iá»‡n thoáº¡i)' });
+      return res.status(400).json({ ok: false, error: 'Thiếu thông tin bắt buộc (Họ tên, Số điện thoại)' });
     }
     const ketQua = await luuYeuCauTuVan(dataTuVan);
-    res.json({ ok: true, message: 'Gá»­i yÃªu cáº§u tÆ° váº¥n thÃ nh cÃ´ng!', data: ketQua });
+    res.json({ ok: true, message: 'Gửi yêu cầu tư vấn thành công!', data: ketQua });
   } catch (error) {
-    console.error('Lá»—i gá»­i yÃªu cáº§u tÆ° váº¥n:', error);
+    console.error('Lỗi gửi yêu cầu tư vấn:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 }
@@ -1148,8 +1167,8 @@ async function datLichXemPhong(yc) {
       .insert({
         SoNguoiDuKien: Number(yeuCauHen.soNguoi || boLocHen.soNguoi) || 1,
         NganSach: laySoTienNumber(yeuCauHen.mucGiaDen ?? boLocHen.mucGiaDen),
-        GioiTinh: yeuCauHen.gioiTinh || boLocHen.gioiTinh || 'Táº¥t cáº£',
-        KhuVucMongMuon: yeuCauHen.khuVucMongMuon || boLocHen.khuVuc || 'Táº¥t cáº£',
+        GioiTinh: yeuCauHen.gioiTinh || boLocHen.gioiTinh || 'Tất cả',
+        KhuVucMongMuon: yeuCauHen.khuVucMongMuon || boLocHen.khuVuc || 'Tất cả',
         LoaiPhong: layMaLoaiPhongYeuCau(yeuCauHen),
         LoaiThue: loaiThueYeuCau,
         ThoiGianVao: new Date().toISOString(),
@@ -1157,7 +1176,7 @@ async function datLichXemPhong(yc) {
         TrangThai: false,
         YeuCau: taoNoiDungYeuCauThue(
           { ...yeuCauHen, yeuCauList: yeuCauListHen },
-          maPhongLichHen ? `ÄÄƒng kÃ½ háº¹n xem phÃ²ng ${maPhongLichHen}` : 'ÄÄƒng kÃ½ háº¹n xem phÃ²ng'
+          maPhongLichHen ? `Đăng ký hẹn xem phòng ${maPhongLichHen}` : 'Đăng ký hẹn xem phòng'
         ),
         NgayTao: new Date().toISOString(),
         CCCD: numericCCCD,
@@ -1200,7 +1219,7 @@ async function xuLyDatLichXemPhong(req, res) {
       return res.status(400).json({ ok: false, error: 'Thời điểm hẹn phải từ hiện tại trở đi.' });
     }
     const ketQua = await datLichXemPhong(dataLich);
-    res.json({ ok: true, message: 'ÄÄƒng kÃ½ lá»‹ch háº¹n xem phÃ²ng thÃ nh cÃ´ng!', data: ketQua });
+    res.json({ ok: true, message: 'Đăng ký lịch hẹn xem phòng thành công!', data: ketQua });
   } catch (error) {
     console.error('Lỗi đặt lịch hẹn xem phòng:', error);
     res.status(error.statusCode || 500).json({ ok: false, error: error.message });
@@ -1274,7 +1293,7 @@ async function xuLyLayDanhSachLichHen(req, res) {
 
     res.json({ ok: true, data: dataCoGoiY });
   } catch (error) {
-    console.error('Lá»—i khi láº¥y danh sÃ¡ch lá»‹ch háº¹n:', error);
+    console.error('Lỗi khi lấy danh sách lịch hẹn:', error);
     res.status(500).json({ ok: false, error: error.message });
   }
 }
@@ -1286,13 +1305,13 @@ async function xuLyCapNhatTrangThaiHen(req, res) {
     const coGhiChu = Object.prototype.hasOwnProperty.call(req.body, 'ghiChu');
     const coMaPhong = Object.prototype.hasOwnProperty.call(req.body, 'maPhong');
     if (!maLich || (!coKetQua && !coGhiChu && !coMaPhong)) {
-      return res.status(400).json({ ok: false, error: 'Thiáº¿u thÃ´ng tin maLich hoáº·c ketQua' });
+      return res.status(400).json({ ok: false, error: 'Thiếu thông tin maLich hoặc ketQua' });
     }
     const duLieuCapNhat = {};
     if (coKetQua) {
       const trangThaiHopLe = ['Chưa xem', 'Đã xem'];
       if (!trangThaiHopLe.includes(ketQua)) {
-        return res.status(400).json({ ok: false, error: 'Tráº¡ng thÃ¡i lá»‹ch háº¹n khÃ´ng há»£p lá»‡' });
+        return res.status(400).json({ ok: false, error: 'Trạng thái lịch hẹn không hợp lệ' });
       }
       duLieuCapNhat.KetQua = ketQua;
     }
@@ -1302,7 +1321,7 @@ async function xuLyCapNhatTrangThaiHen(req, res) {
     if (coMaPhong) {
       const maPhongMoi = maPhong === null || maPhong === '' ? null : Number(maPhong);
       if (maPhongMoi !== null && (!Number.isInteger(maPhongMoi) || maPhongMoi <= 0)) {
-        return res.status(400).json({ ok: false, error: 'MÃ£ phÃ²ng chá»‘t khÃ´ng há»£p lá»‡' });
+        return res.status(400).json({ ok: false, error: 'Mã phòng chốt không hợp lệ' });
       }
       const { data: lichHienTai, error: errLichHienTai } = await supabase
         .from('LichXemPhong')
@@ -1395,7 +1414,7 @@ async function taiPhieuDoiSoatDatCoc(maDatCoc) {
     .eq('MaDatCoc', maDatCoc)
     .order('MaPhieu', { ascending: false })
     .limit(1);
-  if (error) console.error('Lá»—i taiPhieuDoiSoatDatCoc:', error);
+  if (error) console.error('Lỗi taiPhieuDoiSoatDatCoc:', error);
   return data && data.length > 0 ? data[0] : null;
 }
 
@@ -1410,7 +1429,7 @@ async function luuPhieuDoiSoatDatCoc(maDatCoc, fields) {
   if (existing?.MaPhieu) {
     const { error } = await supabase.from('PhieuDoiSoat').update(payload).eq('MaPhieu', existing.MaPhieu);
     if (error) {
-      console.error('Lá»–I UPDATE PHIáº¾U Äá»I SOÃT Cá»ŒC:', error);
+      console.error('LỖI UPDATE PHIẾU ĐỐI SOÁT CỌC:', error);
       throw error;
     }
     return;
@@ -1475,8 +1494,8 @@ async function layHopDongDayDu(maHopDong) {
 
 async function layItemQuyetToanTuMaSo(maSo) {
   const datCocMap = await layDatCocMap();
-  if (maSo.startsWith('HÄ-')) {
-    const id = Number(maSo.replace('HÄ-', ''));
+  if (maSo.startsWith('HĐ-')) {
+    const id = Number(maSo.replace('HĐ-', ''));
     const h = await layHopDongDayDu(id);
     if (!h) return null;
     return mapHopDongRaDTO(h, datCocMap);
@@ -1497,7 +1516,7 @@ function ensureCheckoutSupabase(res) {
   if (!isUsingSupabaseForCheckout) {
     res.status(503).json({
       ok: false,
-      error: 'Checkout Ä‘ang yÃªu cáº§u Supabase nhÆ°ng chÆ°a káº¿t ná»‘i Ä‘Æ°á»£c. HÃ£y cáº¥u hÃ¬nh SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY vÃ  Ä‘áº£m báº£o cÃ¡c báº£ng checkout Ä‘Ã£ tá»“n táº¡i.'
+      error: 'Checkout đang yêu cầu Supabase nhưng chưa kết nối được. Hãy cấu hình SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY và đảm bảo các bảng checkout đã tồn tại.'
     });
     return false;
   }
@@ -1513,12 +1532,12 @@ async function checkSupabaseTable() {
     const { data, error } = await supabase.from('HopDong').select('MaHopDong').limit(1);
     if (!error) {
       isUsingSupabaseForCheckout = true;
-      console.log('âœ… [Supabase] Connection established successfully! Database schema is ready.');
+      console.log('✅ [Supabase] Connection established successfully! Database schema is ready.');
     } else {
-      console.error('âŒ [Supabase] Table verification failed. Please check table existence.', error.message);
+      console.error('❌ [Supabase] Table verification failed. Please check table existence.', error.message);
     }
   } catch (err) {
-    console.error('âŒ [Supabase] Database connection failed. Please check environment variables.', err.message);
+    console.error('❌ [Supabase] Database connection failed. Please check environment variables.', err.message);
   }
 }
 
@@ -1577,7 +1596,7 @@ app.get('/api/checkout/list', async (req, res) => {
     if (errPDS) throw errPDS;
 
     const mappedList = [];
-    
+
     for (const pds of (pdsList || [])) {
       if (pds.MaHopDong && pds.HopDong) {
         // We need to pass the HopDong with its embedded PhieuDoiSoat array 
@@ -1607,7 +1626,7 @@ app.get('/api/checkout/detail', async (req, res) => {
   try {
     const item = await layItemQuyetToanTuMaSo(maSo);
     if (!item) {
-      return res.status(404).json({ ok: false, error: 'KhÃ´ng tÃ¬m tháº¥y há»“ sÆ¡ quyáº¿t toÃ¡n!' });
+      return res.status(404).json({ ok: false, error: 'Không tìm thấy hồ sơ quyết toán!' });
     }
     res.json({ ok: true, data: item });
   } catch (err) {
@@ -1615,7 +1634,7 @@ app.get('/api/checkout/detail', async (req, res) => {
   }
 });
 
-// 3. POST /api/checkout/request â€” Sale tiáº¿p nháº­n yÃªu cáº§u tráº£ phÃ²ng / há»§y cá»c
+// 3. POST /api/checkout/request — Sale tiếp nhận yêu cầu trả phòng / hủy cọc
 app.post('/api/checkout/request', async (req, res) => {
   const { maSoChungTu, loaiHinhTraPhong, ngayTraDuKien, lyDo, phuongThucHoanTien } = req.body;
   if (!ensureCheckoutSupabase(res)) {
@@ -1623,9 +1642,9 @@ app.post('/api/checkout/request', async (req, res) => {
   }
 
   try {
-    const nextTrangThai = 'Chá» kiá»ƒm tra';
+    const nextTrangThai = 'Chờ kiểm tra';
     if (!maSoChungTu) {
-      return res.status(400).json({ ok: false, error: 'Thiáº¿u mÃ£ chá»©ng tá»«' });
+      return res.status(400).json({ ok: false, error: 'Thiếu mã chứng từ' });
     }
 
     const maSo = String(maSoChungTu).trim();
@@ -1700,7 +1719,7 @@ app.post('/api/checkout/request', async (req, res) => {
   }
 });
 
-// 4. POST /api/checkout/inspect â€” Quáº£n lÃ½ kiá»ƒm phÃ²ng / xÃ¡c nháº­n há»§y cá»c
+// 4. POST /api/checkout/inspect — Quản lý kiểm phòng / xác nhận hủy cọc
 app.post('/api/checkout/inspect', async (req, res) => {
   const {
     maChungTu,
@@ -1715,10 +1734,10 @@ app.post('/api/checkout/inspect', async (req, res) => {
   }
 
   try {
-    const nextTrangThai = 'Chá» Ä‘á»‘i soÃ¡t';
+    const nextTrangThai = 'Chờ đối soát';
 
-    if (maChungTu.startsWith('HÄ-')) {
-      const id = Number(maChungTu.replace('HÄ-', ''));
+    if (maChungTu.startsWith('HĐ-')) {
+      const id = Number(maChungTu.replace('HĐ-', ''));
 
       await supabase.from('HopDong').update({ TrangThai: nextTrangThai }).eq('MaHopDong', id);
       await supabase.from('PhieuDoiSoat').update({
@@ -1727,10 +1746,10 @@ app.post('/api/checkout/inspect', async (req, res) => {
       }).eq('MaHopDong', id);
 
       const bbPayload = {
-        TinhTrangPhong: 'Nghiá»‡m thu thu há»“i',
+        TinhTrangPhong: 'Nghiệm thu thu hồi',
         MoTaHuHong: moTaHuHong || '',
         NgayBanGiao: new Date().toISOString().split('T')[0],
-        TrangThai: 'ÄÃ£ nghiá»‡m thu'
+        TrangThai: 'Đã nghiệm thu'
       };
 
       const { data: existingBB } = await supabase.from('BienBanBanGiao').select('MaBB').eq('MaHopDong', id).maybeSingle();
@@ -1739,7 +1758,7 @@ app.post('/api/checkout/inspect', async (req, res) => {
       } else {
         await supabase.from('BienBanBanGiao').insert({
           ...bbPayload,
-          LoaiBB: 'Thu Há»“i',
+          LoaiBB: 'Thu Hồi',
           MaHopDong: id
         });
       }
@@ -1762,7 +1781,7 @@ app.post('/api/checkout/inspect', async (req, res) => {
   }
 });
 
-// 5. POST /api/checkout/reconcile â€” Káº¿ toÃ¡n láº­p phiáº¿u Ä‘á»‘i soÃ¡t
+// 5. POST /api/checkout/reconcile — Kế toán lập phiếu đối soát
 app.post('/api/checkout/reconcile', async (req, res) => {
   const { maChungTu, tiLeHoanCoc, noThue, noDienNuoc, chiPhiHuHong, moTaKhauTru, danhSachKhauTruKhac } = req.body;
   if (!ensureCheckoutSupabase(res)) {
@@ -1770,10 +1789,10 @@ app.post('/api/checkout/reconcile', async (req, res) => {
   }
 
   try {
-    const nextTrangThai = 'Chá» xÃ¡c nháº­n Ä‘á»‘i soÃ¡t';
+    const nextTrangThai = 'Chờ xác nhận đối soát';
 
-    if (maChungTu.startsWith('HÄ-')) {
-      const id = Number(maChungTu.replace('HÄ-', ''));
+    if (maChungTu.startsWith('HĐ-')) {
+      const id = Number(maChungTu.replace('HĐ-', ''));
 
       const h = await layHopDongDayDu(id);
       let soTienHoan = 0;
@@ -1827,8 +1846,8 @@ app.post('/api/checkout/reconcile', async (req, res) => {
     if (io) {
       // Notify manager and sale that there is a new reconciliation to confirm with customer
       io.to('role:QUAN_LY').emit('thong_bao_moi', {
-        noiDung: `CÃ³ phiáº¿u Ä‘á»‘i soÃ¡t má»›i cáº§n khÃ¡ch hÃ ng xÃ¡c nháº­n cho ${maChungTu}.`,
-        loaiSuKien: 'Chá» xÃ¡c nháº­n Ä‘á»‘i soÃ¡t'
+        noiDung: `Có phiếu đối soát mới cần khách hàng xác nhận cho ${maChungTu}.`,
+        loaiSuKien: 'Chờ xác nhận đối soát'
       });
       // Currently sale role might also need this, let's emit to QUAN_LY for now as they handle checkout confirmation
     }
@@ -1839,7 +1858,7 @@ app.post('/api/checkout/reconcile', async (req, res) => {
   }
 });
 
-// 6. POST /api/checkout/confirm â€” Quáº£n lÃ½ xÃ¡c nháº­n Ä‘á»‘i soÃ¡t vá»›i khÃ¡ch
+// 6. POST /api/checkout/confirm — Quản lý xác nhận đối soát với khách
 app.post('/api/checkout/confirm', async (req, res) => {
   console.log('--- POST /api/checkout/confirm CALLED ---', req.body);
   const { maChungTu, phanHoiKhach, yKienTranhChap } = req.body;
@@ -1849,25 +1868,25 @@ app.post('/api/checkout/confirm', async (req, res) => {
 
   try {
     const isDongY = phanHoiKhach === 'dong_y';
-    let nextTrangThai = 'Chá» Ä‘á»‘i soÃ¡t';
+    let nextTrangThai = 'Chờ đối soát';
 
-    if (maChungTu.startsWith('HÄ-')) {
-      const id = Number(maChungTu.replace('HÄ-', ''));
+    if (maChungTu.startsWith('HĐ-')) {
+      const id = Number(maChungTu.replace('HĐ-', ''));
 
       if (isDongY) {
-        const item = await layItemQuyetToanTuMaSo(`HÄ-${id}`);
+        const item = await layItemQuyetToanTuMaSo(`HĐ-${id}`);
         if (item) {
           const soTien = tinhSoTienQuyetToan(item);
-          nextTrangThai = soTien < 0 ? 'Chá» thanh toÃ¡n thÃªm' : 'Chá» hoÃ n cá»c';
+          nextTrangThai = soTien < 0 ? 'Chờ thanh toán thêm' : 'Chờ hoàn cọc';
         } else {
-          nextTrangThai = 'Chá» hoÃ n cá»c';
+          nextTrangThai = 'Chờ hoàn cọc';
         }
       }
 
       await supabase.from('HopDong').update({ TrangThai: nextTrangThai }).eq('MaHopDong', id);
       await supabase.from('PhieuDoiSoat').update({
         TrangThai: nextTrangThai,
-        YKienTranhChap: isDongY ? '' : (yKienTranhChap || 'KhÃ¡ch hÃ ng khiáº¿u náº¡i.')
+        YKienTranhChap: isDongY ? '' : (yKienTranhChap || 'Khách hàng khiếu nại.')
       }).eq('MaHopDong', id);
     } else {
       const id = Number(maChungTu.replace('PC-', ''));
@@ -1876,26 +1895,26 @@ app.post('/api/checkout/confirm', async (req, res) => {
         const item = await layItemQuyetToanTuMaSo(`PC-${id}`);
         if (item) {
           const soTien = tinhSoTienQuyetToan(item);
-          nextTrangThai = soTien < 0 ? 'Chá» thanh toÃ¡n thÃªm' : 'Chá» hoÃ n cá»c';
+          nextTrangThai = soTien < 0 ? 'Chờ thanh toán thêm' : 'Chờ hoàn cọc';
         } else {
-          nextTrangThai = 'Chá» hoÃ n cá»c';
+          nextTrangThai = 'Chờ hoàn cọc';
         }
       }
 
       await supabase.from('DatCoc').update({ TrangThai: nextTrangThai }).eq('MaDatCoc', id);
-      await luuPhieuDoiSoatDatCoc(id, { TrangThai: nextTrangThai, YKienTranhChap: isDongY ? '' : (yKienTranhChap || 'KhÃ¡ch hÃ ng khiáº¿u náº¡i.') });
+      await luuPhieuDoiSoatDatCoc(id, { TrangThai: nextTrangThai, YKienTranhChap: isDongY ? '' : (yKienTranhChap || 'Khách hàng khiếu nại.') });
     }
 
     const io = getIO();
     if (io) {
       if (isDongY) {
         io.to('role:KE_TOAN').emit('thong_bao_moi', {
-          noiDung: `KhÃ¡ch hÃ ng Ä‘Ã£ Ä‘á»“ng Ã½ Ä‘á»‘i soÃ¡t cho ${maChungTu}. Vui lÃ²ng tiáº¿n hÃ nh hoÃ n cá»c hoáº·c thu thÃªm.`,
+          noiDung: `Khách hàng đã đồng ý đối soát cho ${maChungTu}. Vui lòng tiến hành hoàn cọc hoặc thu thêm.`,
           loaiSuKien: nextTrangThai
         });
       } else {
         io.to('role:KE_TOAN').emit('thong_bao_moi', {
-          noiDung: `KhÃ¡ch hÃ ng khiáº¿u náº¡i Ä‘á»‘i soÃ¡t cho ${maChungTu}. Vui lÃ²ng kiá»ƒm tra láº¡i.`,
+          noiDung: `Khách hàng khiếu nại đối soát cho ${maChungTu}. Vui lòng kiểm tra lại.`,
           loaiSuKien: nextTrangThai
         });
       }
@@ -1907,7 +1926,7 @@ app.post('/api/checkout/confirm', async (req, res) => {
   }
 });
 
-// ThÃªm API má»›i Ä‘á»ƒ cáº­p nháº­t tráº¡ng thÃ¡i há»£p Ä‘á»“ng vÃ  phiáº¿u Ä‘á»‘i soÃ¡t
+// Thêm API mới để cập nhật trạng thái hợp đồng và phiếu đối soát
 app.post('/api/phieu-doi-soat/xac-nhan-khach', async (req, res) => {
   const { maHD, trangThai } = req.body;
   if (!ensureCheckoutSupabase(res)) return;
@@ -1915,30 +1934,30 @@ app.post('/api/phieu-doi-soat/xac-nhan-khach', async (req, res) => {
   try {
     const isDatCoc = maHD.startsWith('PC');
     const id = parseInt(maHD.replace(/\D/g, ''), 10);
-    
+
     if (isDatCoc) {
-      // Cáº­p nháº­t phiáº¿u Ä‘á»‘i soÃ¡t (mÃ£ Ä‘áº·t cá»c)
+      // Cập nhật phiếu đối soát (mã đặt cọc)
       const { error: errPDS } = await supabase.from('PhieuDoiSoat').update({ TrangThai: trangThai }).eq('MaDatCoc', id);
       if (errPDS) throw errPDS;
 
-      // Cáº­p nháº­t Äáº·t Cá»c
+      // Cập nhật Đặt Cọc
       const { error: errDC } = await supabase.from('DatCoc').update({ TrangThai: trangThai }).eq('MaDatCoc', id);
       if (errDC) throw errDC;
     } else {
-      // Cáº­p nháº­t phiáº¿u Ä‘á»‘i soÃ¡t (mÃ£ há»£p Ä‘á»“ng)
+      // Cập nhật phiếu đối soát (mã hợp đồng)
       const { error: errPDS } = await supabase.from('PhieuDoiSoat').update({ TrangThai: trangThai }).eq('MaHopDong', id);
       if (errPDS) throw errPDS;
 
-      // Cáº­p nháº­t Há»£p Ä‘á»“ng
+      // Cập nhật Hợp đồng
       const { error: errHD } = await supabase.from('HopDong').update({ TrangThai: trangThai }).eq('MaHopDong', id);
       if (errHD) throw errHD;
     }
 
     const io = getIO();
     if (io) {
-      if (trangThai === 'Chá» hoÃ n cá»c' || trangThai === 'Chá» thanh toÃ¡n thÃªm') {
+      if (trangThai === 'Chờ hoàn cọc' || trangThai === 'Chờ thanh toán thêm') {
         io.to('role:KE_TOAN').emit('thong_bao_moi', {
-          noiDung: `KhÃ¡ch hÃ ng Ä‘Ã£ Ä‘á»“ng Ã½ Ä‘á»‘i soÃ¡t cho ${maHD}. Vui lÃ²ng tiáº¿n hÃ nh hoÃ n cá»c hoáº·c thu thÃªm.`,
+          noiDung: `Khách hàng đã đồng ý đối soát cho ${maHD}. Vui lòng tiến hành hoàn cọc hoặc thu thêm.`,
           loaiSuKien: trangThai
         });
       }
@@ -1947,11 +1966,11 @@ app.post('/api/phieu-doi-soat/xac-nhan-khach', async (req, res) => {
     res.json({ ok: true });
   } catch (error) {
     console.error('Error updating PDS status:', error);
-    res.status(500).json({ ok: false, message: 'Lá»—i server: ' + error.message });
+    res.status(500).json({ ok: false, message: 'Lỗi server: ' + error.message });
   }
 });
 
-// ThÃªm API má»›i Ä‘á»ƒ hoÃ n táº¥t tráº£ phÃ²ng / thanh lÃ½
+// Thêm API mới để hoàn tất trả phòng / thanh lý
 app.post('/api/phieu-doi-soat/hoan-tat-tra-phong', async (req, res) => {
   const { maHD, trangThai } = req.body;
   if (!ensureCheckoutSupabase(res)) return;
@@ -1959,22 +1978,22 @@ app.post('/api/phieu-doi-soat/hoan-tat-tra-phong', async (req, res) => {
   try {
     const isDatCoc = maHD.startsWith('PC');
     const id = parseInt(maHD.replace(/\D/g, ''), 10);
-    const newStatus = trangThai || 'ÄÃ£ tráº£ phÃ²ng';
-    
+    const newStatus = trangThai || 'Đã trả phòng';
+
     if (isDatCoc) {
-      // Cáº­p nháº­t phiáº¿u Ä‘á»‘i soÃ¡t (mÃ£ Ä‘áº·t cá»c)
+      // Cập nhật phiếu đối soát (mã đặt cọc)
       const { error: errPDS } = await supabase.from('PhieuDoiSoat').update({ TrangThai: newStatus }).eq('MaDatCoc', id);
       if (errPDS) throw errPDS;
 
-      // Cáº­p nháº­t Äáº·t Cá»c
+      // Cập nhật Đặt Cọc
       const { error: errDC } = await supabase.from('DatCoc').update({ TrangThai: newStatus }).eq('MaDatCoc', id);
       if (errDC) throw errDC;
     } else {
-      // Cáº­p nháº­t phiáº¿u Ä‘á»‘i soÃ¡t (mÃ£ há»£p Ä‘á»“ng)
+      // Cập nhật phiếu đối soát (mã hợp đồng)
       const { error: errPDS } = await supabase.from('PhieuDoiSoat').update({ TrangThai: newStatus }).eq('MaHopDong', id);
       if (errPDS) throw errPDS;
 
-      // Cáº­p nháº­t Há»£p Ä‘á»“ng
+      // Cập nhật Hợp đồng
       const { error: errHD } = await supabase.from('HopDong').update({ TrangThai: newStatus }).eq('MaHopDong', id);
       if (errHD) throw errHD;
     }
@@ -1982,19 +2001,19 @@ app.post('/api/phieu-doi-soat/hoan-tat-tra-phong', async (req, res) => {
     const io = getIO();
     if (io) {
       io.to('role:KE_TOAN').emit('thong_bao_moi', {
-        noiDung: `Quáº£n lÃ½ Ä‘Ã£ hoÃ n táº¥t thanh lÃ½ phÃ²ng cho ${maHD}. Há»£p Ä‘á»“ng Ä‘Ã£ Ä‘Ã³ng.`,
+        noiDung: `Quản lý đã hoàn tất thanh lý phòng cho ${maHD}. Hợp đồng đã đóng.`,
         loaiSuKien: newStatus
       });
     }
 
     res.json({ ok: true });
   } catch (error) {
-    console.error('Error updating to ÄÃ£ tráº£ phÃ²ng:', error);
-    res.status(500).json({ ok: false, message: 'Lá»—i server: ' + error.message });
+    console.error('Error updating to Đã trả phòng:', error);
+    res.status(500).json({ ok: false, message: 'Lỗi server: ' + error.message });
   }
 });
 
-// 7. POST /api/checkout/liquidate â€” KÃ½ biÃªn báº£n thanh lÃ½ há»£p Ä‘á»“ng / phiáº¿u cá»c
+// 7. POST /api/checkout/liquidate — Ký biên bản thanh lý hợp đồng / phiếu cọc
 app.post('/api/checkout/liquidate', async (req, res) => {
   const { maChungTu } = req.body;
   if (!ensureCheckoutSupabase(res)) {
@@ -2002,19 +2021,19 @@ app.post('/api/checkout/liquidate', async (req, res) => {
   }
 
   try {
-    if (maChungTu.startsWith('HÄ-')) {
-      const id = Number(maChungTu.replace('HÄ-', ''));
-      const item = await layItemQuyetToanTuMaSo(`HÄ-${id}`);
+    if (maChungTu.startsWith('HĐ-')) {
+      const id = Number(maChungTu.replace('HĐ-', ''));
+      const item = await layItemQuyetToanTuMaSo(`HĐ-${id}`);
 
-      let nextTrangThai = 'ÄÃ£ thanh lÃ½';
+      let nextTrangThai = 'Đã thanh lý';
       if (item) {
         const soTien = tinhSoTienQuyetToan(item);
-        nextTrangThai = 'ÄÃ£ thanh lÃ½';
+        nextTrangThai = 'Đã thanh lý';
       }
 
       await supabase.from('HopDong').update({ TrangThai: nextTrangThai }).eq('MaHopDong', id);
       await supabase.from('PhieuDoiSoat').update({ TrangThai: nextTrangThai }).eq('MaHopDong', id);
-      await supabase.from('BienBanBanGiao').update({ TrangThai: 'HoÃ n táº¥t thanh lÃ½' }).eq('MaHopDong', id);
+      await supabase.from('BienBanBanGiao').update({ TrangThai: 'Hoàn tất thanh lý' }).eq('MaHopDong', id);
 
       const { data: details } = await supabase.from('ChiTiet').select('MaGiuong').eq('MaHopDong', id);
       if (details?.length) {
@@ -2031,10 +2050,10 @@ app.post('/api/checkout/liquidate', async (req, res) => {
       const id = Number(maChungTu.replace('PC-', ''));
       const item = await layItemQuyetToanTuMaSo(`PC-${id}`);
 
-      let nextTrangThai = 'ÄÃ£ thanh lÃ½';
+      let nextTrangThai = 'Đã thanh lý';
       if (item) {
         const soTien = tinhSoTienQuyetToan(item);
-        nextTrangThai = 'ÄÃ£ thanh lÃ½';
+        nextTrangThai = 'Đã thanh lý';
       }
 
       await supabase.from('DatCoc').update({ TrangThai: nextTrangThai }).eq('MaDatCoc', id);
@@ -2053,7 +2072,7 @@ app.post('/api/checkout/liquidate', async (req, res) => {
   }
 });
 
-// 8. POST /api/checkout/payment â€” Káº¿ toÃ¡n hoÃ n cá»c / thu chÃªnh lá»‡ch
+// 8. POST /api/checkout/payment — Kế toán hoàn cọc / thu chênh lệch
 app.post('/api/checkout/payment', async (req, res) => {
   const { maChungTu, maGiaoDich, soTaiKhoan, tenNguoiNhan, nganHang } = req.body;
   if (!ensureCheckoutSupabase(res)) {
@@ -2061,12 +2080,12 @@ app.post('/api/checkout/payment', async (req, res) => {
   }
 
   try {
-    if (maChungTu.startsWith('HÄ-')) {
-      const id = Number(maChungTu.replace('HÄ-', ''));
+    if (maChungTu.startsWith('HĐ-')) {
+      const id = Number(maChungTu.replace('HĐ-', ''));
 
       const { data: pds } = await supabase.from('PhieuDoiSoat').select('TrangThai').eq('MaHopDong', id).maybeSingle();
-      const isThuThem = pds?.TrangThai === 'Chá» thanh toÃ¡n' || pds?.TrangThai === 'Chá» thanh toÃ¡n thÃªm';
-      const nextTrangThai = 'Chá» thanh lÃ½';
+      const isThuThem = pds?.TrangThai === 'Chờ thanh toán' || pds?.TrangThai === 'Chờ thanh toán thêm';
+      const nextTrangThai = 'Chờ thanh lý';
 
       await supabase.from('HopDong').update({ TrangThai: nextTrangThai }).eq('MaHopDong', id);
       await supabase.from('PhieuDoiSoat').update({
@@ -2077,8 +2096,8 @@ app.post('/api/checkout/payment', async (req, res) => {
       const io = getIO();
       if (io) {
         io.to('role:QUAN_LY').emit('thong_bao_moi', {
-          noiDung: `Káº¿ toÃ¡n Ä‘Ã£ hoÃ n táº¥t Ä‘á»‘i soÃ¡t cho HÄ-${id}. Há»£p Ä‘á»“ng Ä‘ang chá» thanh lÃ½ phÃ²ng.`,
-          loaiSuKien: 'Chá» thanh lÃ½'
+          noiDung: `Kế toán đã hoàn tất đối soát cho HĐ-${id}. Hợp đồng đang chờ thanh lý phòng.`,
+          loaiSuKien: 'Chờ thanh lý'
         });
       }
 
@@ -2086,8 +2105,9 @@ app.post('/api/checkout/payment', async (req, res) => {
       const id = Number(maChungTu.replace('PC-', ''));
       const pds = await taiPhieuDoiSoatDatCoc(id);
       const trangThaiHienTai = pds?.TrangThai || (await supabase.from('DatCoc').select('TrangThai').eq('MaDatCoc', id).single()).data?.TrangThai;
-      const isThuThem = trangThaiHienTai === 'Chá» thanh toÃ¡n' || trangThaiHienTai === 'Chá» thanh toÃ¡n thÃªm';
-      const nextTrangThai = 'Chá» thanh lÃ½';
+      const isThuThem = trangThaiHienTai === 'Chờ thanh toán' || trangThaiHienTai === 'Chờ thanh toán thêm';
+      // Đặt cọc chưa ký hợp đồng (PC-), sau khi hoàn tiền/thu thêm xong thì kết thúc luôn, không cần bàn giao
+      const nextTrangThai = 'Đã thanh lý';
 
       await supabase.from('DatCoc').update({ TrangThai: nextTrangThai }).eq('MaDatCoc', id);
       await luuPhieuDoiSoatDatCoc(id, {
@@ -2111,8 +2131,8 @@ httpServer.listen(port, () => {
 
 if (process.env.ENABLE_DEPOSIT_EXPIRY_JOB !== 'false') {
   const depositExpiryJob = setInterval(() => {
-    huyDatCocQuaHan().catch((error) => console.error('Lá»—i job há»§y cá»c quÃ¡ háº¡n:', error.message));
+    huyDatCocQuaHan().catch((error) => console.error('Lỗi job hủy cọc quá hạn:', error.message));
   }, 60 * 1000);
   depositExpiryJob.unref();
-  huyDatCocQuaHan().catch((error) => console.warn('ChÆ°a cháº¡y Ä‘Æ°á»£c job Ä‘áº·t cá»c:', error.message));
+  huyDatCocQuaHan().catch((error) => console.warn('Chưa chạy được job đặt cọc:', error.message));
 }

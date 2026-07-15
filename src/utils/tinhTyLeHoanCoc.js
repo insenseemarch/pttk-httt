@@ -19,32 +19,41 @@ export function tinhTyLeHoanCoc(item) {
     return 80;
   }
 
-  if (loaiHinh === 'dung_han') {
+  const ngayTra = item.ngayTraDuKien ? new Date(item.ngayTraDuKien) : new Date();
+  const ngayKetThuc = item.ngayKetThuc ? new Date(item.ngayKetThuc) : null;
+  const ngayBatDau = item.ngayBatDau ? new Date(item.ngayBatDau) : null;
+
+  // Hàm hỗ trợ lấy timestamp chỉ tính ngày
+  const resetTime = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const traTime = resetTime(ngayTra);
+
+  if (ngayKetThuc && !isNaN(ngayKetThuc.getTime())) {
+    const ketThucTime = resetTime(ngayKetThuc);
+    if (traTime >= ketThucTime) {
+      return 100;
+    }
+  } else if (loaiHinh === 'dung_han') {
     return 100;
   }
 
-  if (loaiHinh === 'truoc_han_duoi_6') {
+  if (loaiHinh === 'truoc_han_duoi_6' && (!ngayBatDau || isNaN(ngayBatDau.getTime()))) {
     return 50;
   }
 
-  if (loaiHinh === 'truoc_han_tren_6') {
+  if (loaiHinh === 'truoc_han_tren_6' && (!ngayBatDau || isNaN(ngayBatDau.getTime()))) {
     return 70;
   }
 
-  const ngayTra = item.ngayTraDuKien ? new Date(item.ngayTraDuKien) : new Date();
-  const ngayKetThuc = item.ngayKetThuc ? new Date(item.ngayKetThuc) : null;
-
-  if (ngayKetThuc && !isNaN(ngayKetThuc.getTime()) && ngayTra >= ngayKetThuc) {
-    return 100;
-  }
-
-  const ngayBatDau = item.ngayBatDau ? new Date(item.ngayBatDau) : null;
   if (!ngayBatDau || isNaN(ngayBatDau.getTime())) {
     return 50;
   }
 
-  const soThang = (ngayTra.getFullYear() - ngayBatDau.getFullYear()) * 12
+  let soThang = (ngayTra.getFullYear() - ngayBatDau.getFullYear()) * 12
     + (ngayTra.getMonth() - ngayBatDau.getMonth());
+    
+  if (ngayTra.getDate() < ngayBatDau.getDate()) {
+    soThang -= 1;
+  }
 
   return soThang < 6 ? 50 : 70;
 }
