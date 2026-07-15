@@ -83,7 +83,7 @@ export default function ChiTietNhanPhong({ nguoiDung, dangXuat }) {
       }
       thanhVien.forEach((tv) => {
         if (tv.gioiTinh && chuanHoaGioiTinh(tv.gioiTinh) !== chuanHoaGioiTinh(gtPhong)) {
-          msgs.push(`Thành viên ${tv.hoTen || tv.cccd}: giới tính không phù hợp phòng`);
+          msgs.push(`Thành viên ${tv.hoTen || tv.cccd}: giới tính không phù hợp phòng (yêu cầu: ${gtPhong})`);
         }
       });
     }
@@ -100,7 +100,13 @@ export default function ChiTietNhanPhong({ nguoiDung, dangXuat }) {
     setKhachChinh((prev) => ({ ...prev, [field]: value }));
   };
 
+  const soToiDaThanhVien = Math.max(0, (hoSo?.gioiHanNguoi || 1) - 1);
+
   const themThanhVien = () => {
+    if (thanhVien.length >= soToiDaThanhVien) {
+      hienToast(`Đã đủ ${soToiDaThanhVien} thành viên, không thể thêm nữa`, 'error');
+      return;
+    }
     if (!tvMoi.cccd || !tvMoi.hoTen.trim()) {
       hienToast('Vui lòng nhập CCCD và họ tên thành viên', 'error');
       return;
@@ -112,6 +118,16 @@ export default function ChiTietNhanPhong({ nguoiDung, dangXuat }) {
     if (thanhVien.some((tv) => String(tv.cccd) === String(tvMoi.cccd))) {
       hienToast('CCCD thành viên đã tồn tại trong danh sách', 'error');
       return;
+    }
+    if (tvMoi.sdt && tvMoi.sdt.trim()) {
+      if (tvMoi.sdt.trim() === khachChinh.sdt?.trim()) {
+        hienToast('SĐT trùng với người thuê chính', 'error');
+        return;
+      }
+      if (thanhVien.some((tv) => tv.sdt?.trim() && tv.sdt.trim() === tvMoi.sdt.trim())) {
+        hienToast('SĐT đã được dùng bởi một thành viên khác', 'error');
+        return;
+      }
     }
     setThanhVien((prev) => [...prev, { ...tvMoi }]);
     setTvMoi({ ...KHACH_TRONG });
@@ -393,17 +409,21 @@ export default function ChiTietNhanPhong({ nguoiDung, dangXuat }) {
           {hoSo.laThuNhom && (
             <div className="np-card">
               <div className="np-card-head">
-                <h2>Thành viên ở cùng ({thanhVien.length})</h2>
+                <h2>Thành viên ở cùng ({thanhVien.length} / {hoSo.gioiHanNguoi - 1})</h2>
                 <div
                   className="np-tooltip-wrap"
-                  data-tip={`Thêm từng thành viên trong nhóm. Mỗi người cần có CCCD riêng. Tối đa ${hoSo.gioiHanNguoi - 1} thành viên (không kể người thuê chính).`}
+                  data-tip={
+                    thanhVien.length >= soToiDaThanhVien
+                      ? `Đã đủ ${soToiDaThanhVien} thành viên (không kể người thuê chính).`
+                      : `Thêm từng thành viên. Mỗi người cần có CCCD riêng. Còn ${soToiDaThanhVien - thanhVien.length} chỗ trống.`
+                  }
                 >
                   <button
                     type="button"
                     className="qt-btn-outline"
                     style={{ padding: '6px 14px', fontSize: 13 }}
                     onClick={() => setShowThemTV(true)}
-                    disabled={showThemTV}
+                    disabled={showThemTV || thanhVien.length >= soToiDaThanhVien}
                   >
                     + Thêm thành viên
                   </button>
@@ -415,7 +435,16 @@ export default function ChiTietNhanPhong({ nguoiDung, dangXuat }) {
                   <div className="np-form-grid">
                     <div className="qt-field" data-tip="Nhập số CCCD (12 chữ số) hoặc CMND (9 chữ số) đúng như trên giấy tờ gốc của thành viên.">
                       <label>CCCD *</label>
-                      <input value={tvMoi.cccd} onChange={(e) => setTvMoi((p) => ({ ...p, cccd: e.target.value.replace(/\D/g, '') }))} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={12}
+                        value={tvMoi.cccd}
+                        onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '');
+                          setTvMoi((p) => ({ ...p, cccd: val }));
+                        }}
+                      />
                     </div>
                     <div className="qt-field" data-tip="Họ và tên đầy đủ của thành viên, viết đúng dấu như trên giấy tờ tùy thân.">
                       <label>Họ tên *</label>
@@ -464,55 +493,81 @@ export default function ChiTietNhanPhong({ nguoiDung, dangXuat }) {
               {thanhVien.length === 0 ? (
                 <p className="np-empty-members">Chưa có thành viên nào. Bấm &quot;Thêm thành viên&quot; để khai báo người ở cùng.</p>
               ) : (
-                <div className="table-responsive">
-                  <table className="qt-table">
-                    <thead>
-                      <tr>
-                        <th>Họ tên</th>
-                        <th data-tip="Số CCCD/CMND của thành viên">CCCD</th>
-                        <th>Giới tính</th>
-                        <th>SĐT</th>
-                        <th>Địa chỉ</th>
-                        <th data-tip="Đã đối chiếu giấy tờ tùy thân gốc trực tiếp">Đối chiếu</th>
-                        <th />
+                <table className="qt-table np-member-table" style={{ tableLayout: 'fixed', width: '100%' }}>
+                  <colgroup>
+                    <col style={{ width: '20%' }} />
+                    <col style={{ width: 136 }} />
+                    <col style={{ width: 86 }} />
+                    <col style={{ width: 116 }} />
+                    <col />
+                    <col style={{ width: 70 }} />
+                    <col style={{ width: 40 }} />
+                  </colgroup>
+                  <thead>
+                    <tr>
+                      <th title="Họ và tên đầy đủ theo giấy tờ tùy thân">Họ tên</th>
+                      <th title="Số CCCD 12 chữ số hoặc CMND 9 chữ số">CCCD</th>
+                      <th title="Giới tính — cần khớp quy định phòng nếu có">Giới tính</th>
+                      <th title="Số điện thoại liên hệ của thành viên">SĐT</th>
+                      <th title="Địa chỉ thường trú ghi trên CCCD / hộ khẩu">Địa chỉ</th>
+                      <th style={{ whiteSpace: 'nowrap' }} title="Tích khi đã kiểm tra và đối chiếu giấy tờ tùy thân gốc trực tiếp">Đối chiếu</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {thanhVien.map((tv, idx) => (
+                      <tr key={idx}>
+                        <td title="Nhấp để sửa họ tên">
+                          <input className="np-inline-input" value={tv.hoTen} onChange={(e) => capNhatThanhVien(tv.cccd, 'hoTen', e.target.value)} placeholder="Họ và tên" />
+                        </td>
+                        <td title="Nhấp để sửa số CCCD/CMND">
+                          <input
+                            className="np-inline-input np-mono"
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={12}
+                            value={tv.cccd}
+                            placeholder="12 chữ số"
+                            onChange={(e) => {
+                              const val = e.target.value.replace(/\D/g, '');
+                              setThanhVien((prev) => prev.map((m, i) => i === idx ? { ...m, cccd: val } : m));
+                            }}
+                          />
+                        </td>
+                        <td title="Chọn giới tính thành viên">
+                          <select className="np-inline-select" value={tv.gioiTinh} onChange={(e) => capNhatThanhVien(tv.cccd, 'gioiTinh', e.target.value)}>
+                            <option value="Nam">Nam</option>
+                            <option value="Nữ">Nữ</option>
+                          </select>
+                        </td>
+                        <td title="Nhấp để sửa số điện thoại">
+                          <input className="np-inline-input" value={tv.sdt} onChange={(e) => capNhatThanhVien(tv.cccd, 'sdt', e.target.value)} placeholder="09xxxxxxxx" />
+                        </td>
+                        <td title="Nhấp để sửa địa chỉ thường trú">
+                          <input className="np-inline-input" value={tv.diaChi} onChange={(e) => capNhatThanhVien(tv.cccd, 'diaChi', e.target.value)} placeholder="Địa chỉ thường trú" />
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            title="Tích khi đã kiểm tra giấy tờ tùy thân gốc của thành viên này"
+                            checked={tv.daDoiChieuCCCD}
+                            onChange={(e) => capNhatThanhVien(tv.cccd, 'daDoiChieuCCCD', e.target.checked)}
+                          />
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="qt-btn-icon"
+                            title="Xóa thành viên này khỏi danh sách"
+                            onClick={() => xoaThanhVien(tv.cccd)}
+                          >
+                            <span className="material-symbols-outlined">delete</span>
+                          </button>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {thanhVien.map((tv) => (
-                        <tr key={tv.cccd}>
-                          <td><input className="np-inline-input" value={tv.hoTen} onChange={(e) => capNhatThanhVien(tv.cccd, 'hoTen', e.target.value)} /></td>
-                          <td className="np-mono">{tv.cccd}</td>
-                          <td>
-                            <select className="np-inline-select" value={tv.gioiTinh} onChange={(e) => capNhatThanhVien(tv.cccd, 'gioiTinh', e.target.value)}>
-                              <option value="Nam">Nam</option>
-                              <option value="Nữ">Nữ</option>
-                            </select>
-                          </td>
-                          <td><input className="np-inline-input" value={tv.sdt} onChange={(e) => capNhatThanhVien(tv.cccd, 'sdt', e.target.value)} /></td>
-                          <td><input className="np-inline-input" value={tv.diaChi} onChange={(e) => capNhatThanhVien(tv.cccd, 'diaChi', e.target.value)} /></td>
-                          <td style={{ textAlign: 'center' }}>
-                            <input
-                              type="checkbox"
-                              title="Đã đối chiếu giấy tờ tùy thân gốc"
-                              checked={tv.daDoiChieuCCCD}
-                              onChange={(e) => capNhatThanhVien(tv.cccd, 'daDoiChieuCCCD', e.target.checked)}
-                            />
-                          </td>
-                          <td>
-                            <button
-                              type="button"
-                              className="qt-btn-icon"
-                              title="Xóa thành viên này khỏi danh sách"
-                              onClick={() => xoaThanhVien(tv.cccd)}
-                            >
-                              <span className="material-symbols-outlined">delete</span>
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               )}
             </div>
           )}

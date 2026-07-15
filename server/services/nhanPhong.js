@@ -2,7 +2,7 @@ import { supabase } from '../config/supabase.js';
 import { dinhDangNgay, dinhDangNgayGio, dinhDangTien } from '../utils/dinhDang.js';
 import { getIO } from '../config/ketNoiSocket.js';
 
-const TRANG_THAI_CHO_GHI_NHAN = ['Đặt cọc thành công', 'Đã cọc', 'Đã thanh toán'];
+const TRANG_THAI_CHO_GHI_NHAN = ['Đặt cọc thành công'];
 const TRANG_THAI_SAU_GHI_NHAN = 'Chờ kiểm tra';
 
 function chuanHoaGioiTinh(gioiTinh) {
@@ -12,15 +12,22 @@ function chuanHoaGioiTinh(gioiTinh) {
   return s;
 }
 
+// LoaiPhong trong Phong giờ là FK → object { TenLoaiPhong }
+function tenLoaiPhong(loaiPhong) {
+  if (!loaiPhong) return '—';
+  if (typeof loaiPhong === 'object') return loaiPhong.TenLoaiPhong || '—';
+  return String(loaiPhong);
+}
+
 function dinhDangPhongTuDatCoc(datCoc, giuongDatCoc) {
   const phong = datCoc?.Phong;
   if (phong) {
     return {
       maPhong: phong.MaPhong,
-      tenPhong: `P.${phong.MaPhong} — ${phong.LoaiPhong}`,
-      loaiPhong: phong.LoaiPhong,
+      tenPhong: `P.${phong.MaPhong} — ${tenLoaiPhong(phong.LoaiPhong)}`,
+      loaiPhong: tenLoaiPhong(phong.LoaiPhong),
       gioiTinhYeuCau: phong.GioiTinhYeuCau,
-      sucChuaToiDa: phong.SucChuaToiDa || phong.SucChuaConLai || phong.SucChua || 1,
+      sucChuaToiDa: phong.SucChuaToiDa || phong.SucChuaConLai || 1,
       tenChiNhanh: phong.ChiNhanh?.TenCN || datCoc?.ChiNhanh?.TenCN || '—',
       maCN: phong.MaCN || datCoc?.MaCN,
     };
@@ -30,10 +37,10 @@ function dinhDangPhongTuDatCoc(datCoc, giuongDatCoc) {
   if (p) {
     return {
       maPhong: p.MaPhong,
-      tenPhong: `P.${p.MaPhong} — ${p.LoaiPhong}`,
-      loaiPhong: p.LoaiPhong,
+      tenPhong: `P.${p.MaPhong} — ${tenLoaiPhong(p.LoaiPhong)}`,
+      loaiPhong: tenLoaiPhong(p.LoaiPhong),
       gioiTinhYeuCau: p.GioiTinhYeuCau,
-      sucChuaToiDa: p.SucChuaToiDa || p.SucChuaConLai || p.SucChua || 1,
+      sucChuaToiDa: p.SucChuaToiDa || p.SucChuaConLai || 1,
       tenChiNhanh: p.ChiNhanh?.TenCN || '—',
       maCN: p.MaCN,
     };
@@ -101,7 +108,7 @@ async function layDatCocDayDu(maDatCoc) {
     .select(`
       *,
       KhachHang ( CCCD, HoTen, NgaySinh, GioiTinh, QuocTich, DiaChi, SDT, Email, KhaNangTaiChinh ),
-      Phong ( MaPhong, LoaiPhong, SucChuaConLai, SucChuaToiDa, GioiTinhYeuCau, MaCN, ChiNhanh ( TenCN, DiaChi ) ),
+      Phong ( MaPhong, LoaiPhong ( TenLoaiPhong ), SucChuaConLai, SucChuaToiDa, GioiTinhYeuCau, MaCN, ChiNhanh ( TenCN, DiaChi ) ),
       ChiNhanh ( MaCN, TenCN, DiaChi ),
       NhomThue (
         MaNhom, SoThanhVienDangKy, SoThanhVienDuDieuKien, HinhThucThue, CCCD,
@@ -112,7 +119,7 @@ async function layDatCocDayDu(maDatCoc) {
       ),
       GiuongDatCoc (
         MaGiuong, SoGiuongCoc,
-        Giuong ( MaGiuong, GioiTinhYeuCau, MaPhong, Phong ( MaPhong, LoaiPhong, GioiTinhYeuCau, SucChuaToiDa, MaCN, ChiNhanh ( TenCN ) ) )
+        Giuong ( MaGiuong, GioiTinhYeuCau, MaPhong, Phong ( MaPhong, LoaiPhong ( TenLoaiPhong ), GioiTinhYeuCau, SucChuaToiDa, MaCN, ChiNhanh ( TenCN ) ) )
       )
     `)
     .eq('MaDatCoc', maDatCoc)
@@ -132,11 +139,11 @@ export async function layDanhSachChoNhanPhong(boLoc = {}) {
     .select(`
       MaDatCoc, ThoiDiemTao, DatCocThanhCong, SoTienCoc, TrangThai, LoaiThue, SoGiuongThue, MaCN, CCCD, MaNhom,
       KhachHang ( CCCD, HoTen, SDT ),
-      Phong ( MaPhong, LoaiPhong, ChiNhanh ( TenCN ) ),
+      Phong ( MaPhong, LoaiPhong ( TenLoaiPhong ), ChiNhanh ( TenCN ) ),
       ChiNhanh ( TenCN ),
-      GiuongDatCoc ( MaGiuong, Giuong ( Phong ( MaPhong, LoaiPhong, ChiNhanh ( TenCN ) ) ) )
+      GiuongDatCoc ( MaGiuong, Giuong ( Phong ( MaPhong, LoaiPhong ( TenLoaiPhong ), ChiNhanh ( TenCN ) ) ) )
     `, { count: 'exact' })
-    .in('TrangThai', TRANG_THAI_CHO_GHI_NHAN)
+    .eq('TrangThai', 'Đặt cọc thành công')
     .order('DatCocThanhCong', { ascending: false, nullsFirst: false })
     .range(tu, den);
 
@@ -149,6 +156,8 @@ export async function layDanhSachChoNhanPhong(boLoc = {}) {
   let ketQua = await Promise.all((data || []).map(async (dc) => {
     const phong = dinhDangPhongTuDatCoc(dc, dc.GiuongDatCoc);
     const yc = await layYeuCauThueGanNhat(dc.CCCD);
+    const soNguoiDuKien = Number(yc?.SoNguoiDuKien || 1);
+    const laThuNhom = soNguoiDuKien > 1;
     return {
       maDatCoc: dc.MaDatCoc,
       maPhieu: `PC-${dc.MaDatCoc}`,
@@ -159,13 +168,14 @@ export async function layDanhSachChoNhanPhong(boLoc = {}) {
       chiNhanh: phong.tenChiNhanh,
       maCN: dc.MaCN,
       soGiuongThue: dc.SoGiuongThue || 1,
+      soNguoiDuKien,
       loaiThue: dc.LoaiThue || 'Thuê giường lẻ',
       soTienCoc: Number(dc.SoTienCoc || 0),
       soTienCocFmt: dinhDangTien(dc.SoTienCoc),
       trangThai: dc.TrangThai,
       ngayDatCoc: dinhDangNgay(dc.DatCocThanhCong || dc.ThoiDiemTao),
       ngayHenNhanPhong: yc?.ThoiGianVao ? dinhDangNgayGio(yc.ThoiGianVao) : dinhDangNgay(dc.DatCocThanhCong),
-      laThuNhom: Boolean(dc.MaNhom) || (dc.SoGiuongThue || 1) > 1 || dc.LoaiThue === 'Thuê nguyên phòng',
+      laThuNhom,
     };
   }));
 
@@ -200,10 +210,9 @@ export async function layChiTietNhanPhong(maDatCoc) {
     .map((tv) => mapThanhVien(tv, tv.KhachHang, nhom?.CCCD || dc.CCCD));
 
   const soGiuongThue = dc.SoGiuongThue || 1;
-  const laThuNhom = Boolean(dc.MaNhom) || soGiuongThue > 1 || dc.LoaiThue === 'Thuê nguyên phòng';
-  const gioiHanNguoi = dc.LoaiThue === 'Thuê nguyên phòng'
-    ? (phong.sucChuaToiDa || soGiuongThue)
-    : soGiuongThue;
+  const soNguoiDuKien = Number(yc?.SoNguoiDuKien || 1);
+  const laThuNhom = soNguoiDuKien > 1;
+  const gioiHanNguoi = soNguoiDuKien;
 
   return {
     maDatCoc: dc.MaDatCoc,
@@ -211,6 +220,7 @@ export async function layChiTietNhanPhong(maDatCoc) {
     trangThai: dc.TrangThai,
     loaiThue: dc.LoaiThue || 'Thuê giường lẻ',
     soGiuongThue,
+    soNguoiDuKien,
     gioiHanNguoi,
     laThuNhom,
     maNhom: dc.MaNhom,
@@ -238,11 +248,31 @@ export async function layChiTietNhanPhong(maDatCoc) {
   };
 }
 
+function chuanHoaLoiDB(error, nguoi = 'Khách hàng') {
+  if (!error) return null;
+  const msg = error.message || '';
+  const constraint = error.constraint || (msg.match(/"([^"]+)"/) || [])[1] || '';
+  if (error.code === '23505') {
+    if (constraint.toLowerCase().includes('sdt') || msg.toLowerCase().includes('sdt')) {
+      return new Error(`${nguoi}: Số điện thoại này đã được đăng ký cho khách hàng khác trong hệ thống. Vui lòng kiểm tra lại.`);
+    }
+    if (constraint.toLowerCase().includes('cccd') || msg.toLowerCase().includes('cccd')) {
+      return new Error(`${nguoi}: CCCD/CMND đã tồn tại trong hệ thống.`);
+    }
+    if (constraint.toLowerCase().includes('email') || msg.toLowerCase().includes('email')) {
+      return new Error(`${nguoi}: Email này đã được đăng ký cho khách hàng khác.`);
+    }
+    return new Error(`${nguoi}: Dữ liệu bị trùng — ${constraint || msg}`);
+  }
+  return error;
+}
+
 async function upsertKhachHang(kh) {
   if (!kh?.cccd || !kh?.hoTen) {
     throw new Error('Thiếu CCCD hoặc họ tên khách hàng');
   }
 
+  const tenNguoi = kh.hoTen?.trim() || `CCCD ${kh.cccd}`;
   const payload = {
     CCCD: Number(kh.cccd),
     HoTen: kh.hoTen.trim(),
@@ -263,10 +293,10 @@ async function upsertKhachHang(kh) {
 
   if (existing) {
     const { error } = await supabase.from('KhachHang').update(payload).eq('CCCD', Number(kh.cccd));
-    if (error) throw error;
+    if (error) throw chuanHoaLoiDB(error, tenNguoi);
   } else {
     const { error } = await supabase.from('KhachHang').insert(payload);
-    if (error) throw error;
+    if (error) throw chuanHoaLoiDB(error, tenNguoi);
   }
 
   return payload;
@@ -295,9 +325,10 @@ async function damBaoNhomThue(dc, soThanhVien) {
   return nhomMoi.MaNhom;
 }
 
-function kiemTraDuLieuNhanPhong(dc, phong, payload) {
+function kiemTraDuLieuNhanPhong(dc, phong, payload, soNguoiDuKien = 1) {
   const loi = [];
-  const { khachChinh, thanhVien = [], laThuNhom } = payload;
+  const { khachChinh, thanhVien = [] } = payload;
+  const laThuNhom = soNguoiDuKien > 1;
 
   if (!khachChinh?.cccd) loi.push('Thiếu CCCD người thuê chính');
   if (!khachChinh?.hoTen?.trim()) loi.push('Thiếu họ tên người thuê chính');
@@ -313,16 +344,10 @@ function kiemTraDuLieuNhanPhong(dc, phong, payload) {
   }
 
   const danhSach = laThuNhom ? thanhVien : [];
-  const tongNguoi = laThuNhom ? 1 + danhSach.length : 1;
-  const gioiHan = dc.LoaiThue === 'Thuê nguyên phòng'
-    ? (phong.sucChuaToiDa || dc.SoGiuongThue || 1)
-    : (dc.SoGiuongThue || 1);
+  const tongNguoi = 1 + danhSach.length;
 
-  if (tongNguoi > gioiHan) {
-    loi.push(`Số người ở (${tongNguoi}) vượt quá số giường/phòng đã cọc (${gioiHan})`);
-  }
-  if (laThuNhom && tongNguoi < 1) {
-    loi.push('Thuê nhóm cần ít nhất 1 thành viên trong danh sách');
+  if (laThuNhom && tongNguoi !== soNguoiDuKien) {
+    loi.push(`Cần khai báo đủ ${soNguoiDuKien} người (hiện tại: ${tongNguoi}). Vui lòng thêm ${soNguoiDuKien - tongNguoi} thành viên còn lại.`);
   }
 
   danhSach.forEach((tv, idx) => {
@@ -380,6 +405,7 @@ async function taoThongBaoChuyenKiemTraDKLuuTru(dc, phong, hoTenKhach) {
     VaiTroNhan: 'Quản lý',
     NoiDung: noiDung,
     DaDoc: false,
+    LoaiThongBao: 'Chờ kiểm tra',
   });
 
   if (error) throw error;
@@ -403,7 +429,10 @@ export async function luuNhapNhanPhong(maDatCoc, payload) {
   }
 
   const phong = dinhDangPhongTuDatCoc(dc, dc.GiuongDatCoc);
-  const { khachChinh, thanhVien = [], laThuNhom, ghiChu } = payload;
+  const yc = await layYeuCauThueGanNhat(dc.CCCD);
+  const soNguoiDuKien = Number(yc?.SoNguoiDuKien || 1);
+  const laThuNhom = soNguoiDuKien > 1;
+  const { khachChinh, thanhVien = [], ghiChu } = payload;
 
   await upsertKhachHang(khachChinh);
 
@@ -452,7 +481,9 @@ export async function xacNhanGhiNhanNhanPhong(maDatCoc, payload, nguoiThucHien =
   }
 
   const phong = dinhDangPhongTuDatCoc(dc, dc.GiuongDatCoc);
-  const loi = kiemTraDuLieuNhanPhong(dc, phong, payload);
+  const yc = await layYeuCauThueGanNhat(dc.CCCD);
+  const soNguoiDuKien = Number(yc?.SoNguoiDuKien || 1);
+  const loi = kiemTraDuLieuNhanPhong(dc, phong, payload, soNguoiDuKien);
   if (loi.length) {
     return { ok: false, loi };
   }

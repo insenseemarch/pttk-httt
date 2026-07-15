@@ -84,8 +84,15 @@
   gap: 6px;
 }
 
-.qt-btn-primary:hover {
+.qt-btn-primary:hover:not(:disabled) {
   opacity: 0.92;
+}
+
+.qt-btn-primary:disabled,
+.qt-btn-outline:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .qt-btn-outline {
@@ -1078,6 +1085,11 @@ a.qt-btn-primary {
   border-radius: 6px;
   font-size: 13px;
   background: #fff;
+}
+
+.np-member-table th,
+.np-member-table td {
+  padding: 10px 8px;
 }
 
 .np-mono {
