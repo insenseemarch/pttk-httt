@@ -110,7 +110,7 @@ export default function ThanhMenuNhanVien({ nguoiDung, dangXuat, themMenu }) {
     } else if (loai === 'Chờ kiểm tra' || loai === 'kiem_tra_luu_tru') {
       navigate(phieuId ? `${ROUTES.kiemTraLuuTru}/${phieuId}` : ROUTES.kiemTraLuuTru);
     } else if (loai === 'Chờ lập hợp đồng') {
-      navigate(phieuId ? `${ROUTES.hopDong}/${phieuId}` : ROUTES.hopDong);
+      navigate(phieuId ? `${ROUTES.lapHopDong}/${phieuId}` : ROUTES.lapHopDong);
     } else if (phieuId) {
       navigate(`${ROUTES.deposit}?phieu=${phieuId}`);
     } else {

@@ -1646,15 +1646,6 @@ app.post('/api/checkout/request', async (req, res) => {
       if (errHd) throw errHd;
       if (!updatedRows?.length) {
         return res.status(404).json({ ok: false, error: `Không cập nhật được hợp đồng MaHopDong=${id}` });
-    // Cháº¥p nháº­n HÄ-12 hoáº·c HD-00012
-    const isHopDong =
-      String(maSoChungTu).startsWith('HÄ-') ||
-      /^HD-/i.test(String(maSoChungTu));
-
-    if (isHopDong) {
-      const id = Number(String(maSoChungTu).replace(/^(HÄ-|HD-)/i, ''));
-      if (!Number.isFinite(id) || id <= 0) {
-        return res.status(400).json({ ok: false, error: 'MÃ£ há»£p Ä‘á»“ng khÃ´ng há»£p lá»‡' });
       }
       console.log('[checkout/request] HopDong updated:', updatedRows[0]);
 

@@ -76,6 +76,18 @@ export function layMenuNhanVienTheoVaiTro(vaiTro) {
     ];
   }
 
+  if (vaiTro === 'phutrach') {
+    return [
+      { key: 'dashboard', label: 'Tổng quan', path: ROUTES.dashboard },
+      { key: 'lapHopDong', label: 'Lập hợp đồng', path: ROUTES.lapHopDong },
+      { key: 'phongGiuong', label: 'Phòng/Giường', path: ROUTES.phongGiuong },
+      { key: 'soDoPhong', label: 'Sơ đồ phòng', path: ROUTES.soDoPhong },
+      { key: 'khachHang', label: 'Khách hàng', path: ROUTES.khachHang },
+      { key: 'hopDong', label: 'Hợp đồng', path: ROUTES.hopDong },
+      { key: 'thongBao', label: 'Thông báo', path: ROUTES.thongBao },
+    ];
+  }
+
   if (vaiTro === 'tiepnhan') {
     return [
       { key: 'dashboard', label: 'Tổng quan', path: ROUTES.dashboard },
