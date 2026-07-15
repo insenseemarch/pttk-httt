@@ -5196,6 +5196,65 @@ h1.page-title {
   font-size: 12.5px;
 }
 
+.handover-guide-card {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.handover-guide-card .handover-notice-head {
+  color: #475569;
+}
+
+.handover-guide-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: #64748b;
+}
+
+.handover-guide-list li + li {
+  margin-top: 4px;
+}
+
+.handover-section-title {
+  font-size: 13px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.handover-info-value--highlight {
+  color: var(--primary-color);
+  font-weight: 700;
+}
+
+.handover-giuong-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 0 16px 12px;
+}
+
+.handover-sign-col .np-sign-box {
+  width: 100%;
+}
+
+.handover-confirm-tip {
+  width: 100%;
+  display: block;
+}
+
+.handover-confirm-tip .handover-confirm-btn {
+  width: 100%;
+}
+
+.handover-confirm-tip[data-tip]::after {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: 280px;
+}
+
 /* Khu vực chữ ký */
 .handover-signatures {
   display: grid;
@@ -5296,10 +5355,19 @@ h1.page-title {
 
 .handover-confirm-btn {
   width: 100%;
-  padding: 16px !important;
+  flex: none !important;
+  height: auto !important;
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 20px !important;
   font-size: 15px !important;
+  line-height: 1.35;
   border-radius: 12px !important;
   letter-spacing: 0.02em;
+  text-align: center;
+  box-sizing: border-box;
   box-shadow: 0 6px 20px rgba(242, 106, 33, 0.25) !important;
   transition: box-shadow 0.2s, transform 0.1s !important;
 }
@@ -5318,7 +5386,7 @@ h1.page-title {
   color: var(--text-muted);
   font-weight: 500;
   text-align: center;
-  margin: -4px 0;
+  margin: 4px 0 0;
 }
 
 .handover-actions .btn-detail-outline {

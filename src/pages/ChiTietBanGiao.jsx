@@ -22,6 +22,8 @@ export default function ChiTietBanGiao({ nguoiDung, dangXuat }) {
 
       <AssetHandover
         maHopDong={maHopDong ? parseInt(maHopDong) : null}
+        maQuanLy={nguoiDung?.maNV || null}
+        tenQuanLy={nguoiDung?.hoTen || null}
         hienThongBao={hienThongBao}
         onQuayLai={() => navigate(ROUTES.banGiao)}
         onBanGiaoThanhCong={() => navigate(ROUTES.banGiao)}
