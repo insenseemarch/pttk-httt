@@ -1,5 +1,6 @@
 import { supabase } from '../config/supabase.js';
 import { dinhDangCCCD, dinhDangNgay, dinhDangTien } from '../utils/dinhDang.js';
+import { chuanHoaKyThanhToan } from '../utils/hopDongQuyDinh.js';
 
 function layPhongTuChiTiet(chiTiets) {
   const ct = chiTiets?.[0];
@@ -154,7 +155,7 @@ export async function layDanhSachHopDong(boLoc = {}) {
       trangThaiGoc: hd.TrangThai,
       giaThue: dinhDangTien(hd.GiaThue),
       giaThueSo: Number(hd.GiaThue) || 0,
-      kyThanhToan: hd.KyThanhToan || '—',
+      kyThanhToan: hd.KyThanhToan ? chuanHoaKyThanhToan(hd.KyThanhToan) : '—',
       maDatCoc: hd.MaDatCoc,
       pdsInfo,
     };
@@ -292,7 +293,7 @@ export async function layChiTietHopDong(maHopDong) {
     trangThaiGoc: data.TrangThai,
     giaThue: dinhDangTien(data.GiaThue),
     giaThueSo: Number(data.GiaThue) || 0,
-    kyThanhToan: data.KyThanhToan || '—',
+    kyThanhToan: data.KyThanhToan ? chuanHoaKyThanhToan(data.KyThanhToan) : '—',
     maDatCoc: data.MaDatCoc,
     phieuDoiSoat: data.PhieuDoiSoat || [],
   };

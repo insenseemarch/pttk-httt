@@ -174,15 +174,29 @@
   background: #fff;
 }
 
+.qt-field .qt-search-wrap {
+  width: 100%;
+}
+
 .qt-search-wrap {
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
 }
 
 .qt-search-wrap input {
   flex: 1;
+  width: 100%;
   padding-left: 40px;
+}
+
+.qt-field .qt-search-wrap input {
+  padding: 10px 12px 10px 40px;
+  border: 1px solid #e0c0b1;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fff;
 }
 
 .qt-search-wrap .material-symbols-outlined {
@@ -193,6 +207,16 @@
   color: #8c7164;
   font-size: 20px;
   pointer-events: none;
+  line-height: 1;
+}
+
+.qt-search-wrap:focus-within .material-symbols-outlined {
+  color: #9d4300;
+}
+
+.qt-search-wrap:focus-within input {
+  border-color: #d4a574;
+  box-shadow: 0 0 0 3px rgba(157, 67, 0, 0.08);
 }
 
 .qt-stats {
@@ -254,11 +278,64 @@
 
 .qt-table tbody tr {
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
 }
 
 .qt-table tbody tr:hover {
-  background: #fafafa;
+  background: #fff8f3;
+}
+
+.qt-table-row--interactive:hover {
+  background: #fff8f3;
+}
+
+.qt-table-row--interactive:hover .qt-table-id {
+  color: #9d4300;
+}
+
+.qt-table-row--interactive:active {
+  background: #ffedd5;
+}
+
+.qt-table-id {
+  color: var(--primary-color, #9d4300);
+  transition: color 0.15s ease;
+}
+
+.qt-btn-sm {
+  padding: 6px 12px;
+  font-size: 12px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.qt-table-action:hover {
+  background: #9d4300;
+  border-color: #9d4300;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(157, 67, 0, 0.2);
+}
+
+.qt-filter-card .qt-btn-outline {
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease;
+}
+
+.qt-filter-card .qt-btn-outline:hover {
+  background: #fff7ed;
+  border-color: #d4a574;
+  transform: translateY(-1px);
+}
+
+.qt-chip {
+  transition: opacity 0.15s ease;
+}
+
+.qt-table-row--interactive:hover .qt-chip--blue {
+  opacity: 0.92;
 }
 
 .qt-table .sub {
@@ -1036,6 +1113,12 @@ a.qt-btn-primary {
 .np-tooltip-wrap[data-tip]::after {
   left: auto;
   right: 0;
+}
+
+/* Tooltip phía dưới — dùng trong bảng (tránh bị cắt bởi overflow của .qt-table-wrap) */
+.np-tooltip-wrap--below[data-tip]::after {
+  bottom: auto;
+  top: calc(100% + 8px);
 }
 
 .np-check-label {

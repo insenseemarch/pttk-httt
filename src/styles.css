@@ -4677,72 +4677,6 @@ h1.page-title {
   margin-bottom: 24px;
 }
 
-.contract-steps {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  max-width: 560px;
-  margin: 8px auto 32px auto;
-}
-
-.contract-step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  position: relative;
-  flex: 1;
-  min-width: 0;
-}
-
-.contract-step:not(:last-child)::after {
-  content: '';
-  position: absolute;
-  top: 19px;
-  left: calc(50% + 20px);
-  width: calc(100% - 40px);
-  height: 2px;
-  background-color: #e2e8f0;
-  z-index: 0;
-}
-
-.contract-step.completed:not(:last-child)::after {
-  background-color: var(--primary-color);
-}
-
-.contract-step-num {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  font-size: 14px;
-  font-weight: 700;
-  background-color: #ffffff;
-  border: 2px solid var(--border-color);
-  color: #94a3b8;
-  position: relative;
-  z-index: 1;
-}
-
-.contract-step.active .contract-step-num {
-  background-color: var(--primary-color);
-  border-color: var(--primary-color);
-  color: #ffffff;
-}
-
-.contract-step-name {
-  font-size: 11.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #94a3b8;
-}
-
-.contract-step.active .contract-step-name {
-  color: #1e293b;
-}
-
 .contract-grid {
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -4928,6 +4862,16 @@ h1.page-title {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.contract-action-tip {
+  display: block;
+  width: 100%;
+}
+
+.contract-action-tip[data-tip]::after {
+  left: 0;
+  right: auto;
 }
 
 .contract-actions .btn-book-filled,
@@ -7978,4 +7922,141 @@ textarea.form-control {
 
 .fade-in-up {
   animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* --- MODAL IN HỢP ĐỒNG PDF --- */
+.hd-print-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(2px);
+}
+
+.hd-print-modal {
+  background: #fff;
+  border-radius: 16px;
+  width: min(720px, 100%);
+  max-height: min(90vh, 860px);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+
+.hd-print-modal__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 20px 24px 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.hd-print-modal__head h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  color: #1e293b;
+}
+
+.hd-print-modal__head p {
+  margin: 0;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.hd-print-modal__close {
+  background: #f8fafc;
+  border: none;
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.hd-print-modal__close:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.hd-print-modal__actions {
+  display: flex;
+  gap: 10px;
+  padding: 12px 24px;
+  flex-wrap: wrap;
+}
+
+.hd-print-modal__hint {
+  margin: 0 24px 12px;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.hd-print-preview {
+  flex: 1;
+  overflow: auto;
+  padding: 0 24px 24px;
+}
+
+.hd-print-doc {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 20px;
+  background: #fafafa;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.hd-print-doc h1 {
+  text-align: center;
+  font-size: 16px;
+  margin: 0 0 4px;
+  color: #0f172a;
+}
+
+.hd-print-doc__sub {
+  text-align: center;
+  font-size: 12px;
+  color: #64748b;
+  margin: 0 0 16px;
+}
+
+.hd-print-doc section {
+  margin-bottom: 14px;
+}
+
+.hd-print-doc h3 {
+  font-size: 13px;
+  margin: 0 0 6px;
+  color: #9d4300;
+}
+
+.hd-print-doc__list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.hd-print-doc__muted {
+  color: #64748b;
+  font-size: 12px;
+  margin: 0;
+}
+
+.hd-print-doc__sign img {
+  max-width: 200px;
+  max-height: 80px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  padding: 4px;
 }
