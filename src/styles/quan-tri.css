@@ -1107,6 +1107,157 @@ a.qt-btn-primary {
   top: calc(100% + 8px);
 }
 
+/* Icon gợi ý cạnh label — chỉ hover icon, không bọc cả control */
+.np-hint {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
+  margin-left: 5px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  cursor: help;
+  outline: none;
+  flex-shrink: 0;
+}
+
+.np-hint-icon {
+  font-size: 15px !important;
+  color: #94a3b8;
+  transition: color 0.15s ease;
+  line-height: 1;
+}
+
+.np-hint:hover .np-hint-icon,
+.np-hint:focus-visible .np-hint-icon {
+  color: #64748b;
+}
+
+.np-hint:focus-visible {
+  box-shadow: 0 0 0 2px rgba(242, 106, 33, 0.35);
+}
+
+.np-hint-popup {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 160px;
+  max-width: 240px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: center;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+  z-index: 1000;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.22);
+}
+
+.np-hint-popup::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+}
+
+.np-hint--top .np-hint-popup {
+  bottom: calc(100% + 7px);
+}
+
+.np-hint--top .np-hint-popup::before {
+  top: 100%;
+  border-top-color: #0f172a;
+}
+
+.np-hint--bottom .np-hint-popup {
+  top: calc(100% + 7px);
+}
+
+.np-hint--bottom .np-hint-popup::before {
+  bottom: 100%;
+  border-bottom-color: #0f172a;
+}
+
+.np-hint:hover .np-hint-popup,
+.np-hint:focus-visible .np-hint-popup {
+  opacity: 1;
+  visibility: visible;
+}
+
+.np-label-with-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Tooltip hover trên nút hành động (bảng danh sách) */
+.np-action-tip {
+  position: relative;
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.np-action-tip[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 260px;
+  min-width: 140px;
+  padding: 7px 11px;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #f8fafc;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: center;
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.15s ease, visibility 0.15s ease;
+  z-index: 1000;
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.22);
+}
+
+.np-action-tip[data-tip]:hover::after,
+.np-action-tip[data-tip]:focus-within::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+.np-action-tip--bottom[data-tip]::after {
+  top: calc(100% + 8px);
+  bottom: auto;
+}
+
+.np-action-tip--top[data-tip]::after {
+  bottom: calc(100% + 8px);
+  top: auto;
+}
+
+.qt-table-wrap--action-tips {
+  overflow: visible;
+}
+
+.qt-table-wrap--action-tips .qt-table tbody tr:last-child .np-action-tip--bottom[data-tip]::after {
+  top: auto;
+  bottom: calc(100% + 8px);
+}
+
 .np-check-label {
   display: flex !important;
   align-items: center;

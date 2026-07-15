@@ -30,6 +30,7 @@ export default function AssetHandover({
   const [dangTai, setDangTai] = useState(false);
   const [dangXuLy, setDangXuLy] = useState(false);
   const [bienBanIn, setBienBanIn] = useState(null);
+  const [confirmPopup, setConfirmPopup] = useState(null);
 
   const sigPadQuanLy = useRef(null);
   const sigPadKhach = useRef(null);
@@ -175,6 +176,56 @@ export default function AssetHandover({
   const tienDoPercent = tongMuc > 0 ? Math.round((soMucDaKiem / tongMuc) * 100) : 0;
   const sanSangKy = soMucDaKiem === tongMuc && tongMuc > 0 && quanLyDaKy && khachDaKy;
 
+  const quayLaiDanhSach = () => {
+    if (onQuayLai) onQuayLai();
+    else navigate(ROUTES.banGiao);
+  };
+
+  const moConfirmKyBanGiao = () => {
+    const daKiemDu = danhMucTaiSan.length > 0 && danhMucTaiSan.every((item) => item.daKiem);
+    if (!daKiemDu) {
+      hienThongBao('error', 'Vui lòng tick đủ tất cả mục kiểm kê tài sản trước khi ký.');
+      return;
+    }
+    if (!quanLyDaKy || sigPadQuanLy.current?.isEmpty()) {
+      hienThongBao('error', 'Vui lòng yêu cầu quản lý ký xác nhận trên ô chữ ký.');
+      return;
+    }
+    if (!khachDaKy || sigPadKhach.current?.isEmpty()) {
+      hienThongBao('error', 'Vui lòng yêu cầu khách hàng ký xác nhận trên ô chữ ký.');
+      return;
+    }
+    setConfirmPopup('ky-ban-giao');
+  };
+
+  const noiDungConfirmPopup = (() => {
+    if (confirmPopup === 'ky-ban-giao') {
+      return {
+        tieuDe: 'Xác nhận ký biên bản bàn giao?',
+        moTa: `Phòng ${phong?.phongGiuong || '—'} sẽ chuyển sang trạng thái ĐANG THUÊ cho ${khachHang?.hoTen || 'khách hàng'}. Tiền điện, nước bắt đầu tính từ thời điểm này. Thao tác không thể hoàn tác.`,
+        nutChinh: 'Ký biên bản bàn giao',
+        nutChinhClass: 'btn-book-filled',
+      };
+    }
+    if (confirmPopup === 'quay-lai') {
+      return {
+        tieuDe: 'Quay lại danh sách?',
+        moTa: 'Biên bản bàn giao chưa hoàn tất sẽ không được lưu. Bạn có chắc chắn muốn quay lại?',
+        nutChinh: 'Quay lại',
+        nutChinhClass: 'btn-detail-outline',
+      };
+    }
+    return null;
+  })();
+
+  const thucHienConfirmPopup = async () => {
+    if (!confirmPopup) return;
+    const action = confirmPopup;
+    setConfirmPopup(null);
+    if (action === 'ky-ban-giao') await hoanTatBanGiao();
+    else if (action === 'quay-lai') quayLaiDanhSach();
+  };
+
   return (
     <div className="handover-page">
       {bienBanIn && (
@@ -264,7 +315,13 @@ export default function AssetHandover({
                 {thongTin?.thuTienKyDau && (
                   <DongThongTin
                     label="Thu kỳ đầu:"
-                    value={`${thongTin.thuTienKyDau.maPhieuThu} — ${thongTin.thuTienKyDau.soTienFmt}`}
+                    value={(
+                      <>
+                        {thongTin.thuTienKyDau.maPhieuThu}
+                        {' — '}
+                        <span className="handover-info-amount">{thongTin.thuTienKyDau.soTienFmt}</span>
+                      </>
+                    )}
                     highlight
                   />
                 )}
@@ -417,13 +474,13 @@ export default function AssetHandover({
                     type="button"
                     className="btn-book-filled handover-confirm-btn"
                     disabled={dangXuLy || !sanSangKy}
-                    onClick={hoanTatBanGiao}
+                    onClick={moConfirmKyBanGiao}
                   >
                     {dangXuLy ? 'Đang xử lý...' : 'Ký biên bản bàn giao — Chính thức nhận phòng'}
                   </button>
                 </div>
                 <p className="handover-legal-note">Biên bản điện tử có giá trị pháp lý tương đương văn bản giấy</p>
-                <button type="button" className="btn-detail-outline" onClick={onQuayLai}>
+                <button type="button" className="btn-detail-outline" onClick={() => setConfirmPopup('quay-lai')}>
                   Quay lại
                 </button>
               </div>
@@ -431,6 +488,42 @@ export default function AssetHandover({
             </div>
           </div>
 
+        </div>
+      )}
+
+      {confirmPopup && noiDungConfirmPopup && (
+        <div
+          className="np-modal-overlay"
+          onClick={() => { if (!dangXuLy) setConfirmPopup(null); }}
+          role="presentation"
+        >
+          <div className="np-modal np-modal--confirm" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="np-modal-head">
+              <span className="material-symbols-outlined np-modal-icon">help</span>
+              <div>
+                <h3>{noiDungConfirmPopup.tieuDe}</h3>
+                <p>{noiDungConfirmPopup.moTa}</p>
+              </div>
+            </div>
+            <div className="np-modal-actions">
+              <button
+                type="button"
+                className="btn-detail-outline"
+                disabled={dangXuLy}
+                onClick={() => setConfirmPopup(null)}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className={noiDungConfirmPopup.nutChinhClass}
+                disabled={dangXuLy}
+                onClick={thucHienConfirmPopup}
+              >
+                {dangXuLy ? 'Đang xử lý...' : noiDungConfirmPopup.nutChinh}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import KhungNhanVien from './KhungNhanVien';
+import HintTooltip from './HintTooltip';
+import ActionTooltip from './ActionTooltip';
+
+const TIP_NUT_THU_TIEN = 'Lập phiếu thu kỳ đầu: tiền thuê, nước, internet, gửi xe. Tiền điện thu các kỳ sau.';
 
 // Trang THANH TOÁN ĐẦU KỲ (INITIAL PAYMENT)
 // Kế toán xem danh sách và lập phiếu thu tiền thuê kỳ đầu.
@@ -32,6 +36,7 @@ export default function InitialPayment({
   const [ghiChuQuanLy, setGhiChuQuanLy] = useState('');
   const [phuongThuc, setPhuongThuc] = useState('tien-mat');
   const [soTienThucThu, setSoTienThucThu] = useState('');
+  const [confirmPopup, setConfirmPopup] = useState(null);
 
   // Hàm hiển thị thông báo hợp nhất
   const thongBao = (kieu, noiDung) => {
@@ -201,6 +206,47 @@ export default function InitialPayment({
     }
   };
 
+  const moConfirmXacNhanThu = () => {
+    if (!soTienThucThu || soTienThucThuNum <= 0) {
+      thongBao('error', 'Vui lòng nhập số tiền thực thu!');
+      return;
+    }
+    if (!duThu) {
+      thongBao('error', `Số tiền thu chưa đủ. Còn thiếu: ${(tongTienPhaiThu - soTienThucThuNum).toLocaleString('vi-VN')}đ`);
+      return;
+    }
+    setConfirmPopup('xac-nhan-thu');
+  };
+
+  const noiDungConfirmPopup = (() => {
+    if (confirmPopup === 'xac-nhan-thu') {
+      const tenPhuongThuc = phuongThuc === 'chuyen-khoan' ? 'Chuyển khoản' : 'Tiền mặt';
+      return {
+        tieuDe: 'Xác nhận đã thu đủ?',
+        moTa: `Tạo phiếu thu ${formatTien(soTienThucThuNum)}đ cho ${khachHang?.tenKhach || 'khách hàng'} (${tenPhuongThuc}). Hệ thống sẽ thông báo Quản lý bàn giao phòng. Thao tác không thể hoàn tác.`,
+        nutChinh: 'Xác nhận đã thu đủ',
+        nutChinhClass: 'btn-book-filled',
+      };
+    }
+    if (confirmPopup === 'quay-lai') {
+      return {
+        tieuDe: 'Quay lại danh sách?',
+        moTa: 'Giao dịch chưa xác nhận sẽ không được lưu. Bạn có chắc chắn muốn quay lại?',
+        nutChinh: 'Quay lại',
+        nutChinhClass: 'btn-detail-outline',
+      };
+    }
+    return null;
+  })();
+
+  const thucHienConfirmPopup = async () => {
+    if (!confirmPopup) return;
+    const action = confirmPopup;
+    setConfirmPopup(null);
+    if (action === 'xac-nhan-thu') await xacNhanDaThu();
+    else if (action === 'quay-lai') quayLaiDanhSach();
+  };
+
   const renderMainContent = () => {
     if (!chiTietThuTien && selectedMaHopDong === null) {
       return (
@@ -220,7 +266,7 @@ export default function InitialPayment({
             </div>
           </div>
 
-          <div className="qt-table-wrap" style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+          <div className="qt-table-wrap qt-table-wrap--action-tips" style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
             {loadingList ? (
               <div style={{ textAlign: 'center', padding: '48px', color: '#64748b' }}>Đang tải danh sách hợp đồng...</div>
             ) : danhSachHopDong.length === 0 ? (
@@ -264,10 +310,12 @@ export default function InitialPayment({
                               Đã hoàn thành
                             </button>
                           ) : (
-                            <button type="button" className="qt-btn-primary" style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', background: '#10b981', color: '#fff', border: 'none', fontWeight: '700' }} onClick={() => setSelectedMaHopDong(hd.maHopDong)}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: '4px', verticalAlign: 'middle' }}>account_balance_wallet</span>
-                              Thu tiền
-                            </button>
+                            <ActionTooltip text={TIP_NUT_THU_TIEN}>
+                              <button type="button" className="qt-btn-primary" style={{ padding: '6px 14px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer', background: '#10b981', color: '#fff', border: 'none', fontWeight: '700' }} onClick={() => setSelectedMaHopDong(hd.maHopDong)}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '16px', marginRight: '4px', verticalAlign: 'middle' }}>account_balance_wallet</span>
+                                Thu tiền
+                              </button>
+                            </ActionTooltip>
                           )}
                         </td>
                       </tr>
@@ -352,7 +400,10 @@ export default function InitialPayment({
 
             <div className="stay-check-card payment-items-card">
               <div className="stay-check-card-head">
-                <h2 className="stay-check-card-title">Chi tiết các khoản thu</h2>
+                <h2 className="stay-check-card-title np-label-with-hint">
+                  Chi tiết các khoản thu
+                  <HintTooltip text="Tiền điện thu theo chỉ số kWh ở các kỳ sau." position="bottom" />
+                </h2>
                 <span className="stay-check-members-count">
                   {khachHang?.kyThanhToan || 'Tháng đầu'}
                 </span>
@@ -372,11 +423,11 @@ export default function InitialPayment({
                           <div className="payment-item-name">{item.ten}</div>
                           <div className="payment-item-period">{item.kyTinh}</div>
                           {item.coTheChinhSoLuong && (
-                            <div
-                              className="payment-qty-row np-tooltip-wrap np-tooltip-wrap--below"
-                              data-tip="Nhập số xe khách gửi trong kỳ đầu. Đặt 0 nếu không thu phí gửi xe."
-                            >
-                              <label className="payment-qty-label" htmlFor={`so-xe-${idx}`}>Số lượng xe</label>
+                            <div className="payment-qty-row">
+                              <label className="payment-qty-label" htmlFor={`so-xe-${idx}`}>
+                                Số lượng xe
+                                <HintTooltip text="Số xe đăng ký gửi. Nhập 0 nếu không thu phí." position="bottom" />
+                              </label>
                               <input
                                 id={`so-xe-${idx}`}
                                 type="number"
@@ -412,36 +463,40 @@ export default function InitialPayment({
               </div>
               <div className="payment-action-body">
                 <div className="payment-input-group">
-                  <label className="payment-input-label">Phương thức thanh toán</label>
+                  <label className="payment-input-label">
+                    Phương thức thanh toán
+                    <HintTooltip text="Chọn cách khách đã thanh toán tại quầy." />
+                  </label>
                   <div className="payment-method-selector">
                     {[
-                      { value: 'tien-mat', label: 'Tiền mặt', tip: 'Khách thanh toán trực tiếp bằng tiền mặt tại quầy kế toán.' },
-                      { value: 'chuyen-khoan', label: 'Chuyển khoản', tip: 'Khách đã chuyển khoản — chỉ xác nhận khi tiền đã về tài khoản.' },
+                      { value: 'tien-mat', label: 'Tiền mặt' },
+                      { value: 'chuyen-khoan', label: 'Chuyển khoản' },
                     ].map((opt) => (
-                      <div
+                      <button
                         key={opt.value}
-                        className="np-tooltip-wrap np-tooltip-wrap--below payment-method-tip"
-                        data-tip={opt.tip}
+                        type="button"
+                        className={`payment-method-btn ${phuongThuc === opt.value ? 'active' : ''}`}
+                        onClick={() => setPhuongThuc(opt.value)}
                       >
-                        <button
-                          type="button"
-                          className={`payment-method-btn ${phuongThuc === opt.value ? 'active' : ''}`}
-                          onClick={() => setPhuongThuc(opt.value)}
-                        >
-                          <span className={`payment-radio-dot ${phuongThuc === opt.value ? 'active' : ''}`} />
-                          <span className="payment-method-label">{opt.label}</span>
-                        </button>
-                      </div>
+                        <span className={`payment-radio-dot ${phuongThuc === opt.value ? 'active' : ''}`} />
+                        <span className="payment-method-label">{opt.label}</span>
+                      </button>
                     ))}
                   </div>
+                  {phuongThuc === 'chuyen-khoan' && (
+                    <div className="payment-inline-note">
+                      <span className="material-symbols-outlined">info</span>
+                      <span>Chỉ xác nhận khi tiền đã về tài khoản công ty.</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="payment-input-group">
-                  <label className="payment-input-label">Số tiền thực thu</label>
-                  <div
-                    className="payment-amount-wrap np-tooltip-wrap np-tooltip-wrap--below"
-                    data-tip="Nhập số tiền khách đã trả. Hệ thống so với tổng cần thu — chỉ xác nhận khi đủ hoặc dư."
-                  >
+                  <label className="payment-input-label">
+                    Số tiền thực thu
+                    <HintTooltip text="Phải bằng hoặc lớn hơn tổng cần thu." position="bottom" />
+                  </label>
+                  <div className="payment-amount-wrap">
                     <input
                       type="text"
                       className={`payment-amount-input ${!duThu && soTienThucThuNum > 0 ? 'input-error' : duThu && soTienThucThuNum > 0 ? 'input-success' : ''}`}
@@ -462,47 +517,25 @@ export default function InitialPayment({
                   )}
                 </div>
 
-                <div
-                  className="np-tooltip-wrap np-tooltip-wrap--below"
-                  data-tip="Sau khi xác nhận, hệ thống tạo phiếu thu và thông báo Quản lý bàn giao phòng. Thao tác không thể hoàn tác."
+                <button
+                  type="button"
+                  className={`payment-confirm-btn ${dangXuLy ? 'loading' : ''}`}
+                  disabled={dangXuLy}
+                  onClick={moConfirmXacNhanThu}
                 >
-                  <button
-                    type="button"
-                    className={`payment-confirm-btn ${dangXuLy ? 'loading' : ''}`}
-                    disabled={dangXuLy}
-                    onClick={xacNhanDaThu}
-                  >
-                    {dangXuLy ? 'Đang xử lý...' : 'XÁC NHẬN ĐÃ THU ĐỦ'}
-                  </button>
-                </div>
+                  {dangXuLy ? 'Đang xử lý...' : 'XÁC NHẬN ĐÃ THU ĐỦ'}
+                </button>
                 <div className="payment-notify-hint">
-                  Hệ thống sẽ tự động thông báo Quản lý vận hành để bàn giao phòng sau khi bạn xác nhận.
+                  Sau xác nhận, hệ thống tạo phiếu thu và thông báo Quản lý bàn giao phòng.
                 </div>
               </div>
             </div>
 
-            <div className="payment-guide-card">
-              <div className="payment-guide-head">Hướng dẫn kế toán</div>
-              <ul className="payment-guide-list">
-                {[
-                  'Kiểm tra thông tin chuyển khoản trùng khớp với cú pháp quy định.',
-                  'Chỉ xác nhận khi tiền đã thực nổi trong tài khoản.',
-                  'Sau xác nhận, hệ thống sẽ tạo phiếu thu và thông báo bàn giao tự động.'
-                ].map((text, idx) => (
-                  <li key={idx} className="payment-guide-item">
-                    <span className="payment-guide-dot">•</span>
-                    <span>{text}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
             <button
               type="button"
-              className="btn-detail-outline np-tooltip-wrap np-tooltip-wrap--below"
+              className="btn-detail-outline"
               style={{ width: '100%', padding: '12px', borderRadius: '10px', textAlign: 'center' }}
-              data-tip="Quay về danh sách hợp đồng chờ thu tiền kỳ đầu."
-              onClick={quayLaiDanhSach}
+              onClick={() => setConfirmPopup('quay-lai')}
             >
               Quay lại danh sách
             </button>
@@ -515,6 +548,42 @@ export default function InitialPayment({
   const mainContent = (
     <>
       {renderMainContent()}
+
+      {confirmPopup && noiDungConfirmPopup && (
+        <div
+          className="np-modal-overlay"
+          onClick={() => { if (!dangXuLy) setConfirmPopup(null); }}
+          role="presentation"
+        >
+          <div className="np-modal np-modal--confirm" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="np-modal-head">
+              <span className="material-symbols-outlined np-modal-icon">help</span>
+              <div>
+                <h3>{noiDungConfirmPopup.tieuDe}</h3>
+                <p>{noiDungConfirmPopup.moTa}</p>
+              </div>
+            </div>
+            <div className="np-modal-actions">
+              <button
+                type="button"
+                className="btn-detail-outline"
+                disabled={dangXuLy}
+                onClick={() => setConfirmPopup(null)}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className={noiDungConfirmPopup.nutChinhClass}
+                disabled={dangXuLy}
+                onClick={thucHienConfirmPopup}
+              >
+                {dangXuLy ? 'Đang xử lý...' : noiDungConfirmPopup.nutChinh}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Toast popup thông báo nội bộ */}
       {showToast && (
