@@ -25,7 +25,7 @@ export default function KiemTraLuuTru({ nguoiDung, dangXuat }) {
         hienThongBao={hienThongBao}
         onQuayLai={() => navigate(ROUTES.kiemTraLuuTru)}
         onXacNhanThanhCong={() => {
-          setTimeout(() => navigate(ROUTES.hopDong), 1500);
+          setTimeout(() => navigate(ROUTES.kiemTraLuuTru), 1500);
         }}
       />
     </KhungNhanVien>
