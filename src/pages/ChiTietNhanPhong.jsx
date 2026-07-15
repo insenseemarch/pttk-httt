@@ -36,6 +36,7 @@ export default function ChiTietNhanPhong({ nguoiDung, dangXuat }) {
 
   const [showThemTV, setShowThemTV] = useState(false);
   const [tvMoi, setTvMoi] = useState({ ...KHACH_TRONG });
+  const [xacNhanPopup, setXacNhanPopup] = useState(null);
 
   const hienToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -194,6 +195,7 @@ export default function ChiTietNhanPhong({ nguoiDung, dangXuat }) {
       }).then((r) => r.json());
 
       if (res.ok) {
+        setXacNhanPopup(null);
         hienToast(res.message || 'Ghi nhận thành công!');
         setTimeout(() => navigate(ROUTES.nhanPhong), 1500);
       } else {
@@ -204,6 +206,17 @@ export default function ChiTietNhanPhong({ nguoiDung, dangXuat }) {
       hienToast('Lỗi kết nối máy chủ', 'error');
     } finally {
       setDangXuLy(false);
+    }
+  };
+
+  const thucHienXacNhanPopup = () => {
+    if (xacNhanPopup === 'xac-nhan') {
+      xacNhanGhiNhan();
+      return;
+    }
+    if (xacNhanPopup === 'quay-lai') {
+      setXacNhanPopup(null);
+      navigate(ROUTES.nhanPhong);
     }
   };
 
@@ -255,7 +268,7 @@ export default function ChiTietNhanPhong({ nguoiDung, dangXuat }) {
               type="button"
               className="qt-btn-primary"
               disabled={dangXuLy || !hoSo.coTheGhiNhan}
-              onClick={xacNhanGhiNhan}
+              onClick={() => setXacNhanPopup('xac-nhan')}
             >
               {dangXuLy ? 'Đang xử lý...' : 'Xác nhận ghi nhận'}
             </button>
@@ -586,7 +599,14 @@ export default function ChiTietNhanPhong({ nguoiDung, dangXuat }) {
           </div>
 
           <div className="np-actions">
-            <Link to={ROUTES.nhanPhong} className="qt-btn-outline">Quay lại danh sách</Link>
+            <button
+              type="button"
+              className="qt-btn-outline"
+              disabled={dangXuLy}
+              onClick={() => setXacNhanPopup('quay-lai')}
+            >
+              Quay lại danh sách
+            </button>
             <div style={{ display: 'flex', gap: 10 }}>
               <div className="np-tooltip-wrap" data-tip="Lưu tạm thông tin để tiếp tục điền sau. Chưa gửi cho Quản lý kiểm tra.">
                 <button type="button" className="qt-btn-outline" disabled={dangXuLy} onClick={luuNhap}>Lưu nháp</button>
@@ -596,7 +616,7 @@ export default function ChiTietNhanPhong({ nguoiDung, dangXuat }) {
                   type="button"
                   className="qt-btn-primary"
                   disabled={dangXuLy || !hoSo.coTheGhiNhan}
-                  onClick={xacNhanGhiNhan}
+                  onClick={() => setXacNhanPopup('xac-nhan')}
                 >
                   {dangXuLy ? 'Đang xử lý...' : 'Xác nhận ghi nhận'}
                 </button>
@@ -605,6 +625,52 @@ export default function ChiTietNhanPhong({ nguoiDung, dangXuat }) {
           </div>
         </div>
       </div>
+
+      {xacNhanPopup && (
+        <div
+          className="np-modal-overlay"
+          onClick={() => { if (!dangXuLy) setXacNhanPopup(null); }}
+          role="presentation"
+        >
+          <div className="np-modal np-modal--confirm" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="np-modal-head">
+              <span className="material-symbols-outlined np-modal-icon">help</span>
+              <div>
+                <h3>
+                  {xacNhanPopup === 'xac-nhan'
+                    ? 'Xác nhận ghi nhận nhận phòng?'
+                    : 'Quay lại danh sách?'}
+                </h3>
+                <p>
+                  {xacNhanPopup === 'xac-nhan'
+                    ? 'Thông tin sẽ được gửi cho Quản lý kiểm tra điều kiện lưu trú. Bạn có chắc chắn muốn thực hiện?'
+                    : 'Bạn có chắc chắn muốn quay lại danh sách? Thay đổi chưa lưu nháp có thể bị mất.'}
+                </p>
+              </div>
+            </div>
+            <div className="np-modal-actions">
+              <button
+                type="button"
+                className="btn-detail-outline"
+                disabled={dangXuLy}
+                onClick={() => setXacNhanPopup(null)}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className={xacNhanPopup === 'xac-nhan' ? 'qt-btn-primary' : 'qt-btn-outline'}
+                disabled={dangXuLy}
+                onClick={thucHienXacNhanPopup}
+              >
+                {dangXuLy && xacNhanPopup === 'xac-nhan'
+                  ? 'Đang xử lý...'
+                  : 'Xác nhận'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </KhungNhanVien>
   );
 }

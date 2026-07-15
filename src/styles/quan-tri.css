@@ -1378,10 +1378,14 @@ a.qt-btn-primary {
   width: 100%;
   height: auto;
   white-space: normal;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
   text-align: center;
   line-height: 1.45;
   padding: 12px 16px;
   min-height: 44px;
+  box-sizing: border-box;
 }
 
 .np-btn-danger {
@@ -1402,6 +1406,14 @@ a.qt-btn-primary {
 .np-btn-danger:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.np-modal--confirm {
+  max-width: 480px;
+}
+
+.np-modal--confirm .np-modal-actions {
+  padding: 16px 24px 20px;
 }
 
 /* ─── Ô ký hợp đồng ─── */

@@ -220,7 +220,7 @@ async function luuPhieuDoiSoatThanhVienKhongDat(dc, dsKhongDat, soGiuongThueGoc)
     TrangThai: 'Chờ đối soát',
   };
 
-  await upsertPhieuDoiSoatDatCoc(dc, payload);
+  await upsertPhieuDoiSoatDatCoc(dc, payload, 'HOAN_COC_THANH_VIEN_KHONG_DAT');
 }
 
 async function thongBaoKeToanHoanCocThanhVien(dc, soThanhVienKhongDat) {
@@ -272,24 +272,35 @@ async function giaiPhongToanBoGiuong(dc) {
   return tatCaMaGiuong.length;
 }
 
-async function upsertPhieuDoiSoatDatCoc(dc, payload) {
-  const { data: existing, error: errTim } = await supabase
+async function timPhieuDoiSoatTheoLoai(maDatCoc, loaiDoiSoat) {
+  const { data, error } = await supabase
     .from('PhieuDoiSoat')
-    .select('MaPhieu')
-    .eq('MaDatCoc', dc.MaDatCoc)
-    .order('MaPhieu', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  if (errTim) throw errTim;
+    .select('MaPhieu, DanhSachKhauTru, TrangThai')
+    .eq('MaDatCoc', maDatCoc);
+  if (error) throw error;
+  return (data || []).find((row) =>
+    (row.DanhSachKhauTru || []).some((k) => k.name === 'LoaiDoiSoat' && k.desc === loaiDoiSoat),
+  );
+}
+
+async function upsertPhieuDoiSoatDatCoc(dc, payload, loaiDoiSoat) {
+  const existing = loaiDoiSoat
+    ? await timPhieuDoiSoatTheoLoai(dc.MaDatCoc, loaiDoiSoat)
+    : null;
 
   if (existing?.MaPhieu) {
     const { error } = await supabase.from('PhieuDoiSoat').update(payload).eq('MaPhieu', existing.MaPhieu);
     if (error) throw error;
-    return;
+    return existing.MaPhieu;
   }
 
-  const { error } = await supabase.from('PhieuDoiSoat').insert({ ...payload, MaDatCoc: dc.MaDatCoc });
+  const { data: inserted, error } = await supabase
+    .from('PhieuDoiSoat')
+    .insert({ ...payload, MaDatCoc: dc.MaDatCoc })
+    .select('MaPhieu')
+    .single();
   if (error) throw error;
+  return inserted?.MaPhieu;
 }
 
 async function luuPhieuDoiSoatTuChoiKy(dc, dsKhongDat, laNhom) {
@@ -356,16 +367,19 @@ async function thongBaoKeToanTuChoiKy(dc, laNhom) {
   }
 }
 
-async function ghiNhanKetQuaThanhVien(dc, ketQua) {
+async function ghiNhanKetQuaThanhVien(dc, ketQua, { danhDauChoHoanCoc = false } = {}) {
   if (!dc.MaNhom) return;
   for (const tv of ketQua) {
     if (!tv.cccd) continue;
+    const dat = Boolean(tv.dieuKien);
+    let trangThai = dat ? 'Đạt điều kiện' : 'Không đạt điều kiện';
+    if (!dat && danhDauChoHoanCoc) trangThai = 'Chờ hoàn cọc';
     await supabase
       .from('ThanhVienNhom')
       .update({
-        ThoaDieuKien: Boolean(tv.dieuKien),
-        LyDoKhongDat: tv.dieuKien ? null : (tv.lyDo || 'Không đáp ứng điều kiện lưu trú'),
-        TrangThai: tv.dieuKien ? 'Đạt điều kiện' : 'Không đạt điều kiện',
+        ThoaDieuKien: dat,
+        LyDoKhongDat: dat ? null : (tv.lyDo || 'Không đáp ứng điều kiện lưu trú'),
+        TrangThai: trangThai,
       })
       .eq('MaNhom', dc.MaNhom)
       .eq('CCCD', String(tv.cccd));

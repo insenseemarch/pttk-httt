@@ -58,14 +58,16 @@ export default function DanhSachKiemTraLuuTru({ nguoiDung, dangXuat }) {
       </div>
 
       <div className="qt-filter-card">
-        <div className="qt-field qt-search-wrap" style={{ gridColumn: 'span 2' }}>
+        <div className="qt-field" style={{ gridColumn: 'span 2' }}>
           <label>Tìm kiếm</label>
-          <span className="material-symbols-outlined">search</span>
-          <input
-            placeholder="Tên, SĐT, CCCD, mã phiếu cọc..."
-            value={boLoc.timKiem}
-            onChange={(e) => setBoLoc((p) => ({ ...p, timKiem: e.target.value }))}
-          />
+          <div className="qt-search-wrap">
+            <span className="material-symbols-outlined">search</span>
+            <input
+              placeholder="Tên, SĐT, CCCD, mã phiếu cọc..."
+              value={boLoc.timKiem}
+              onChange={(e) => setBoLoc((p) => ({ ...p, timKiem: e.target.value }))}
+            />
+          </div>
         </div>
         <div className="qt-field">
           <label>Chi nhánh</label>
