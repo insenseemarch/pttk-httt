@@ -37,8 +37,15 @@ async function layHoSoKiemTra(maDatCoc) {
   return dc;
 }
 
-function laThueNhom(dc) {
-  return Boolean(dc.MaNhom) || (dc.SoGiuongThue || 1) > 1 || dc.LoaiThue === 'Thuê nguyên phòng';
+async function layYeuCauThueGanNhat(cccd) {
+  const { data } = await supabase
+    .from('YeuCauThue')
+    .select('SoNguoiDuKien, ThoiGianVao')
+    .eq('CCCD', String(cccd))
+    .order('NgayTao', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data;
 }
 
 function tinhGioiHanNguoi(dc) {
@@ -60,7 +67,7 @@ async function ghiNhanKetQuaThanhVien(dc, ketQua) {
         TrangThai: tv.dieuKien ? 'Đạt điều kiện' : 'Không đạt điều kiện',
       })
       .eq('MaNhom', dc.MaNhom)
-      .eq('CCCD', Number(tv.cccd));
+      .eq('CCCD', String(tv.cccd));
   }
 }
 

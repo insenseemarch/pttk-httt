@@ -95,7 +95,7 @@ async function layYeuCauThueGanNhat(cccd) {
   const { data } = await supabase
     .from('YeuCauThue')
     .select('MaYC, ThoiGianVao, SoNguoiDuKien, GioiTinh, KhuVucMongMuon')
-    .eq('CCCD', Number(cccd))
+    .eq('CCCD', String(cccd))
     .order('NgayTao', { ascending: false })
     .limit(1)
     .maybeSingle();
@@ -274,7 +274,7 @@ async function upsertKhachHang(kh) {
 
   const tenNguoi = kh.hoTen?.trim() || `CCCD ${kh.cccd}`;
   const payload = {
-    CCCD: Number(kh.cccd),
+    CCCD: String(kh.cccd),
     HoTen: kh.hoTen.trim(),
     NgaySinh: kh.ngaySinh || null,
     GioiTinh: kh.gioiTinh || null,
@@ -288,11 +288,11 @@ async function upsertKhachHang(kh) {
   const { data: existing } = await supabase
     .from('KhachHang')
     .select('CCCD')
-    .eq('CCCD', Number(kh.cccd))
+    .eq('CCCD', String(kh.cccd))
     .maybeSingle();
 
   if (existing) {
-    const { error } = await supabase.from('KhachHang').update(payload).eq('CCCD', Number(kh.cccd));
+    const { error } = await supabase.from('KhachHang').update(payload).eq('CCCD', String(kh.cccd));
     if (error) throw chuanHoaLoiDB(error, tenNguoi);
   } else {
     const { error } = await supabase.from('KhachHang').insert(payload);
@@ -443,7 +443,7 @@ export async function luuNhapNhanPhong(maDatCoc, payload) {
 
   await supabase
     .from('DatCoc')
-    .update({ CCCD: Number(khachChinh.cccd), LyDoXuLy: lyDoXuLy })
+    .update({ CCCD: String(khachChinh.cccd), LyDoXuLy: lyDoXuLy })
     .eq('MaDatCoc', maDatCoc);
 
   if (laThuNhom) {
@@ -456,7 +456,7 @@ export async function luuNhapNhanPhong(maDatCoc, payload) {
       await supabase
         .from('ThanhVienNhom')
         .upsert({
-          CCCD: Number(tv.cccd),
+          CCCD: String(tv.cccd),
           MaNhom: maNhom,
           TrangThai: trangThaiTV,
           ThoaDieuKien: null,
@@ -466,7 +466,7 @@ export async function luuNhapNhanPhong(maDatCoc, payload) {
 
     await supabase
       .from('NhomThue')
-      .update({ SoThanhVienDangKy: tatCaThanhVien.length, CCCD: Number(khachChinh.cccd) })
+      .update({ SoThanhVienDangKy: tatCaThanhVien.length, CCCD: String(khachChinh.cccd) })
       .eq('MaNhom', maNhom);
   }
 
@@ -525,7 +525,7 @@ export async function xoaThanhVienNhom(maDatCoc, cccd) {
     .from('ThanhVienNhom')
     .delete()
     .eq('MaNhom', dc.MaNhom)
-    .eq('CCCD', Number(cccd));
+    .eq('CCCD', String(cccd));
 
   if (error) throw error;
 
