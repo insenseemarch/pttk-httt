@@ -49,7 +49,9 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
   const [dangTai, setDangTai] = useState(false);
   const [dangXuLy, setDangXuLy] = useState(false);
   const [khachDaKy, setKhachDaKy] = useState(false);
+  const [chuKyKhachDraft, setChuKyKhachDraft] = useState(null);
   const [hopDongDaKy, setHopDongDaKy] = useState(null);
+  const [confirmPopup, setConfirmPopup] = useState(null);
 
   const sigPadKhach = useRef(null);
 
@@ -72,6 +74,12 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
         setThongTinThue(json.data.thongTinThue);
         setBieuPhiDichVu(json.data.bieuPhiDichVu || []);
         setKyThanhToan(json.data.thongTinThue?.kyThanhToan || 'Thanh toán hàng tháng');
+        setKhachDaKy(false);
+        sigPadKhach.current?.clear();
+        setChuKyKhachDraft(json.data.banNhap?.chuKyKhach || null);
+        if (json.data.banNhap?.maHopDong) {
+          hienThongBao('info', `Đã khôi phục bản nháp (Mã HĐ: ${json.data.banNhap.maHopDong})`);
+        }
       } else {
         hienThongBao('error', json.error || 'Không tải được dữ liệu lập hợp đồng');
       }
@@ -87,6 +95,53 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
     if (maHoSo) taiDuLieuLapHopDong();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [maHoSo]);
+
+  useEffect(() => {
+    if (dangTai || !chuKyKhachDraft || !sigPadKhach.current) return;
+    try {
+      sigPadKhach.current.fromDataURL(chuKyKhachDraft);
+      setKhachDaKy(true);
+    } catch (err) {
+      console.warn('Không khôi phục được chữ ký bản nháp:', err);
+    }
+  }, [dangTai, chuKyKhachDraft]);
+
+  const noiDungConfirmPopup = (() => {
+    if (confirmPopup === 'ky-hop-dong') {
+      return {
+        tieuDe: 'Xác nhận ký hợp đồng?',
+        moTa: `Hợp đồng sẽ được lưu với chữ ký của khách (${khachHang?.hoTen || '—'}). Hồ sơ chuyển sang kế toán thu tiền kỳ đầu. Bạn có chắc chắn muốn hoàn tất?`,
+        nutChinh: 'Xác nhận ký hợp đồng',
+        nutChinhClass: 'btn-book-filled',
+      };
+    }
+    if (confirmPopup === 'luu-nhap') {
+      return {
+        tieuDe: 'Lưu bản nháp?',
+        moTa: 'Nội dung hợp đồng sẽ được lưu tạm (trạng thái Nháp). Chưa chuyển kế toán và chưa cập nhật trạng thái phiếu cọc.',
+        nutChinh: 'Lưu bản nháp',
+        nutChinhClass: 'btn-book-filled',
+      };
+    }
+    if (confirmPopup === 'quay-lai') {
+      return {
+        tieuDe: 'Quay lại danh sách?',
+        moTa: 'Bạn có chắc chắn muốn quay lại? Thay đổi chưa lưu bản nháp có thể bị mất.',
+        nutChinh: 'Quay lại',
+        nutChinhClass: 'btn-detail-outline',
+      };
+    }
+    return null;
+  })();
+
+  const thucHienConfirmPopup = async () => {
+    if (!confirmPopup) return;
+    const action = confirmPopup;
+    setConfirmPopup(null);
+    if (action === 'ky-hop-dong') await taoHopDong(true);
+    else if (action === 'luu-nhap') await taoHopDong(false);
+    else if (action === 'quay-lai') onQuayLai?.();
+  };
 
   const capNhatGiaPhi = (id, giaMoi) => {
     setBieuPhiDichVu(prev => prev.map(phi =>
@@ -120,9 +175,16 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
     }
     setDangXuLy(true);
     try {
-      const chuKyKhach = choKy ? layChuKyKhach() : null;
-      if (choKy && !chuKyKhach) {
-        hienThongBao('error', 'Không đọc được chữ ký. Vui lòng ký lại.');
+      let chuKyKhach = null;
+      if (khachDaKy) {
+        chuKyKhach = layChuKyKhach();
+        if (!chuKyKhach) {
+          hienThongBao('error', 'Không đọc được chữ ký. Vui lòng ký lại.');
+          setDangXuLy(false);
+          return;
+        }
+      } else if (choKy) {
+        hienThongBao('error', 'Vui lòng yêu cầu khách hàng ký xác nhận trước khi ký hợp đồng.');
         setDangXuLy(false);
         return;
       }
@@ -141,7 +203,7 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
           bieuPhiDichVu,
           chuKyKhach,
           choKy,
-          khachDaKy: choKy ? khachDaKy : false,
+          khachDaKy,
           nguoiThucHien: nguoiDung?.maNV || null,
         }),
       });
@@ -416,7 +478,7 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
                   type="button"
                   className="btn-book-filled"
                   disabled={dangXuLy || !khachDaKy}
-                  onClick={() => taoHopDong(true)}
+                  onClick={() => setConfirmPopup('ky-hop-dong')}
                 >
                   {dangXuLy ? 'Đang xử lý...' : 'Xác nhận ký hợp đồng'}
                 </button>
@@ -429,7 +491,7 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
                   type="button"
                   className="btn-detail-outline"
                   disabled={dangXuLy}
-                  onClick={() => taoHopDong(false)}
+                  onClick={() => setConfirmPopup('luu-nhap')}
                 >
                   Lưu bản nháp
                 </button>
@@ -441,7 +503,7 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
                 <button
                   type="button"
                   className="btn-detail-outline"
-                  onClick={onQuayLai}
+                  onClick={() => setConfirmPopup('quay-lai')}
                 >
                   Quay lại
                 </button>
@@ -460,6 +522,42 @@ export default function ContractDrafting({ maHoSo = null, nguoiDung, hienThongBa
             onXacNhanThanhCong?.(hopDongDaKy);
           }}
         />
+      )}
+
+      {confirmPopup && noiDungConfirmPopup && (
+        <div
+          className="np-modal-overlay"
+          onClick={() => { if (!dangXuLy) setConfirmPopup(null); }}
+          role="presentation"
+        >
+          <div className="np-modal np-modal--confirm" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+            <div className="np-modal-head">
+              <span className="material-symbols-outlined np-modal-icon">help</span>
+              <div>
+                <h3>{noiDungConfirmPopup.tieuDe}</h3>
+                <p>{noiDungConfirmPopup.moTa}</p>
+              </div>
+            </div>
+            <div className="np-modal-actions">
+              <button
+                type="button"
+                className="btn-detail-outline"
+                disabled={dangXuLy}
+                onClick={() => setConfirmPopup(null)}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className={noiDungConfirmPopup.nutChinhClass}
+                disabled={dangXuLy}
+                onClick={thucHienConfirmPopup}
+              >
+                {dangXuLy ? 'Đang xử lý...' : noiDungConfirmPopup.nutChinh}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

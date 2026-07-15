@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import KhungNhanVien from '../components/KhungNhanVien';
+import ActionTooltip from '../components/ActionTooltip';
 import { ROUTES } from '../config/routes';
+
+const TIP_NUT_THU_TIEN = 'Lập phiếu thu kỳ đầu: tiền thuê, nước, internet, gửi xe. Tiền điện thu các kỳ sau.';
 
 export default function DanhSachThuTienDauKy({ nguoiDung, dangXuat }) {
   const navigate = useNavigate();
@@ -40,7 +43,7 @@ export default function DanhSachThuTienDauKy({ nguoiDung, dangXuat }) {
           </div>
         </div>
 
-        <div className="qt-table-wrap">
+        <div className="qt-table-wrap qt-table-wrap--action-tips">
           {dangTai ? (
             <div className="qt-loading">Đang tải...</div>
           ) : danhSach.length === 0 ? (
@@ -76,19 +79,21 @@ export default function DanhSachThuTienDauKy({ nguoiDung, dangXuat }) {
                     <td>{hd.ngayBatDau}</td>
                     <td><strong>{hd.tongCanThu || hd.giaThue}</strong></td>
                     <td>
-                      <div
-                        className="np-tooltip-wrap np-tooltip-wrap--below"
-                        data-tip="Mở phiếu thu: tiền thuê + nước (× người), internet, gửi xe (chỉnh số xe). Tiền điện thu sau."
+                      <ActionTooltip
+                        text={TIP_NUT_THU_TIEN}
                         onClick={(e) => e.stopPropagation()}
                       >
                         <button
                           type="button"
                           className="qt-btn-primary qt-btn-sm"
-                          onClick={() => navigate(`${ROUTES.thuTienDauKy}/${hd.maHopDong}`)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`${ROUTES.thuTienDauKy}/${hd.maHopDong}`);
+                          }}
                         >
                           Thu tiền
                         </button>
-                      </div>
+                      </ActionTooltip>
                     </td>
                   </tr>
                 ))}

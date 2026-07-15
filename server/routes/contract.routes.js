@@ -133,6 +133,53 @@ function hopLeChuKyKhach(chuKy) {
   return /^data:image\/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+$/.test(chuKy.trim());
 }
 
+async function layHopDongNhapTheoDatCoc(maDatCoc) {
+  const { data, error } = await supabase
+    .from('HopDong')
+    .select('*')
+    .eq('MaDatCoc', maDatCoc)
+    .eq('TrangThai', 'Nháp')
+    .order('MaHopDong', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+function tinhThoiHanThueTuHopDong(ngayBD, ngayKT) {
+  if (!ngayBD || !ngayKT) return 6;
+  const bd = new Date(ngayBD);
+  const kt = new Date(ngayKT);
+  const thang = (kt.getFullYear() - bd.getFullYear()) * 12 + (kt.getMonth() - bd.getMonth());
+  return thang > 0 ? thang : 6;
+}
+
+async function ghiChiTietHopDong(maHopDong, dc, soGiuongThue, giaThueCoBan) {
+  const giuongList = dc.GiuongDatCoc || [];
+  if (!giuongList.length || !maHopDong) return;
+
+  await supabase.from('ChiTiet').delete().eq('MaHopDong', maHopDong);
+
+  let conLai = soGiuongThue;
+  const chiTiet = [];
+  for (const g of giuongList) {
+    if (conLai <= 0) break;
+    const sl = Number(g.SoGiuongCoc || 1);
+    const dung = Math.min(sl, conLai);
+    chiTiet.push({
+      MaGiuong: g.MaGiuong,
+      MaHopDong: maHopDong,
+      SoLuong: dung,
+      GiaThucTe: Number(g.Giuong?.GiaThue || giaThueCoBan || 0),
+    });
+    conLai -= dung;
+  }
+  if (chiTiet.length) {
+    const { error: errCT } = await supabase.from('ChiTiet').insert(chiTiet);
+    if (errCT) console.warn('Cảnh báo insert ChiTiet:', errCT.message);
+  }
+}
+
 // GET /api/hop-dong/cho-lap — danh sách hồ sơ đã đạt kiểm tra ĐK, chờ lập hợp đồng
 router.get('/cho-lap', async (req, res) => {
   try {
@@ -213,8 +260,22 @@ router.get('/pre-fill/:maHoSo', async (req, res) => {
     const phong = layThongTinPhong(dc);
     const loaiThue = dc.LoaiThue || 'Thuê giường lẻ';
     const soGiuong = tinhSoGiuongThueHopDong(dc, phong);
-    const ngayBatDau = dc.GiuongDatCoc?.[0]?.NgayBatDau
+    const ngayBatDauMacDinh = dc.GiuongDatCoc?.[0]?.NgayBatDau
       || (dc.DatCocThanhCong ? dc.DatCocThanhCong.split('T')[0] : new Date().toISOString().split('T')[0]);
+
+    const draft = await layHopDongNhapTheoDatCoc(maDatCoc);
+    const bieuPhiTuNhap = Array.isArray(draft?.BieuPhiDichVu) && draft.BieuPhiDichVu.length
+      ? chuanHoaBieuPhiDichVu(draft.BieuPhiDichVu)
+      : PHI_DICH_VU_MAC_DINH;
+    const kyThanhToanTuNhap = draft?.KyThanhToan
+      ? chuanHoaKyThanhToan(draft.KyThanhToan)
+      : KY_THANH_TOAN_MAC_DINH;
+    const ngayBatDau = draft?.NgayGioBD
+      ? draft.NgayGioBD.split('T')[0]
+      : ngayBatDauMacDinh;
+    const thoiHanThue = draft?.NgayGioBD && draft?.NgayGioKT
+      ? tinhThoiHanThueTuHopDong(draft.NgayGioBD, draft.NgayGioKT)
+      : (dc.ThoiHanThue || 6);
 
     const data = {
       maHoSo: `PC-${maDatCoc}`,
@@ -236,15 +297,19 @@ router.get('/pre-fill/:maHoSo', async (req, res) => {
         loaiThue,
         loaiThueLabel: nhanLoaiThue(loaiThue),
         ngayBatDau,
-        thoiHanThue: dc.ThoiHanThue || 6,
+        thoiHanThue,
         soGiuong,
         giaThueCoBan: tinhGiaThueCoBan(dc, phong, soGiuong),
-        kyThanhToan: KY_THANH_TOAN_MAC_DINH,
+        kyThanhToan: kyThanhToanTuNhap,
         soTienCoc: Number(dc.SoTienCoc || 0),
         ngayDatCoc: dinhDangNgay(dc.DatCocThanhCong || dc.ThoiDiemTao),
         trangThaiDatCoc: dc.TrangThai || '',
       },
-      bieuPhiDichVu: PHI_DICH_VU_MAC_DINH,
+      bieuPhiDichVu: bieuPhiTuNhap,
+      banNhap: draft ? {
+        maHopDong: draft.MaHopDong,
+        chuKyKhach: draft.ChuKyKhach || null,
+      } : null,
       quyDinhHoanCoc: QUY_DINH_HOAN_COC,
       noiQuy: NOI_QUY_MAC_DINH,
       dieuKhoanViPham: DIEU_KHOAN_VI_PHAM,
@@ -272,6 +337,9 @@ router.post('/tao-moi', async (req, res) => {
     }
     if (choKy && !khachDaKy) {
       return res.status(400).json({ ok: false, error: 'Khách hàng chưa ký xác nhận hợp đồng' });
+    }
+    if (chuKyKhach && !hopLeChuKyKhach(chuKyKhach)) {
+      return res.status(400).json({ ok: false, error: 'Chữ ký khách hàng không hợp lệ. Vui lòng ký lại trên ô chữ ký.' });
     }
     if (choKy && !hopLeChuKyKhach(chuKyKhach)) {
       return res.status(400).json({ ok: false, error: 'Chữ ký khách hàng không hợp lệ. Vui lòng ký lại trên ô chữ ký.' });
@@ -305,57 +373,53 @@ router.post('/tao-moi', async (req, res) => {
       `- CCCD người thuê: ${String(khachHang?.cccd || dc.CCCD || '')}`,
     ].join('\n');
 
-    const { data: newHopDong, error: errHD } = await supabase
-      .from('HopDong')
-      .insert([{
-        CCCD: String(khachHang?.cccd || dc.CCCD || ''),
-        MaNhom: dc.MaNhom || null,
-        MaDatCoc: dc.MaDatCoc,
-        NVQL: dc.NVQL || null,
-        NVSale: dc.NVSale || null,
-        NgayKy: new Date().toISOString().split('T')[0],
-        NgayGioBD: ngayBD.toISOString(),
-        NgayGioKT: ngayKT.toISOString(),
-        KyThanhToan: chuanHoaKyThanhToan(thongTinThue?.kyThanhToan),
-        GiaThue: giaThueCoBan || Number(thongTinThue?.giaThueCoBan || 0),
-        DaXacNhanNoiQuy: true,
-        PhiDichVu: phiDichVu,
-        QuyDinh: quyDinhDayDu,
-        TrangThai: choKy ? TRANG_THAI_SAU_KY : 'Nháp',
-        LoaiThue: loaiThue,
-        SoGiuongThue: soGiuongThue,
-        MaPhong: phong.maPhong || null,
-        BieuPhiDichVu: bieuPhiSnapshot,
-        ChuKyKhach: choKy ? chuKyKhach : null,
-        NVPhuTrach: nguoiThucHien || null,
-      }])
-      .select()
-      .single();
+    const chuKyLuu = chuKyKhach && hopLeChuKyKhach(chuKyKhach) ? chuKyKhach : null;
+    const hopDongPayload = {
+      CCCD: String(khachHang?.cccd || dc.CCCD || ''),
+      MaNhom: dc.MaNhom || null,
+      MaDatCoc: dc.MaDatCoc,
+      NVQL: dc.NVQL || null,
+      NVSale: dc.NVSale || null,
+      NgayKy: new Date().toISOString().split('T')[0],
+      NgayGioBD: ngayBD.toISOString(),
+      NgayGioKT: ngayKT.toISOString(),
+      KyThanhToan: chuanHoaKyThanhToan(thongTinThue?.kyThanhToan),
+      GiaThue: giaThueCoBan || Number(thongTinThue?.giaThueCoBan || 0),
+      DaXacNhanNoiQuy: true,
+      PhiDichVu: phiDichVu,
+      QuyDinh: quyDinhDayDu,
+      TrangThai: choKy ? TRANG_THAI_SAU_KY : 'Nháp',
+      LoaiThue: loaiThue,
+      SoGiuongThue: soGiuongThue,
+      MaPhong: phong.maPhong || null,
+      BieuPhiDichVu: bieuPhiSnapshot,
+      ChuKyKhach: chuKyLuu,
+      NVPhuTrach: nguoiThucHien || null,
+    };
 
-    if (errHD) throw errHD;
+    const draftCu = await layHopDongNhapTheoDatCoc(maDatCoc);
+    let newHopDong;
 
-    // Ghi chi tiết giường thuê vào hợp đồng (chỉ giường còn giữ sau điều chỉnh)
-    const giuongList = dc.GiuongDatCoc || [];
-    if (giuongList.length && newHopDong?.MaHopDong) {
-      let conLai = soGiuongThue;
-      const chiTiet = [];
-      for (const g of giuongList) {
-        if (conLai <= 0) break;
-        const sl = Number(g.SoGiuongCoc || 1);
-        const dung = Math.min(sl, conLai);
-        chiTiet.push({
-          MaGiuong: g.MaGiuong,
-          MaHopDong: newHopDong.MaHopDong,
-          SoLuong: dung,
-          GiaThucTe: Number(g.Giuong?.GiaThue || giaThueCoBan || 0),
-        });
-        conLai -= dung;
-      }
-      if (chiTiet.length) {
-        const { error: errCT } = await supabase.from('ChiTiet').insert(chiTiet);
-        if (errCT) console.warn('Cảnh báo insert ChiTiet:', errCT.message);
-      }
+    if (draftCu?.MaHopDong) {
+      const { data: updated, error: errUpdate } = await supabase
+        .from('HopDong')
+        .update(hopDongPayload)
+        .eq('MaHopDong', draftCu.MaHopDong)
+        .select()
+        .single();
+      if (errUpdate) throw errUpdate;
+      newHopDong = updated;
+    } else {
+      const { data: inserted, error: errHD } = await supabase
+        .from('HopDong')
+        .insert([hopDongPayload])
+        .select()
+        .single();
+      if (errHD) throw errHD;
+      newHopDong = inserted;
     }
+
+    await ghiChiTietHopDong(newHopDong?.MaHopDong, dc, soGiuongThue, giaThueCoBan);
 
     if (choKy) {
       await supabase

@@ -5029,7 +5029,8 @@ h1.page-title {
 .handover-info-row {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  gap: 12px;
   padding: 10px 0;
   border-bottom: 1px solid var(--border-color);
   font-size: 13.5px;
@@ -5042,13 +5043,16 @@ h1.page-title {
 .handover-info-label {
   color: var(--text-muted);
   font-weight: 500;
+  flex-shrink: 0;
 }
 
 .handover-info-value {
   font-weight: 700;
   color: var(--text-main);
   text-align: right;
-  max-width: 60%;
+  flex: 1;
+  min-width: 0;
+  line-height: 1.45;
 }
 
 /* Lưu ý quan trọng */
@@ -5226,6 +5230,11 @@ h1.page-title {
 .handover-info-value--highlight {
   color: var(--primary-color);
   font-weight: 700;
+  white-space: nowrap;
+}
+
+.handover-info-amount {
+  white-space: nowrap;
 }
 
 .handover-giuong-tags {
@@ -5786,6 +5795,9 @@ h1.page-title {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 
 /* Radio phương thức thanh toán */
@@ -5912,55 +5924,40 @@ h1.page-title {
 .payment-confirm-btn:active:not(:disabled) { transform: scale(0.99); }
 .payment-confirm-btn:disabled { opacity: 0.65; cursor: not-allowed; }
 
-/* Gợi ý thông báo */
+/* Gợi ý dưới nút xác nhận */
 .payment-notify-hint {
   font-size: 12px;
   color: var(--text-muted);
   text-align: center;
-  line-height: 1.6;
-  padding: 12px 14px;
-  background-color: #f8fafc;
-  border: 1px dashed var(--border-color);
-  border-radius: 10px;
+  line-height: 1.5;
+  padding: 0 4px;
 }
 
-/* Hướng dẫn kế toán */
-.payment-guide-card {
-  background-color: #fff7ed;
-  border: 1px solid #fed7aa;
-  border-radius: 12px;
-  padding: 18px 20px;
-}
-
-.payment-guide-head {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: #9a3412;
-  margin-bottom: 14px;
-}
-
-.payment-guide-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.payment-guide-item {
+/* Gợi ý ngữ cảnh — chỉ hiện khi cần */
+.payment-inline-note {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #7c2d12;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #1e40af;
   line-height: 1.5;
 }
 
-.payment-guide-dot {
-  color: var(--primary-color);
-  font-size: 13px;
+.payment-inline-note .material-symbols-outlined {
+  font-size: 18px;
   flex-shrink: 0;
   margin-top: 1px;
+}
+
+.payment-qty-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 
 /* Responsive */

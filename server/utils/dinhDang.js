@@ -1,5 +1,5 @@
 export function dinhDangTien(soTien) {
-  return `${Number(soTien || 0).toLocaleString('vi-VN')}đ`;
+  return `${Number(soTien || 0).toLocaleString('vi-VN')}\u00A0đ`;
 }
 
 export function chuanHoaCCCD(value) {
