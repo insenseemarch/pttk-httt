@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import KhungNhanVien from '../components/KhungNhanVien';
-import StayConditionsCheck from '../components/StayConditionsCheck';
+import InitialPayment from '../components/InitialPayment';
 import { ROUTES } from '../config/routes';
 
-export default function KiemTraLuuTru({ nguoiDung, dangXuat }) {
+export default function ThuTienDauKy({ nguoiDung, dangXuat }) {
   const navigate = useNavigate();
-  const { maHoSo } = useParams();
+  const { maHopDong } = useParams();
   const [toast, setToast] = useState(null);
 
   const hienThongBao = (kieu, tinNhan) => {
@@ -20,13 +20,13 @@ export default function KiemTraLuuTru({ nguoiDung, dangXuat }) {
         <div className={`np-toast np-toast--${toast.type}`}>{toast.message}</div>
       )}
 
-      <StayConditionsCheck
-        maHoSo={maHoSo}
+      <InitialPayment
+        maHopDong={maHopDong ? Number(maHopDong) : null}
+        chiTietThuTien
+        nguoiDung={nguoiDung}
         hienThongBao={hienThongBao}
-        onQuayLai={() => navigate(ROUTES.kiemTraLuuTru)}
-        onXacNhanThanhCong={() => {
-          setTimeout(() => navigate(ROUTES.hopDong), 1500);
-        }}
+        onQuayLai={() => navigate(ROUTES.thuTienDauKy)}
+        onXacNhanThanhCong={() => navigate(ROUTES.thuTienDauKy)}
       />
     </KhungNhanVien>
   );

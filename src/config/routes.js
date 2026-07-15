@@ -17,7 +17,9 @@ export const ROUTES = {
   nhanPhong: '/nhan-phong',
   kiemTraLuuTru: '/kiem-tra-luu-tru',
   lapHopDong: '/lap-hop-dong',
-  staffPayment: '/staff-payment',
+  thuTienDauKy: '/thu-tien-ky-dau',
+  /** @deprecated alias — redirect về thuTienDauKy */
+  staffPayment: '/thu-tien-ky-dau',
   banGiao: '/ban-giao',
 };
 
@@ -69,7 +71,7 @@ export function layMenuNhanVienTheoVaiTro(vaiTro) {
       { key: 'phongGiuong', label: 'Phòng/Giường', path: ROUTES.phongGiuong },
       { key: 'soDoPhong', label: 'Sơ đồ phòng', path: ROUTES.soDoPhong },
       { key: 'deposit', label: 'Đặt cọc', path: ROUTES.deposit },
-      { key: 'staffPayment', label: 'Thu tiền đầu kỳ', path: ROUTES.staffPayment },
+      { key: 'staffPayment', label: 'Thu tiền kỳ đầu', path: ROUTES.thuTienDauKy },
       { key: 'checkout', label: 'Đối soát & Hoàn cọc', path: ROUTES.checkout },
       { key: 'thuChi', label: 'Thu chi', path: ROUTES.thuChi },
       { key: 'thongBao', label: 'Thông báo', path: ROUTES.thongBao },
