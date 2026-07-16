@@ -193,11 +193,21 @@ export default function TraCuuPhongGiuongPage({
 
                   <div className="filter-group">
                     <label htmlFor="filter-gioiTinh">Giới tính</label>
-                    <select id="filter-gioiTinh" name="gioiTinh" value={boLocTraCuu.gioiTinh} onChange={xuLyThayDoiBoLoc}>
+                    <select
+                      id="filter-gioiTinh"
+                      name="gioiTinh"
+                      value={boLocTraCuu.gioiTinh}
+                      onChange={xuLyThayDoiBoLoc}
+                      disabled={dangTraCuuDeDatLich}
+                      title={dangTraCuuDeDatLich ? 'Giới tính được lấy theo thông tin khách hàng' : undefined}
+                    >
                       <option value="Tất cả">Tất cả giới tính</option>
                       <option value="Nam">Nam</option>
                       <option value="Nữ">Nữ</option>
                     </select>
+                    {dangTraCuuDeDatLich && (
+                      <small className="input-helper-text">Theo giới tính khách hàng</small>
+                    )}
                   </div>
 
                   <div className="filter-group">

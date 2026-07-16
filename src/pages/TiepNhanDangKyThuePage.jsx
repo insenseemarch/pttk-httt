@@ -271,19 +271,6 @@ export default function TiepNhanDangKyThuePage({
                     />
                     <small className="input-helper-text">Tối đa hiện có: {gioiHanSoNguoi} người</small>
                   </div>
-                  <div className="input-group">
-                    <label htmlFor="gioiTinh">Giới tính</label>
-                    <select
-                      id="gioiTinh"
-                      name="gioiTinh"
-                      value={formYeuCauThue.gioiTinh}
-                      onChange={xuLyThayDoiYeuCau}
-                    >
-                      <option value="Tất cả">Tất cả</option>
-                      <option value="Nam">Nam</option>
-                      <option value="Nữ">Nữ</option>
-                    </select>
-                  </div>
                 </div>
 
                 <div className="input-group">

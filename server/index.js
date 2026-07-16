@@ -170,18 +170,19 @@ function laySucChuaKhaDungPhong(phong, danhSachGiuong = null, giuongDangKhoaSet 
   const giuongs = Array.isArray(danhSachGiuong)
     ? danhSachGiuong
     : (Array.isArray(phong?.Giuong) ? phong.Giuong : []);
-  const tongGiuong = Math.max(
-    giuongs.length,
-    Number(phong?.SucChuaToiDa) || 0,
-    Number(phong?.SucChuaConLai) || Number(phong?.SucChua) || 0,
-    1,
-  );
+  const coDuLieuGiuong = giuongs.length > 0;
+  const tongGiuong = coDuLieuGiuong
+    ? giuongs.length
+    : Math.max(
+      Number(phong?.SucChuaToiDa) || 0,
+      Number(phong?.SucChuaConLai) || Number(phong?.SucChua) || 0,
+      1,
+    );
   const soGiuongTrongTheoDong = giuongs.filter((giuong) => giuong.TinhTrang === true && !giuongDangKhoaSet.has(Number(giuong.MaGiuong))).length;
   const phongDangTrong = phong?.TinhTrang === true;
-  const tatCaGiuongDangTrong = giuongs.length === 0 || soGiuongTrongTheoDong === giuongs.length;
-  const soGiuongTrong = phongDangTrong && tatCaGiuongDangTrong
-    ? Math.max(soGiuongTrongTheoDong, tongGiuong)
-    : soGiuongTrongTheoDong;
+  const soGiuongTrong = coDuLieuGiuong
+    ? soGiuongTrongTheoDong
+    : (phongDangTrong ? tongGiuong : 0);
 
   return {
     tongGiuong,
@@ -196,6 +197,7 @@ function phongConTrongHoanToan(phong, giuongTheoPhong, giuongDangKhoaSet = new S
 }
 
 async function layGiuongDangKhoaSet(maGiuongList = []) {
+<<<<<<< HEAD
   const ids = [...new Set(maGiuongList.map(Number).filter(Number.isFinite))];
   if (ids.length === 0) return new Set();
   const { data: phieuDaCoc, error: errPhieuDaCoc } = await supabase
@@ -220,6 +222,11 @@ async function layGiuongDangKhoaSet(maGiuongList = []) {
     }
   }
   return new Set(giuongDaCoc.map((item) => Number(item.MaGiuong)));
+=======
+  // Nguồn quyết định giường trống là Giuong.TinhTrang.
+  // Bảng khóa/giữ chỗ không tham gia lọc phòng/giường khả dụng.
+  return new Set();
+>>>>>>> f499337 (fix rental registration and deposit room availability)
 }
 
 function laGiaTriTatCa(value) {

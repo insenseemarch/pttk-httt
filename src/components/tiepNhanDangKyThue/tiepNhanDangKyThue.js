@@ -77,13 +77,14 @@ export function taoPayloadTiepNhanDangKyThue({
   danhSachTieuChi,
   nguoiDungDangNhap,
 }) {
+  const gioiTinhKhachHang = String(formKhachHang.gioiTinh || '').trim();
   return {
     khachHang: {
       ...formKhachHang,
       cccd: String(formKhachHang.cccd || '').replace(/\D/g, ''),
       hoTen: formKhachHang.hoTen.trim(),
       ngaySinh: String(formKhachHang.ngaySinh || '').trim(),
-      gioiTinh: String(formKhachHang.gioiTinh || '').trim(),
+      gioiTinh: gioiTinhKhachHang,
       quocTich: String(formKhachHang.quocTich || '').trim(),
       sdt: String(formKhachHang.sdt || '').replace(/\D/g, ''),
       email: formKhachHang.email.trim(),
@@ -92,6 +93,7 @@ export function taoPayloadTiepNhanDangKyThue({
     },
     yeuCauThue: {
       ...formYeuCauThue,
+      gioiTinh: ['Nam', 'Nữ'].includes(gioiTinhKhachHang) ? gioiTinhKhachHang : 'Tất cả',
       loaiThue: formYeuCauThue.loaiPhong === 'Nguyên phòng' ? 'Thuê nguyên phòng' : 'Thuê giường lẻ',
       yeuCauList: danhSachTieuChi,
     },

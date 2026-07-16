@@ -676,6 +676,7 @@ export default function App({
 
   const xuLyThayDoiBoLoc = (e) => {
     const { name, value } = e.target;
+    if (name === 'gioiTinh' && nguonTraCuuPhong !== 'tab') return;
     const giaTriMoi = ['mucGiaTu', 'mucGiaDen'].includes(name) ? chiLayChuSo(value) : value;
     setBoLocTraCuu(prev => ({
       ...prev,
