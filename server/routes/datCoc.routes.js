@@ -27,17 +27,6 @@ const CUSTOMER_EDITABLE_STATES = [
   TRANG_THAI_COC.TU_CHOI_CHUNG_TU,
 ];
 
-const ACTIVE_LOCK_STATES = [
-  TRANG_THAI_COC.MOI,
-  TRANG_THAI_COC.CHO_KIEM_TRA_PHONG,
-  TRANG_THAI_COC.CON_TRONG_CHO_GUI_KE_TOAN,
-  TRANG_THAI_COC.CHO_TINH_COC,
-  TRANG_THAI_COC.CHO_THANH_TOAN,
-  TRANG_THAI_COC.CHO_XAC_NHAN_THANH_TOAN,
-  TRANG_THAI_COC.TU_CHOI_CHUNG_TU,
-  TRANG_THAI_COC.DA_XAC_NHAN,
-];
-
 const BANG_THONG_BAO = 'ThongBao';
 
 const TRANG_THAI_HIEN_THI_THEO_VAI_TRO = Object.freeze({
@@ -314,6 +303,29 @@ async function giaiPhongKhoa(maDatCoc) {
   if (error) throw error;
 }
 
+async function layMaGiuongDaDatCocThanhCong(maGiuongs = []) {
+  const bedIds = [...new Set(maGiuongs.map(Number).filter(Number.isFinite))];
+  if (!bedIds.length) return new Set();
+
+  const { data: phieuDaCoc, error: depositError } = await supabase
+    .from('DatCoc')
+    .select('MaDatCoc')
+    .not('DatCocThanhCong', 'is', null);
+  if (depositError) throw depositError;
+
+  const depositIds = (phieuDaCoc || []).map((item) => Number(item.MaDatCoc)).filter(Number.isFinite);
+  if (!depositIds.length) return new Set();
+
+  const { data: giuongDaCoc, error: bedError } = await supabase
+    .from('GiuongDatCoc')
+    .select('MaGiuong')
+    .in('MaGiuong', bedIds)
+    .in('MaDatCoc', depositIds);
+  if (bedError) throw bedError;
+
+  return new Set((giuongDaCoc || []).map((item) => Number(item.MaGiuong)));
+}
+
 async function capNhatSucChuaPhongTuGiuong(maPhong) {
   const maPhongSo = Number(maPhong);
   if (!Number.isFinite(maPhongSo)) return;
@@ -335,17 +347,7 @@ async function capNhatSucChuaPhongTuGiuong(maPhong) {
   if (roomError) throw roomError;
 }
 
-async function khoaGiuong(maDatCoc, maGiuongs) {
-  await giaiPhongKhoa(maDatCoc);
-  if (!maGiuongs.length) throw new Error('Phải chọn ít nhất một giường');
-  const { error } = await supabase.from('KhoaGiuongDatCoc').insert(
-    maGiuongs.map((MaGiuong) => ({ MaGiuong, MaDatCoc: maDatCoc })),
-  );
-  if (error?.code === '23505') throw new Error('Một hoặc nhiều giường vừa được phiếu khác giữ chỗ');
-  if (error) throw error;
-}
-
-async function kiemTraLuaChonGiuong({ maDatCoc = null, maPhong, maGiuongs, loaiThue, gioiTinh }) {
+async function kiemTraLuaChonGiuong({ maPhong, maGiuongs, loaiThue, gioiTinh }) {
   const bedIds = [...new Set((maGiuongs || []).map(Number).filter(Number.isFinite))];
   if (!maPhong || !bedIds.length) throw new Error('Phải chọn phòng và ít nhất một giường');
 
@@ -364,33 +366,9 @@ async function kiemTraLuaChonGiuong({ maDatCoc = null, maPhong, maGiuongs, loaiT
     throw new Error(`Khách ${gioiTinh} chỉ được chọn phòng ${gioiTinh}`);
   }
 
-  const { data: locks, error: lockError } = await supabase
-    .from('KhoaGiuongDatCoc')
-    .select('MaGiuong, MaDatCoc')
-    .in('MaGiuong', bedIds);
-  if (lockError) throw lockError;
-  if ((locks || []).some((lock) => Number(lock.MaDatCoc) !== Number(maDatCoc))) {
-    throw new Error('Có giường đang được phiếu khác giữ chỗ');
-  }
-
-  const { data: phieuDangGiu, error: phieuDangGiuError } = await supabase
-    .from('DatCoc')
-    .select('MaDatCoc')
-    .in('TrangThai', ACTIVE_LOCK_STATES);
-  if (phieuDangGiuError) throw phieuDangGiuError;
-  const maDatCocDangGiu = (phieuDangGiu || []).map((item) => Number(item.MaDatCoc)).filter(Number.isFinite);
-  let datCocLocks = [];
-  if (maDatCocDangGiu.length) {
-    const { data, error } = await supabase
-      .from('GiuongDatCoc')
-      .select('MaGiuong, MaDatCoc')
-      .in('MaGiuong', bedIds)
-      .in('MaDatCoc', maDatCocDangGiu);
-    if (error) throw error;
-    datCocLocks = data || [];
-  }
-  if ((datCocLocks || []).some((lock) => Number(lock.MaDatCoc) !== Number(maDatCoc))) {
-    throw new Error('Có giường đã được phiếu đặt cọc khác chọn');
+  const giuongDaDatCoc = await layMaGiuongDaDatCocThanhCong(bedIds);
+  if (bedIds.some((maGiuong) => giuongDaDatCoc.has(maGiuong))) {
+    throw new Error('Có giường đã được đặt cọc thành công');
   }
 
   if (loaiThue === 'Thuê nguyên phòng') {
@@ -458,11 +436,7 @@ async function layHoSoTaoPhieuTheoCCCD(cccd) {
 
   const allBeds = [...(phong.Giuong || [])].sort((left, right) => Number(left.MaGiuong) - Number(right.MaGiuong));
   const bedIds = allBeds.map((bed) => Number(bed.MaGiuong));
-  const lockResult = bedIds.length
-    ? await supabase.from('KhoaGiuongDatCoc').select('MaGiuong, MaDatCoc').in('MaGiuong', bedIds)
-    : { data: [], error: null };
-  if (lockResult.error) throw lockResult.error;
-  const lockedIds = new Set((lockResult.data || []).map((item) => Number(item.MaGiuong)));
+  const lockedIds = await layMaGiuongDaDatCocThanhCong(bedIds);
   const bedsWithState = allBeds.map((bed) => ({
     ...bed,
     dangKhoa: lockedIds.has(Number(bed.MaGiuong)),
@@ -524,31 +498,13 @@ router.get('/phong-giuong-trong', async (req, res) => {
       .select('MaPhong, LoaiPhong, SucChuaConLai, SucChuaToiDa, GioiTinhYeuCau, GiaThue, MaCN, ChiNhanh(TenCN), ThongTinLoaiPhong:LoaiPhong(MaLoaiPhong, TenLoaiPhong), Giuong(MaGiuong, GiaThue, TinhTrang)')
       .order('MaPhong');
     if (error) throw error;
-    const [khoaTamRes, phieuDangGiuRes] = await Promise.all([
-      supabase.from('KhoaGiuongDatCoc').select('MaGiuong, MaDatCoc'),
-      supabase.from('DatCoc').select('MaDatCoc').in('TrangThai', ACTIVE_LOCK_STATES),
-    ]);
-    if (khoaTamRes.error) throw khoaTamRes.error;
-    if (phieuDangGiuRes.error) throw phieuDangGiuRes.error;
-    const maDatCocDangGiu = (phieuDangGiuRes.data || []).map((item) => Number(item.MaDatCoc)).filter(Number.isFinite);
-    let giuongTrongPhieu = [];
-    if (maDatCocDangGiu.length) {
-      const { data: datCocBeds, error: datCocBedsError } = await supabase
-        .from('GiuongDatCoc')
-        .select('MaGiuong, MaDatCoc')
-        .in('MaDatCoc', maDatCocDangGiu);
-      if (datCocBedsError) throw datCocBedsError;
-      giuongTrongPhieu = datCocBeds || [];
-    }
-    const locked = new Set([
-      ...(khoaTamRes.data || []).map((item) => item.MaGiuong),
-      ...giuongTrongPhieu.map((item) => item.MaGiuong),
-    ]);
+    const bedIds = (data || []).flatMap((phong) => (phong.Giuong || []).map((giuong) => Number(giuong.MaGiuong)));
+    const locked = await layMaGiuongDaDatCocThanhCong(bedIds);
     res.json({
       ok: true,
       data: (data || []).map((phong) => ({
         ...phong,
-        Giuong: (phong.Giuong || []).map((giuong) => ({ ...giuong, dangKhoa: locked.has(giuong.MaGiuong) })),
+        Giuong: (phong.Giuong || []).map((giuong) => ({ ...giuong, dangKhoa: locked.has(Number(giuong.MaGiuong)) })),
       })),
     });
   } catch (error) {
@@ -804,7 +760,6 @@ router.post('/phieu/:id/hanh-dong', async (req, res) => {
         loaiThue: targetType,
         gioiTinh: phieu.KhachHang?.GioiTinh,
       });
-      await khoaGiuong(phieu.MaDatCoc, beds);
       if (maGiuongs.length) {
         await supabase.from('GiuongDatCoc').delete().eq('MaDatCoc', phieu.MaDatCoc);
         const { error } = await supabase.from('GiuongDatCoc').insert(beds.map((MaGiuong) => ({ MaGiuong, MaDatCoc: phieu.MaDatCoc, SoGiuongCoc: 1 })));
@@ -903,23 +858,63 @@ router.post('/phieu/:id/hanh-dong', async (req, res) => {
          .maybeSingle();
       if (proofError) throw proofError;
       if (!paymentProof) throw new Error('Không thể xác nhận khi phiếu chưa có chứng từ thanh toán');
-      const { error: proofUpdateError } = await supabase
-        .from('ChungTuDatCoc')
-        .update({ TrangThai: 'Đã xác nhận' })
-        .eq('MaChungTu', paymentProof.MaChungTu);
-      if (proofUpdateError) throw proofUpdateError;
-      const bedIds = phieu.GiuongDatCoc.map((item) => item.MaGiuong);
-      const { error } = await supabase.from('Giuong').update({ TinhTrang: false }).in('MaGiuong', bedIds);
-      if (error) throw error;
+      const bedIds = [...new Set(phieu.GiuongDatCoc.map((item) => Number(item.MaGiuong)).filter(Number.isFinite))];
+      if (!bedIds.length) throw new Error('Phiếu chưa có giường để xác nhận đặt cọc');
       const roomIds = [...new Set(
         phieu.GiuongDatCoc
           .map((item) => Number(item.Giuong?.MaPhong || phieu.MaPhong))
           .filter(Number.isFinite),
       )];
-      for (const roomId of roomIds) {
-        await capNhatSucChuaPhongTuGiuong(roomId);
+
+      let maGiuongDaCapNhat = [];
+      let daXacNhanChungTu = false;
+      try {
+        await kiemTraLuaChonGiuong({
+          maDatCoc: phieu.MaDatCoc,
+          maPhong: phieu.MaPhong,
+          maGiuongs: bedIds,
+          loaiThue: phieu.LoaiThue,
+          gioiTinh: phieu.KhachHang?.GioiTinh,
+        });
+
+        const { data: giuongDaCapNhat, error: bedUpdateError } = await supabase
+          .from('Giuong')
+          .update({ TinhTrang: false })
+          .eq('TinhTrang', true)
+          .in('MaGiuong', bedIds)
+          .select('MaGiuong');
+        if (bedUpdateError) throw bedUpdateError;
+        maGiuongDaCapNhat = (giuongDaCapNhat || []).map((item) => Number(item.MaGiuong)).filter(Number.isFinite);
+        if (maGiuongDaCapNhat.length !== bedIds.length) {
+          throw new Error('Có giường vừa được đặt cọc thành công bởi phiếu khác');
+        }
+
+        const { error: proofUpdateError } = await supabase
+          .from('ChungTuDatCoc')
+          .update({ TrangThai: 'Đã xác nhận' })
+          .eq('MaChungTu', paymentProof.MaChungTu);
+        if (proofUpdateError) throw proofUpdateError;
+        daXacNhanChungTu = true;
+
+        for (const roomId of roomIds) {
+          await capNhatSucChuaPhongTuGiuong(roomId);
+        }
+      } catch (confirmationError) {
+        if (daXacNhanChungTu) {
+          await supabase
+            .from('ChungTuDatCoc')
+            .update({ TrangThai: 'Chờ xác nhận' })
+            .eq('MaChungTu', paymentProof.MaChungTu);
+        }
+        if (maGiuongDaCapNhat.length) {
+          await supabase.from('Giuong').update({ TinhTrang: true }).in('MaGiuong', maGiuongDaCapNhat);
+          for (const roomId of roomIds) {
+            await capNhatSucChuaPhongTuGiuong(roomId);
+          }
+        }
+        throw confirmationError;
       }
-      await giaiPhongKhoa(phieu.MaDatCoc);
+
       fields = { NVQL: user.maNV, DatCocThanhCong: new Date().toISOString() };
       next = TRANG_THAI_COC.DA_XAC_NHAN;
       notification = `Đặt cọc phiếu #${phieu.MaDatCoc} đã được xác nhận thành công.`;
@@ -1044,5 +1039,4 @@ export async function huyDatCocQuaHan() {
   return soPhieuDaHuy;
 }
 
-export { ACTIVE_LOCK_STATES };
 export default router;
