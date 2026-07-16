@@ -114,6 +114,21 @@ export async function layDanhSachHopDong(boLoc = {}) {
   const { data, error, count } = await query;
   if (error) throw error;
 
+  // Lấy số tiền cọc thật từ bảng DatCoc theo MaDatCoc của từng hợp đồng
+  const dsMaDatCoc = [...new Set(
+    (data || []).map((hd) => hd.MaDatCoc).filter((ma) => ma != null),
+  )];
+  const soTienCocMap = {};
+  if (dsMaDatCoc.length) {
+    const { data: cocList } = await supabase
+      .from('DatCoc')
+      .select('MaDatCoc, SoTienCoc')
+      .in('MaDatCoc', dsMaDatCoc);
+    (cocList || []).forEach((c) => {
+      soTienCocMap[c.MaDatCoc] = Number(c.SoTienCoc) || 0;
+    });
+  }
+
   let danhSach = (data || []).map((hd) => {
     const phieu = hd.PhieuDoiSoat?.[0];
     const tyLeHoan = phieu?.TyLeHoanTien != null ? `${phieu.TyLeHoanTien}%` : '—';
@@ -155,6 +170,7 @@ export async function layDanhSachHopDong(boLoc = {}) {
       trangThaiGoc: hd.TrangThai,
       giaThue: dinhDangTien(hd.GiaThue),
       giaThueSo: Number(hd.GiaThue) || 0,
+      tienCocSo: soTienCocMap[hd.MaDatCoc] || 0,
       kyThanhToan: hd.KyThanhToan ? chuanHoaKyThanhToan(hd.KyThanhToan) : '—',
       maDatCoc: hd.MaDatCoc,
       pdsInfo,
@@ -272,6 +288,16 @@ export async function layChiTietHopDong(maHopDong) {
   if (error) throw error;
   if (!data) return null;
 
+  let tienCocSo = 0;
+  if (data.MaDatCoc != null) {
+    const { data: coc } = await supabase
+      .from('DatCoc')
+      .select('SoTienCoc')
+      .eq('MaDatCoc', data.MaDatCoc)
+      .maybeSingle();
+    tienCocSo = Number(coc?.SoTienCoc) || 0;
+  }
+
   return {
     maHopDong: data.MaHopDong,
     maHD: `HD-${String(data.MaHopDong).padStart(5, '0')}`,
@@ -293,6 +319,7 @@ export async function layChiTietHopDong(maHopDong) {
     trangThaiGoc: data.TrangThai,
     giaThue: dinhDangTien(data.GiaThue),
     giaThueSo: Number(data.GiaThue) || 0,
+    tienCocSo,
     kyThanhToan: data.KyThanhToan ? chuanHoaKyThanhToan(data.KyThanhToan) : '—',
     maDatCoc: data.MaDatCoc,
     phieuDoiSoat: data.PhieuDoiSoat || [],

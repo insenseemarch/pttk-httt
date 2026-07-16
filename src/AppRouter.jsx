@@ -42,15 +42,7 @@ import {
 } from './utils/nhanVienSession';
 
 
-function layTrangMacDinhSauDangNhap(nguoiDung) {
-
-  const vaiTro = chuanHoaVaiTroNhanVien(nguoiDung?.vaiTro);
-
-  if (vaiTro === 'sale') {
-
-    return ROUTES.tiepNhanDangKyThue;
-
-  }
+function layTrangMacDinhSauDangNhap() {
 
   return ROUTES.dashboard;
 
@@ -308,6 +300,7 @@ export default function AppRouter() {
       <Route path={ROUTES.khachHang} element={taoTrangStaff(DanhSachKhachHang)} />
 
       <Route path={ROUTES.hopDong} element={<TrangHopDongSale />} />
+      <Route path={`${ROUTES.hopDongYeuCau}/:maSo`} element={<TrangHopDongSale />} />
       <Route path={ROUTES.tiepNhanDangKyThue} element={<TrangTiepNhanDangKyThue />} />
       <Route path={ROUTES.lichHen} element={<TrangLichHen />} />
       <Route path={ROUTES.thuChi} element={taoTrangStaff(ThuChi)} />

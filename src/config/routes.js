@@ -7,6 +7,8 @@ export const ROUTES = {
   soDoPhong: '/so-do-phong',
   khachHang: '/khach-hang',
   hopDong: '/hop-dong',
+  /** Form yêu cầu trả phòng của Sale — /hop-dong/yeu-cau/:maSo */
+  hopDongYeuCau: '/hop-dong/yeu-cau',
   tiepNhanDangKyThue: '/tiep-nhan-dang-ky-thue',
   lichHen: '/lich-hen',
   thuChi: '/thu-chi',
