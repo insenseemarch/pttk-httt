@@ -1,5 +1,7 @@
 /** Phân loại khoản phí dịch vụ trên HĐ để tính thu tiền đầu kỳ. */
 
+import { chuanHoaKyThanhToan } from './hopDongQuyDinh.js';
+
 export function phanLoaiKhoanPhi(phi = {}) {
   const id = String(phi.id || '').toLowerCase();
   const ten = String(phi.ten || '').toLowerCase();
@@ -24,25 +26,36 @@ export function dinhDangDonVi(donVi = '') {
   return String(donVi).replace(/^VNĐ\/?/i, '').trim() || donVi;
 }
 
+/** Map kỳ thanh toán trên HĐ → số tháng thu kỳ đầu. */
+export function laySoThangTheoKyThanhToan(kyThanhToan) {
+  const ky = chuanHoaKyThanhToan(kyThanhToan);
+  if (ky.includes('6 tháng')) return 6;
+  if (ky.includes('3 tháng')) return 3;
+  return 1;
+}
+
 /**
  * Tính các khoản thu đầu kỳ:
- * - Tiền thuê tháng đầu
- * - Phí cố định: nước (× số người), internet (× phòng), gửi xe (× số xe)
+ * - Tiền thuê và phí cố định (nước, internet, gửi xe) nhân theo số tháng của kỳ thanh toán trên HĐ
  * - Tiền điện: bỏ qua, thu theo kWh các kỳ sau
  */
 export function tinhKhoanThuDauKy({ giaThue, kyThanhToan, bieuPhi = [], soNguoi = 1, soLuongXe = 1 }) {
   const soNguoiNum = Math.max(1, Number(soNguoi) || 1);
   const soXeNum = Math.max(0, Number(soLuongXe) || 0);
+  const kyChuan = chuanHoaKyThanhToan(kyThanhToan);
+  const soThangKy = laySoThangTheoKyThanhToan(kyChuan);
+  const donGiaThue = Number(giaThue) || 0;
+  const tienThueKyDau = donGiaThue * soThangKy;
 
   const danhSachKhoanThu = [
     {
       id: 'rent',
       loai: 'THUE',
-      ten: 'Tiền thuê kỳ đầu (1 tháng)',
-      kyTinh: kyThanhToan || 'Thanh toán hàng tháng',
-      donGia: Number(giaThue) || 0,
-      soLuong: 1,
-      soTien: Number(giaThue) || 0,
+      ten: `Tiền thuê kỳ đầu (${soThangKy} tháng)`,
+      kyTinh: kyChuan,
+      donGia: donGiaThue,
+      soLuong: soThangKy,
+      soTien: tienThueKyDau,
       coTheChinhSoLuong: false,
     },
   ];
@@ -58,14 +71,17 @@ export function tinhKhoanThuDauKy({ giaThue, kyThanhToan, bieuPhi = [], soNguoi 
     const donVi = dinhDangDonVi(phi.donVi);
 
     if (loai === 'NUOC_NGUOI') {
-      const soTien = donGia * soNguoiNum;
+      const soTienMotThang = donGia * soNguoiNum;
+      const soTien = soTienMotThang * soThangKy;
       danhSachKhoanThu.push({
         id: phi.id || 'water',
         loai: 'NUOC_NGUOI',
         ten,
-        kyTinh: `${donGia.toLocaleString('vi-VN')}đ × ${soNguoiNum} người`,
+        kyTinh: soThangKy > 1
+          ? `${donGia.toLocaleString('vi-VN')}đ × ${soNguoiNum} người × ${soThangKy} tháng`
+          : `${donGia.toLocaleString('vi-VN')}đ × ${soNguoiNum} người`,
         donGia,
-        soLuong: soNguoiNum,
+        soLuong: soNguoiNum * soThangKy,
         soTien,
         coTheChinhSoLuong: false,
       });
@@ -73,27 +89,33 @@ export function tinhKhoanThuDauKy({ giaThue, kyThanhToan, bieuPhi = [], soNguoi 
     }
 
     if (loai === 'CO_DINH_PHONG') {
+      const soTien = donGia * soThangKy;
       danhSachKhoanThu.push({
         id: phi.id || 'wifi',
         loai: 'CO_DINH_PHONG',
         ten,
-        kyTinh: donVi ? `${donGia.toLocaleString('vi-VN')}đ / ${donVi}` : `${donGia.toLocaleString('vi-VN')}đ / phòng`,
+        kyTinh: soThangKy > 1
+          ? `${donGia.toLocaleString('vi-VN')}đ / ${donVi || 'phòng'} × ${soThangKy} tháng`
+          : (donVi ? `${donGia.toLocaleString('vi-VN')}đ / ${donVi}` : `${donGia.toLocaleString('vi-VN')}đ / phòng`),
         donGia,
-        soLuong: 1,
-        soTien: donGia,
+        soLuong: soThangKy,
+        soTien,
         coTheChinhSoLuong: false,
       });
       continue;
     }
 
     if (loai === 'GUI_XE') {
-      const soTien = donGia * soXeNum;
+      const soTienMotThang = donGia * soXeNum;
+      const soTien = soTienMotThang * soThangKy;
       danhSachKhoanThu.push({
         id: phi.id || 'parking',
         loai: 'GUI_XE',
         ten,
         kyTinh: soXeNum > 0
-          ? `${donGia.toLocaleString('vi-VN')}đ × ${soXeNum} xe`
+          ? (soThangKy > 1
+            ? `${donGia.toLocaleString('vi-VN')}đ × ${soXeNum} xe × ${soThangKy} tháng`
+            : `${donGia.toLocaleString('vi-VN')}đ × ${soXeNum} xe`)
           : `${donGia.toLocaleString('vi-VN')}đ / xe — chưa có xe`,
         donGia,
         soLuong: soXeNum,
@@ -114,10 +136,11 @@ export function tinhKhoanThuDauKy({ giaThue, kyThanhToan, bieuPhi = [], soNguoi 
   };
 }
 
-/** Ước tính tổng cần thu trên danh sách (mặc định 1 xe). */
-export function uocTinhTongCanThu({ giaThue, bieuPhi = [], soNguoi = 1, soLuongXe = 1 }) {
+/** Ước tính tổng cần thu trên danh sách. */
+export function uocTinhTongCanThu({ giaThue, kyThanhToan, bieuPhi = [], soNguoi = 1, soLuongXe = 1 }) {
   const { tongTienPhaiThu } = tinhKhoanThuDauKy({
     giaThue,
+    kyThanhToan,
     bieuPhi,
     soNguoi,
     soLuongXe,

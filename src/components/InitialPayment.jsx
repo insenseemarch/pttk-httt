@@ -111,15 +111,18 @@ export default function InitialPayment({
     const soXe = Math.max(0, Math.min(20, Number(String(raw).replace(/\D/g, '')) || 0));
     setSoLuongXe(soXe);
     setDanhSachKhoanThu((prev) => {
+      const soThangKy = Math.max(1, Number(prev.find((item) => item.loai === 'THUE')?.soLuong) || 1);
       const next = prev.map((item) => {
         if (!item.coTheChinhSoLuong) return item;
         const donGia = Number(item.donGia || 0);
         return {
           ...item,
           soLuong: soXe,
-          soTien: donGia * soXe,
+          soTien: donGia * soXe * soThangKy,
           kyTinh: soXe > 0
-            ? `${donGia.toLocaleString('vi-VN')}đ × ${soXe} xe`
+            ? (soThangKy > 1
+              ? `${donGia.toLocaleString('vi-VN')}đ × ${soXe} xe × ${soThangKy} tháng`
+              : `${donGia.toLocaleString('vi-VN')}đ × ${soXe} xe`)
             : `${donGia.toLocaleString('vi-VN')}đ / xe — chưa có xe`,
         };
       });

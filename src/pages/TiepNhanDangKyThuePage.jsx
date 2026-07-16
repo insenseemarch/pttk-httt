@@ -1,6 +1,19 @@
 import { layDanhSachTienIchHienThi } from '../utils/tienIchPhong';
 import { dinhDangTienInput } from '../utils/soTien';
 
+function layNgayHomNayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function themThangISO(ngayISO, soThang) {
+  const [nam, thang, ngay] = String(ngayISO || '').split('-').map(Number);
+  if (!nam || !thang || !ngay) return '';
+  const d = new Date(nam, thang - 1, ngay);
+  d.setMonth(d.getMonth() + (Number(soThang) || 0));
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export default function TiepNhanDangKyThuePage({
   trangHienTai,
   chuyenTrang,
@@ -24,6 +37,8 @@ export default function TiepNhanDangKyThuePage({
   gioiHanSoNguoi = 1,
 }) {
   const khuVucOptions = Array.isArray(tuyChonTraCuuPhong.khuVuc) ? tuyChonTraCuuPhong.khuVuc : [];
+  const ngayVaoToiThieu = layNgayHomNayISO();
+  const ngayVaoToiDa = themThangISO(ngayVaoToiThieu, 1);
   const tieuChiFallback = [
     { value: 'Yên tĩnh', label: 'Yên tĩnh', icon: 'volume_mute' },
     { value: 'Gửi xe', label: 'Gửi xe', icon: 'local_parking' },
@@ -270,6 +285,34 @@ export default function TiepNhanDangKyThuePage({
                       onChange={xuLyThayDoiYeuCau}
                     />
                     <small className="input-helper-text">Tối đa hiện có: {gioiHanSoNguoi} người</small>
+                  </div>
+                  <div className="input-group">
+                    <label htmlFor="thoiGianVao">Thời gian dự kiến vào ở</label>
+                    <input
+                      type="date"
+                      id="thoiGianVao"
+                      name="thoiGianVao"
+                      min={ngayVaoToiThieu}
+                      max={ngayVaoToiDa}
+                      value={formYeuCauThue.thoiGianVao || ''}
+                      onChange={xuLyThayDoiYeuCau}
+                    />
+                    <small className="input-helper-text">Chọn từ hôm nay đến trong vòng 1 tháng</small>
+                  </div>
+                </div>
+
+                <div className="input-grid-2">
+                  <div className="input-group">
+                    <label htmlFor="thoiHanThue">Thời gian thuê</label>
+                    <select
+                      id="thoiHanThue"
+                      name="thoiHanThue"
+                      value={formYeuCauThue.thoiHanThue || '6'}
+                      onChange={xuLyThayDoiYeuCau}
+                    >
+                      <option value="6">6 tháng</option>
+                      <option value="12">12 tháng</option>
+                    </select>
                   </div>
                 </div>
 
