@@ -198,10 +198,12 @@ function phongConTrongHoanToan(phong, giuongTheoPhong, giuongDangKhoaSet = new S
 async function layGiuongDangKhoaSet(maGiuongList = []) {
   const ids = [...new Set(maGiuongList.map(Number).filter(Number.isFinite))];
   if (ids.length === 0) return new Set();
-  const { data: phieuDaCoc, error: errPhieuDaCoc } = await supabase
-    .from('DatCoc')
-    .select('MaDatCoc')
-    .not('DatCocThanhCong', 'is', null);
+  const [khoaQuanLyRes, phieuDaCocRes] = await Promise.all([
+    supabase.from('KhoaGiuongDatCoc').select('MaGiuong').in('MaGiuong', ids),
+    supabase.from('DatCoc').select('MaDatCoc').not('DatCocThanhCong', 'is', null),
+  ]);
+  if (khoaQuanLyRes.error && khoaQuanLyRes.error.code !== '42P01') throw khoaQuanLyRes.error;
+  const { data: phieuDaCoc, error: errPhieuDaCoc } = phieuDaCocRes;
   if (errPhieuDaCoc) {
     if (errPhieuDaCoc.code !== '42P01') throw errPhieuDaCoc;
   }
@@ -219,7 +221,10 @@ async function layGiuongDangKhoaSet(maGiuongList = []) {
       giuongDaCoc = data || [];
     }
   }
-  return new Set(giuongDaCoc.map((item) => Number(item.MaGiuong)));
+  return new Set([
+    ...(khoaQuanLyRes.data || []).map((item) => Number(item.MaGiuong)),
+    ...giuongDaCoc.map((item) => Number(item.MaGiuong)),
+  ]);
 }
 
 function laGiaTriTatCa(value) {
@@ -860,13 +865,21 @@ async function khachDaDatCocPhong(cccd, maPhong) {
   if (!cccdSo || !maPhongSo) return false;
   const { data, error } = await supabase
     .from('DatCoc')
-    .select('MaDatCoc')
+    .select('MaDatCoc, DatCocThanhCong')
     .eq('CCCD', cccdSo)
-    .eq('MaPhong', maPhongSo)
-    .not('DatCocThanhCong', 'is', null)
-    .limit(1);
+    .eq('MaPhong', maPhongSo);
   if (error) throw error;
-  return Array.isArray(data) && data.length > 0;
+  if ((data || []).some((item) => Boolean(item.DatCocThanhCong))) return true;
+
+  const maDatCocs = (data || []).map((item) => Number(item.MaDatCoc)).filter(Number.isFinite);
+  if (!maDatCocs.length) return false;
+  const { data: giuCho, error: holdError } = await supabase
+    .from('KhoaGiuongDatCoc')
+    .select('MaDatCoc')
+    .in('MaDatCoc', maDatCocs)
+    .limit(1);
+  if (holdError) throw holdError;
+  return Boolean(giuCho?.length);
 }
 
 // Route handlers

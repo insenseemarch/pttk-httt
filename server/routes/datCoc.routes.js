@@ -326,6 +326,45 @@ async function layMaGiuongDaDatCocThanhCong(maGiuongs = []) {
   return new Set((giuongDaCoc || []).map((item) => Number(item.MaGiuong)));
 }
 
+async function layMaGiuongDangDuocQuanLyGiu(maGiuongs = [], boQuaMaDatCoc = null) {
+  const bedIds = [...new Set(maGiuongs.map(Number).filter(Number.isFinite))];
+  if (!bedIds.length) return new Set();
+
+  const { data: giuongDangGiu, error } = await supabase
+    .from('KhoaGiuongDatCoc')
+    .select('MaGiuong, MaDatCoc')
+    .in('MaGiuong', bedIds);
+  if (error) throw error;
+
+  return new Set(
+    (giuongDangGiu || [])
+      .filter((item) => Number(item.MaDatCoc) !== Number(boQuaMaDatCoc))
+      .map((item) => Number(item.MaGiuong)),
+  );
+}
+
+async function layMaGiuongKhongKhaDung(maGiuongs = [], boQuaMaDatCoc = null) {
+  const [giuongDaCoc, giuongDangGiu] = await Promise.all([
+    layMaGiuongDaDatCocThanhCong(maGiuongs),
+    layMaGiuongDangDuocQuanLyGiu(maGiuongs, boQuaMaDatCoc),
+  ]);
+  return new Set([...giuongDaCoc, ...giuongDangGiu]);
+}
+
+async function giuGiuongSauKhiQuanLyXacNhan(maDatCoc, maGiuongs) {
+  const bedIds = [...new Set(maGiuongs.map(Number).filter(Number.isFinite))];
+  if (!bedIds.length) throw new Error('Phải có ít nhất một giường để Quản lý xác nhận còn trống');
+
+  await giaiPhongKhoa(maDatCoc);
+  const { error } = await supabase.from('KhoaGiuongDatCoc').insert(
+    bedIds.map((MaGiuong) => ({ MaGiuong, MaDatCoc: Number(maDatCoc) })),
+  );
+  if (error?.code === '23505') {
+    throw new Error('Một hoặc nhiều giường đã được Quản lý giữ cho phiếu khác');
+  }
+  if (error) throw error;
+}
+
 async function capNhatSucChuaPhongTuGiuong(maPhong) {
   const maPhongSo = Number(maPhong);
   if (!Number.isFinite(maPhongSo)) return;
@@ -347,7 +386,7 @@ async function capNhatSucChuaPhongTuGiuong(maPhong) {
   if (roomError) throw roomError;
 }
 
-async function kiemTraLuaChonGiuong({ maPhong, maGiuongs, loaiThue, gioiTinh }) {
+async function kiemTraLuaChonGiuong({ maDatCoc = null, maPhong, maGiuongs, loaiThue, gioiTinh }) {
   const bedIds = [...new Set((maGiuongs || []).map(Number).filter(Number.isFinite))];
   if (!maPhong || !bedIds.length) throw new Error('Phải chọn phòng và ít nhất một giường');
 
@@ -366,9 +405,9 @@ async function kiemTraLuaChonGiuong({ maPhong, maGiuongs, loaiThue, gioiTinh }) 
     throw new Error(`Khách ${gioiTinh} chỉ được chọn phòng ${gioiTinh}`);
   }
 
-  const giuongDaDatCoc = await layMaGiuongDaDatCocThanhCong(bedIds);
-  if (bedIds.some((maGiuong) => giuongDaDatCoc.has(maGiuong))) {
-    throw new Error('Có giường đã được đặt cọc thành công');
+  const giuongKhongKhaDung = await layMaGiuongKhongKhaDung(bedIds, maDatCoc);
+  if (bedIds.some((maGiuong) => giuongKhongKhaDung.has(maGiuong))) {
+    throw new Error('Có giường đã được Quản lý giữ cho phiếu khác hoặc đã đặt cọc thành công');
   }
 
   if (loaiThue === 'Thuê nguyên phòng') {
@@ -436,7 +475,7 @@ async function layHoSoTaoPhieuTheoCCCD(cccd) {
 
   const allBeds = [...(phong.Giuong || [])].sort((left, right) => Number(left.MaGiuong) - Number(right.MaGiuong));
   const bedIds = allBeds.map((bed) => Number(bed.MaGiuong));
-  const lockedIds = await layMaGiuongDaDatCocThanhCong(bedIds);
+  const lockedIds = await layMaGiuongKhongKhaDung(bedIds);
   const bedsWithState = allBeds.map((bed) => ({
     ...bed,
     dangKhoa: lockedIds.has(Number(bed.MaGiuong)),
@@ -499,7 +538,7 @@ router.get('/phong-giuong-trong', async (req, res) => {
       .order('MaPhong');
     if (error) throw error;
     const bedIds = (data || []).flatMap((phong) => (phong.Giuong || []).map((giuong) => Number(giuong.MaGiuong)));
-    const locked = await layMaGiuongDaDatCocThanhCong(bedIds);
+    const locked = await layMaGiuongKhongKhaDung(bedIds);
     res.json({
       ok: true,
       data: (data || []).map((phong) => ({
@@ -773,6 +812,16 @@ router.post('/phieu/:id/hanh-dong', async (req, res) => {
     } else if (hanhDong === 'XAC_NHAN_CON_TRONG') {
       kiemTraQuyen(user, 'QUAN_LY');
       if (phieu.TrangThai !== TRANG_THAI_COC.CHO_KIEM_TRA_PHONG) throw new Error('Phiếu không chờ kiểm tra phòng');
+      const beds = (phieu.GiuongDatCoc || []).map((item) => Number(item.MaGiuong)).filter(Number.isFinite);
+      if (!phieu.LoaiThue) throw new Error('Không tìm thấy loại thuê trong yêu cầu thuê của khách hàng');
+      await kiemTraLuaChonGiuong({
+        maDatCoc: phieu.MaDatCoc,
+        maPhong: phieu.MaPhong,
+        maGiuongs: beds,
+        loaiThue: phieu.LoaiThue,
+        gioiTinh: phieu.KhachHang?.GioiTinh,
+      });
+      await giuGiuongSauKhiQuanLyXacNhan(phieu.MaDatCoc, beds);
       next = TRANG_THAI_COC.CON_TRONG_CHO_GUI_KE_TOAN;
       notification = `Phòng/giường của phiếu #${phieu.MaDatCoc} còn trống.`;
     } else if (hanhDong === 'BAO_HET_CHO') {
@@ -899,6 +948,7 @@ router.post('/phieu/:id/hanh-dong', async (req, res) => {
         for (const roomId of roomIds) {
           await capNhatSucChuaPhongTuGiuong(roomId);
         }
+        await giaiPhongKhoa(phieu.MaDatCoc);
       } catch (confirmationError) {
         if (daXacNhanChungTu) {
           await supabase

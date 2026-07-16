@@ -24,8 +24,8 @@ export async function syncPhongGiuong() {
     .from('GiuongDatCoc')
     .select('MaGiuong, DatCoc!inner(TrangThai)');
   if (err3) throw err3;
-  // Chỉ đánh dấu giường đã sử dụng khi cọc đã được xác nhận. Các phiếu đang
-  // chờ xử lý không giữ chỗ và không làm thay đổi TinhTrang vật lý.
+  // Chỉ đánh dấu giường đã sử dụng khi cọc đã được xác nhận. Phiếu được Quản lý
+  // xác nhận còn trống chỉ giữ giường trong KhoaGiuongDatCoc, chưa đổi TinhTrang vật lý.
   const activeDatCocStates = [
     'Đã cọc', 'Đã thanh toán', 'Đặt cọc thành công',
     'Chờ hoàn cọc', 'Chờ thanh lý', 'Chờ đối soát',
