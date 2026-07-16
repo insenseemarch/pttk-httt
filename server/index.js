@@ -2168,6 +2168,13 @@ app.post('/api/phieu-doi-soat/hoan-tat-tra-phong', async (req, res) => {
       // Cập nhật Đặt Cọc
       const { error: errDC } = await supabase.from('DatCoc').update({ TrangThai: newStatus }).eq('MaDatCoc', id);
       if (errDC) throw errDC;
+
+      // Release beds
+      const { data: giuongCoc } = await supabase.from('GiuongDatCoc').select('MaGiuong').eq('MaDatCoc', id);
+      if (giuongCoc?.length) {
+        const bedIds = giuongCoc.map((g) => g.MaGiuong);
+        await supabase.from('Giuong').update({ TinhTrang: true }).in('MaGiuong', bedIds);
+      }
     } else {
       // Cập nhật phiếu đối soát (mã hợp đồng)
       const { error: errPDS } = await supabase.from('PhieuDoiSoat').update({ TrangThai: newStatus }).eq('MaHopDong', id);
@@ -2176,7 +2183,16 @@ app.post('/api/phieu-doi-soat/hoan-tat-tra-phong', async (req, res) => {
       // Cập nhật Hợp đồng
       const { error: errHD } = await supabase.from('HopDong').update({ TrangThai: newStatus }).eq('MaHopDong', id);
       if (errHD) throw errHD;
+
+      // Release beds
+      const { data: details } = await supabase.from('ChiTiet').select('MaGiuong').eq('MaHopDong', id);
+      if (details?.length) {
+        const bedIds = details.map(d => d.MaGiuong);
+        await supabase.from('Giuong').update({ TinhTrang: true }).in('MaGiuong', bedIds);
+      }
     }
+
+    await syncPhongGiuong();
 
     const io = getIO();
     if (io) {

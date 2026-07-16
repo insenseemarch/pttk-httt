@@ -303,14 +303,26 @@ async function giaiPhongKhoa(maDatCoc) {
   if (error) throw error;
 }
 
-async function layMaGiuongDaDatCocThanhCong(maGiuongs = []) {
+const TRANG_THAI_DA_KHOA_DAT_COC = [
+  TRANG_THAI_COC.CHO_THANH_TOAN,
+  TRANG_THAI_COC.CHO_XAC_NHAN_THANH_TOAN,
+  TRANG_THAI_COC.DA_XAC_NHAN,
+];
+
+async function layMaGiuongDaDatCocThanhCong(maGiuongs = [], excludeMaDatCoc = null) {
   const bedIds = [...new Set(maGiuongs.map(Number).filter(Number.isFinite))];
   if (!bedIds.length) return new Set();
 
-  const { data: phieuDaCoc, error: depositError } = await supabase
+  let query = supabase
     .from('DatCoc')
     .select('MaDatCoc')
-    .not('DatCocThanhCong', 'is', null);
+    .in('TrangThai', TRANG_THAI_DA_KHOA_DAT_COC);
+
+  if (excludeMaDatCoc) {
+    query = query.neq('MaDatCoc', excludeMaDatCoc);
+  }
+
+  const { data: phieuDaCoc, error: depositError } = await query;
   if (depositError) throw depositError;
 
   const depositIds = (phieuDaCoc || []).map((item) => Number(item.MaDatCoc)).filter(Number.isFinite);
@@ -347,7 +359,7 @@ async function capNhatSucChuaPhongTuGiuong(maPhong) {
   if (roomError) throw roomError;
 }
 
-async function kiemTraLuaChonGiuong({ maPhong, maGiuongs, loaiThue, gioiTinh }) {
+async function kiemTraLuaChonGiuong({ maDatCoc = null, maPhong, maGiuongs, loaiThue, gioiTinh }) {
   const bedIds = [...new Set((maGiuongs || []).map(Number).filter(Number.isFinite))];
   if (!maPhong || !bedIds.length) throw new Error('Phải chọn phòng và ít nhất một giường');
 
@@ -366,9 +378,9 @@ async function kiemTraLuaChonGiuong({ maPhong, maGiuongs, loaiThue, gioiTinh }) 
     throw new Error(`Khách ${gioiTinh} chỉ được chọn phòng ${gioiTinh}`);
   }
 
-  const giuongDaDatCoc = await layMaGiuongDaDatCocThanhCong(bedIds);
+  const giuongDaDatCoc = await layMaGiuongDaDatCocThanhCong(bedIds, maDatCoc);
   if (bedIds.some((maGiuong) => giuongDaDatCoc.has(maGiuong))) {
-    throw new Error('Có giường đã được đặt cọc thành công');
+    throw new Error('Có giường đã được đặt cọc thành công bởi phiếu khác');
   }
 
   if (loaiThue === 'Thuê nguyên phòng') {
@@ -612,6 +624,7 @@ router.post('/phieu', async (req, res) => {
       SoGiuongThue: selectedBedIds.length,
       SoTienCoc: 0,
       ThoiHanThue: Number(yeuCauThue.ThoiHanThue || 6),
+      LoaiThue: loaiThue,
     }).select().single();
     if (insertResult.error) throw insertResult.error;
     const data = insertResult.data;

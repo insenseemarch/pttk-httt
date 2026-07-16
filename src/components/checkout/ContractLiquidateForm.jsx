@@ -18,16 +18,22 @@ export default function ContractLiquidateForm({
   });
   const [ghiChu, setGhiChu] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const handleToggle = (key) => setChecklist(prev => ({ ...prev, [key]: !prev[key] }));
+  const handleToggle = (key) => {
+    setChecklist(prev => ({ ...prev, [key]: !prev[key] }));
+    setErrorMsg('');
+  };
 
-  const clearAdmin = () => sigPadAdmin.current?.clear();
-  const clearKhach = () => sigPadKhach.current?.clear();
+  const clearAdmin = () => { sigPadAdmin.current?.clear(); setErrorMsg(''); };
+  const clearKhach = () => { sigPadKhach.current?.clear(); setErrorMsg(''); };
 
   const handleFinish = async (e) => {
     e.preventDefault();
-    if (sigPadAdmin.current?.isEmpty() || sigPadKhach.current?.isEmpty()) {
-      alert("Vui lòng yêu cầu cả Đại diện Quản lý và Khách thuê ký tên đầy đủ!");
+    setErrorMsg('');
+    const allChecked = Object.values(checklist).every(Boolean);
+    if (!allChecked || sigPadAdmin.current?.isEmpty() || sigPadKhach.current?.isEmpty()) {
+      setErrorMsg("Vui lòng hoàn tất mọi danh mục thủ tục và có đầy đủ chữ ký 2 bên để thanh lý.");
       return;
     }
     
@@ -164,10 +170,11 @@ export default function ContractLiquidateForm({
               <div style={{ fontSize: '12px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '600' }}>Đại diện quản lý</div>
               <button type="button" onClick={clearAdmin} style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>Xóa</button>
             </div>
-            <div style={{ border: '2px dashed #e2e8f0', borderRadius: '8px', background: '#f8fafc', position: 'relative' }}>
+            <div style={{ border: '2px dashed #e2e8f0', borderRadius: '8px', background: '#f8fafc', position: 'relative', touchAction: 'none' }}>
               <SignatureCanvas 
                 ref={sigPadAdmin} 
                 penColor="black" 
+                onEnd={() => setErrorMsg('')}
                 canvasProps={{width: 500, height: 120, className: 'sigCanvas', style: { width: '100%', height: '120px' }}} 
               />
               <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: '#cbd5e1', fontSize: '14px', pointerEvents: 'none', zIndex: 0 }}>
@@ -182,10 +189,11 @@ export default function ContractLiquidateForm({
               <div style={{ fontSize: '12px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '600' }}>Khách thuê</div>
               <button type="button" onClick={clearKhach} style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>Xóa</button>
             </div>
-            <div style={{ border: '2px dashed #e2e8f0', borderRadius: '8px', background: '#f8fafc', position: 'relative' }}>
+            <div style={{ border: '2px dashed #e2e8f0', borderRadius: '8px', background: '#f8fafc', position: 'relative', touchAction: 'none' }}>
               <SignatureCanvas 
                 ref={sigPadKhach} 
                 penColor="blue" 
+                onEnd={() => setErrorMsg('')}
                 canvasProps={{width: 500, height: 120, className: 'sigCanvas', style: { width: '100%', height: '120px' }}} 
               />
               <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: '#cbd5e1', fontSize: '14px', pointerEvents: 'none', zIndex: 0 }}>
@@ -204,6 +212,25 @@ export default function ContractLiquidateForm({
       </div>
 
       <div style={{ textAlign: 'center' }}>
+        {errorMsg && (
+          <div style={{
+            backgroundColor: '#fee2e2',
+            color: '#991b1b',
+            padding: '12px 16px',
+            borderRadius: '8px',
+            marginBottom: '16px',
+            textAlign: 'center',
+            fontWeight: '500',
+            border: '1px solid #f87171',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}>
+            <span className="material-symbols-outlined">error</span>
+            {errorMsg}
+          </div>
+        )}
         <button 
           onClick={handleFinish}
           disabled={isSubmitting}

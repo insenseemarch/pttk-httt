@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 export default function ContractLiquidation({ maHopDong = 'HD-2023-0892', hienThongBao, onQuayLai }) {
   const [dangTai, setDangTai] = useState(false);
   const [dangXuLy, setDangXuLy] = useState(false);
+  const [loiXacNhan, setLoiXacNhan] = useState('');
 
   // Dữ liệu thanh lý
   const [thongTinThanhLy, setThongTinThanhLy] = useState(null);
@@ -46,9 +47,10 @@ export default function ContractLiquidation({ maHopDong = 'HD-2023-0892', hienTh
   };
 
   const hoanTatThanhLy = async () => {
+    setLoiXacNhan('');
     const tatCaHoanThanh = danhSachThuTuc.length > 0 && danhSachThuTuc.every(p => p.daHoanThanh);
     if (!tatCaHoanThanh || !chuKy.quanLy || !chuKy.khach) {
-      hienThongBao('error', 'Vui lòng hoàn thành tất cả thủ tục và ký tên đầy đủ.');
+      setLoiXacNhan('Vui lòng hoàn tất mọi danh mục thủ tục và có đầy đủ chữ ký 2 bên để thanh lý.');
       return;
     }
     setDangXuLy(true);
@@ -259,6 +261,21 @@ export default function ContractLiquidation({ maHopDong = 'HD-2023-0892', hienTh
           </div>
 
           {/* ACTION ROW */}
+          {loiXacNhan && (
+            <div style={{
+              backgroundColor: '#fee2e2',
+              color: '#991b1b',
+              padding: '12px 16px',
+              borderRadius: '8px',
+              marginBottom: '20px',
+              textAlign: 'center',
+              fontWeight: '500',
+              border: '1px solid #f87171'
+            }}>
+              <span className="material-icons-outlined" style={{ verticalAlign: 'middle', marginRight: '8px' }}>error_outline</span>
+              {loiXacNhan}
+            </div>
+          )}
           <div className="liquidation-actions">
             <button
               type="button"
