@@ -90,17 +90,7 @@ export default function ThanhToanMinhChung({
 
           {paymentMethod === 'Tiền mặt' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: '#f0fdf4', border: '1px solid #bbf7d0', padding: '16px', borderRadius: '12px' }}>
-              <label className="d-field-group">
-                <span style={{ color: '#14532d' }}>Số tiền mặt thực tế đã nhận (VNĐ)</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  value={dinhDangTienNhap(cashAmount || selected.SoTienCoc)}
-                  onChange={(event) => setCashAmount(layChuSoTien(event.target.value))}
-                  style={{ borderColor: '#86efac', background: '#ffffff', fontWeight: 'bold' }}
-                />
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', marginTop: '8px' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={cashConfirmed}
