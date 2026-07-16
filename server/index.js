@@ -197,36 +197,9 @@ function phongConTrongHoanToan(phong, giuongTheoPhong, giuongDangKhoaSet = new S
 }
 
 async function layGiuongDangKhoaSet(maGiuongList = []) {
-<<<<<<< HEAD
-  const ids = [...new Set(maGiuongList.map(Number).filter(Number.isFinite))];
-  if (ids.length === 0) return new Set();
-  const { data: phieuDaCoc, error: errPhieuDaCoc } = await supabase
-    .from('DatCoc')
-    .select('MaDatCoc')
-    .not('DatCocThanhCong', 'is', null);
-  if (errPhieuDaCoc) {
-    if (errPhieuDaCoc.code !== '42P01') throw errPhieuDaCoc;
-  }
-  const maDatCocDaCoc = (phieuDaCoc || []).map((item) => Number(item.MaDatCoc)).filter(Number.isFinite);
-  let giuongDaCoc = [];
-  if (maDatCocDaCoc.length) {
-    const { data, error } = await supabase
-      .from('GiuongDatCoc')
-      .select('MaGiuong')
-      .in('MaGiuong', ids)
-      .in('MaDatCoc', maDatCocDaCoc);
-    if (error) {
-      if (error.code !== '42P01') throw error;
-    } else {
-      giuongDaCoc = data || [];
-    }
-  }
-  return new Set(giuongDaCoc.map((item) => Number(item.MaGiuong)));
-=======
   // Nguồn quyết định giường trống là Giuong.TinhTrang.
   // Bảng khóa/giữ chỗ không tham gia lọc phòng/giường khả dụng.
   return new Set();
->>>>>>> f499337 (fix rental registration and deposit room availability)
 }
 
 function laGiaTriTatCa(value) {
