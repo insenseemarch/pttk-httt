@@ -34,7 +34,7 @@ export default function ViewContractDetails({
               Chi tiết chứng từ
             </h3>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '14px', color: '#334155' }}>
-              <div>{isDatCoc ? 'Mã phiếu cọc:' : 'Mã hợp đồng:'} <strong style={{ color: 'var(--primary-color)' }}>{selectedItem.maSo}</strong></div>
+              <div>{isDatCoc ? 'Mã phiếu cọc:' : 'Mã hợp đồng:'} <strong style={{ color: 'var(--primary-color)' }}>{selectedItem?.maSo ? selectedItem.maSo.split('~')[0] : ''}</strong></div>
               <div>{isDatCoc ? 'Ngày đặt cọc:' : 'Ngày bắt đầu:'} <strong style={{ color: '#0f172a' }}>{selectedItem.ngayBatDau}</strong></div>
               <div>{isDatCoc ? 'Trạng thái pháp lý:' : 'Ngày kết thúc:'} <strong style={{ color: '#0f172a' }}>{isDatCoc ? 'Chưa ký hợp đồng' : selectedItem.ngayKetThuc}</strong></div>
               {!isDatCoc && (

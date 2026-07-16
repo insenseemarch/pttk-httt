@@ -351,6 +351,7 @@ export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTra
     }
 
     const laDatCoc = hoSo?.loai === 'dat_coc';
+    const maSoHienThi = (hoSo?.maSo || '').split('~')[0];
     let tenBuoc = '';
     let tieuDeBuoc = '';
     let moTaBuoc = '';
@@ -359,42 +360,42 @@ export default function xuLyTraPhong({ hienThongBao, setCheDoNhanVien, chuyenTra
       case 'create':
         tenBuoc = laDatCoc ? 'Đăng ký hủy cọc' : 'Đăng ký trả phòng';
         tieuDeBuoc = laDatCoc ? 'Đăng ký hủy giữ chỗ và rút tiền cọc' : 'Đăng ký trả phòng ngủ';
-        moTaBuoc = `Tạo yêu cầu thanh lý cho khách hàng ${hoSo?.tenKhachHang || ''} (${hoSo?.maSo || ''})`;
+        moTaBuoc = `Tạo yêu cầu thanh lý cho khách hàng ${hoSo?.tenKhachHang || ''} (${maSoHienThi})`;
         break;
       case 'inspect':
         tenBuoc = laDatCoc ? 'Xác nhận hủy cọc' : 'Kiểm tra hiện trạng phòng';
         tieuDeBuoc = laDatCoc ? 'Xác nhận hủy đặt cọc giữ chỗ' : 'Kiểm tra tình trạng thiết bị và nghiệm thu bàn giao';
-        moTaBuoc = `Thực hiện kiểm tra tài sản thực tế cho phòng ngủ của ${hoSo?.tenKhachHang || ''} (${hoSo?.maSo || ''})`;
+        moTaBuoc = `Thực hiện kiểm tra tài sản thực tế cho phòng ngủ của ${hoSo?.tenKhachHang || ''} (${maSoHienThi})`;
         break;
       case 'reconcile':
         tenBuoc = laDatCoc ? 'Lập phiếu đối soát cọc' : 'Lập phiếu đối soát';
         tieuDeBuoc = laDatCoc ? 'Lập phiếu đối soát hoàn tiền cọc giữ chỗ' : 'Lập phiếu đối soát';
-        moTaBuoc = `Tính toán tỉ lệ hoàn cọc và khấu trừ chi phí phát sinh cho ${hoSo?.tenKhachHang || ''} (${hoSo?.maSo || ''})`;
+        moTaBuoc = `Tính toán tỉ lệ hoàn cọc và khấu trừ chi phí phát sinh cho ${hoSo?.tenKhachHang || ''} (${maSoHienThi})`;
         break;
       case 'confirm':
         tenBuoc = 'Xác nhận đối soát';
         tieuDeBuoc = 'Thống nhất phiếu đối soát tài chính';
-        moTaBuoc = `Trao đổi và ghi nhận ý kiến đồng ý hoặc tranh chấp từ khách hàng ${hoSo?.tenKhachHang || ''} (${hoSo?.maSo || ''})`;
+        moTaBuoc = `Trao đổi và ghi nhận ý kiến đồng ý hoặc tranh chấp từ khách hàng ${hoSo?.tenKhachHang || ''} (${maSoHienThi})`;
         break;
       case 'liquidate':
         tenBuoc = laDatCoc ? 'Thanh lý phiếu cọc' : 'Ký biên bản thanh lý';
         tieuDeBuoc = laDatCoc ? 'Ký biên bản hủy đặt cọc giữ chỗ' : 'Ký biên bản thanh lý hợp đồng thuê phòng ngủ';
-        moTaBuoc = `Quản lý và khách hàng xác nhận hoàn tất nghĩa vụ bàn giao để thanh lý hợp đồng (${hoSo?.maSo || ''})`;
+        moTaBuoc = `Quản lý và khách hàng xác nhận hoàn tất nghĩa vụ bàn giao để thanh lý hợp đồng (${maSoHienThi})`;
         break;
       case 'payout':
         tenBuoc = laDatCoc ? 'Chi trả tiền cọc' : 'Thanh toán hoàn cọc';
         tieuDeBuoc = laDatCoc ? 'Chi hoàn tiền cọc giữ chỗ' : 'Chi trả tiền cọc và quyết toán tài chính';
-        moTaBuoc = `Thực hiện chuyển tiền hoàn cọc hoặc thu thêm nợ chênh lệch cho ${hoSo?.tenKhachHang || ''} (${hoSo?.maSo || ''})`;
+        moTaBuoc = `Thực hiện chuyển tiền hoàn cọc hoặc thu thêm nợ chênh lệch cho ${hoSo?.tenKhachHang || ''} (${maSoHienThi})`;
         break;
       case 'view_request':
         tenBuoc = 'Xem phiếu yêu cầu';
         tieuDeBuoc = laDatCoc ? 'Hồ sơ quyết toán và thanh lý phiếu đặt cọc' : 'Hồ sơ quyết toán và thanh lý hợp đồng';
-        moTaBuoc = `Xem lại toàn bộ thông tin quyết toán và tiến trình xử lý của ${hoSo?.tenKhachHang || ''} (${hoSo?.maSo || ''})`;
+        moTaBuoc = `Xem lại toàn bộ thông tin quyết toán và tiến trình xử lý của ${hoSo?.tenKhachHang || ''} (${maSoHienThi})`;
         break;
       case 'view_contract':
         tenBuoc = 'Xem hợp đồng gốc';
         tieuDeBuoc = laDatCoc ? 'Chi tiết phiếu đặt cọc giữ chỗ' : 'Chi tiết hợp đồng thuê phòng ngủ';
-        moTaBuoc = `Xem lại điều khoản và thông tin bàn giao gốc của chứng từ (${hoSo?.maSo || ''})`;
+        moTaBuoc = `Xem lại điều khoản và thông tin bàn giao gốc của chứng từ (${maSoHienThi})`;
         break;
       default:
         tenBuoc = '';

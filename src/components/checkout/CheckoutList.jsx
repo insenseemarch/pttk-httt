@@ -296,7 +296,7 @@ export default function CheckoutList({
                   const scCls = statusColorMap[item.trangThai] || 'cho-xem';
                   return (
                     <tr key={item.maSo}>
-                      <td style={{ whiteSpace: 'nowrap' }}><strong style={{ color: 'var(--primary-color)' }}>{item.maSo}</strong></td>
+                      <td style={{ whiteSpace: 'nowrap' }}><strong style={{ color: 'var(--primary-color)' }}>{item.maSo.split('~')[0]}</strong></td>
                       <td>
                         <strong className="client-name" style={{ fontSize: '14px', fontWeight: '700', color: '#0f172a' }}>{item.tenKhachHang}</strong>
                         <span className="client-phone" style={{ fontSize: '12px', color: '#64748b', marginTop: '2px', display: 'block' }}>{item.soDienThoai}</span>

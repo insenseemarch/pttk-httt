@@ -13,7 +13,15 @@ export default function ViewRequestDetails({
   const daTatToan = trangThai === 'Đã thanh lý';
 
   // Tính toán số tiền
-  const tienCocGoc = Number(selectedItem?.tienCoc || 0);
+  const isHoanMotPhan = selectedItem?.loaiDoiSoat === 'HOAN_COC_THANH_VIEN_KHONG_DAT';
+  const soThanhVienKhongDat = Number((selectedItem?.danhSachKhauTruKhac || []).find(item => item.name === 'SoThanhVienKhongDat')?.desc || (selectedItem?.danhSachKhauTruKhac || []).filter(item => item.name === 'ThanhVienKhongDat').length || 0);
+
+  const tienCocGocToanBo = Number(selectedItem?.tienCoc || 0);
+  let tienCocGoc = tienCocGocToanBo;
+  if (isHoanMotPhan && selectedItem?.soThanhVienDangKy) {
+    tienCocGoc = (tienCocGocToanBo / Math.max(1, selectedItem.soThanhVienDangKy)) * soThanhVienKhongDat;
+  }
+
   const tiLeHoan = Number(selectedItem?.tiLeHoanCoc ?? 100);
   const tienCocSauTiLe = (tienCocGoc * tiLeHoan) / 100;
   
@@ -21,7 +29,10 @@ export default function ViewRequestDetails({
   const noDienNuoc = Number(selectedItem?.noDienNuoc || 0);
   const chiPhiHuHong = Number(selectedItem?.chiPhiHuHong || 0);
   
-  const danhSachKhauTruKhac = selectedItem?.danhSachKhauTruKhac || [];
+  const danhSachKhauTruKhac = (selectedItem?.danhSachKhauTruKhac || []).filter(item => 
+    !['LoaiDoiSoat', 'HinhThuc', 'MaDatCoc', 'ThanhVienKhongDat', 'SoThanhVienKhongDat'].includes(item.name) && 
+    item.id !== '_meta'
+  );
   const tongKhauTruKhac = danhSachKhauTruKhac.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
   // Tổng thực nhận
@@ -115,7 +126,7 @@ export default function ViewRequestDetails({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
               <span style={{ color: '#64748b', fontWeight: '600' }}>Mã chứng từ:</span>
-              <strong style={{ color: 'var(--primary-color)' }}>{selectedItem?.maSo}</strong>
+              <strong style={{ color: 'var(--primary-color)' }}>{selectedItem?.maSo ? selectedItem.maSo.split('~')[0] : ''}</strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', borderBottom: '1px solid #f1f5f9', paddingBottom: '10px' }}>
               <span style={{ color: '#64748b', fontWeight: '600' }}>Phòng và Chi nhánh:</span>

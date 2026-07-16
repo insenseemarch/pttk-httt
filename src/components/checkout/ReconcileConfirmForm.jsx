@@ -9,7 +9,16 @@ export default function ReconcileConfirmForm({
   const [disputeReason, setDisputeReason] = React.useState('');
 
   const isDatCoc = selectedItem?.loai === 'dat_coc';
-  const tienCocGoc = selectedItem.tienCoc || 0;
+  
+  const isHoanMotPhan = selectedItem?.loaiDoiSoat === 'HOAN_COC_THANH_VIEN_KHONG_DAT';
+  const soThanhVienKhongDat = Number((selectedItem.danhSachKhauTruKhac || []).find(item => item.name === 'SoThanhVienKhongDat')?.desc || (selectedItem.danhSachKhauTruKhac || []).filter(item => item.name === 'ThanhVienKhongDat').length || 0);
+
+  const tienCocGocToanBo = Number(selectedItem.tienCoc) || 0;
+  let tienCocGoc = tienCocGocToanBo;
+  if (isHoanMotPhan && selectedItem?.soThanhVienDangKy) {
+    tienCocGoc = (tienCocGocToanBo / Math.max(1, selectedItem.soThanhVienDangKy)) * soThanhVienKhongDat;
+  }
+
   const tiLeHoan = selectedItem.tiLeHoanCoc || 100;
   const tienCocDuocHoan = tienCocGoc * (tiLeHoan / 100);
 
@@ -17,7 +26,10 @@ export default function ReconcileConfirmForm({
   const noDienNuoc = isDatCoc ? 0 : (selectedItem.noDienNuoc || 0);
   const chiPhiHuHong = isDatCoc ? 0 : (selectedItem.chiPhiHuHong || 0);
 
-  const danhSachKhauTruKhac = selectedItem.danhSachKhauTruKhac || [];
+  const danhSachKhauTruKhac = (selectedItem.danhSachKhauTruKhac || []).filter(item => 
+    !['LoaiDoiSoat', 'HinhThuc', 'MaDatCoc', 'ThanhVienKhongDat'].includes(item.name) && 
+    item.id !== '_meta'
+  );
   const tongKhauTruKhac = danhSachKhauTruKhac.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
   const tongKhauTru = noThue + noDienNuoc + chiPhiHuHong + tongKhauTruKhac;
   const soTienQuyetToan = tienCocDuocHoan - tongKhauTru;
@@ -70,8 +82,13 @@ export default function ReconcileConfirmForm({
             <p style={{ margin: 0, fontSize: '14px', color: '#64748b' }}>
               {selectedItem.phongCoSo} — Khách hàng: {selectedItem.tenKhachHang}
             </p>
+            {isDatCoc && selectedItem.lyDo && (
+              <p style={{ margin: '6px 0 0 0', fontSize: '14px', color: '#b45309', fontWeight: '500' }}>
+                Lý do hoàn: {selectedItem.lyDo}
+              </p>
+            )}
           </div>
-          <div style={{ background: '#e2e8f0', color: '#64748b', fontSize: '13px', fontWeight: '600', padding: '6px 12px', borderRadius: '20px' }}>
+          <div style={{ background: '#e2e8f0', color: '#64748b', fontSize: '13px', fontWeight: '600', padding: '6px 12px', borderRadius: '20px', whiteSpace: 'nowrap' }}>
             Đang đối soát
           </div>
         </div>
