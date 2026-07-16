@@ -80,7 +80,7 @@ export default function ContractLiquidateForm({
             </div>
             <div style={{ fontSize: '12px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: '600', marginBottom: '4px' }}>Phòng & Loại hình</div>
             <div style={{ fontSize: '14px', color: '#0f172a', fontWeight: '500' }}>{selectedItem.phongCoSo}</div>
-            <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>{isDatCoc ? 'Phiếu đặt cọc: ' : 'Hợp đồng: '}{selectedItem.maSo}</div>
+            <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>{isDatCoc ? 'Phiếu đặt cọc: ' : 'Hợp đồng: '}{selectedItem?.maSo ? selectedItem.maSo.split('~')[0] : ''}</div>
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', visibility: 'hidden' }}>

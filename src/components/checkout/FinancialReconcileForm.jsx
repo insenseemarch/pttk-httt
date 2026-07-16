@@ -69,7 +69,19 @@ export default function FinancialReconcileForm({
     { rate: 100, label: '100%', desc: 'Hết hạn hợp đồng đúng thời hạn', hint: 'Khách trả phòng đúng ngày kết thúc hợp đồng đã ký' },
   ];
 
-  const tienCocGoc = Number(selectedItem.tienCoc) || 0;
+  const tongExtra = extraDeductions
+    .filter(item => !['LoaiDoiSoat', 'HinhThuc', 'MaDatCoc', 'ThanhVienKhongDat', 'SoThanhVienKhongDat'].includes(item.name))
+    .reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+  
+  const isHoanMotPhan = selectedItem?.loaiDoiSoat === 'HOAN_COC_THANH_VIEN_KHONG_DAT';
+  const soThanhVienKhongDat = Number(extraDeductions.find(item => item.name === 'SoThanhVienKhongDat')?.desc || extraDeductions.filter(item => item.name === 'ThanhVienKhongDat').length || 0);
+
+  const tienCocGocToanBo = Number(selectedItem.tienCoc) || 0;
+  let tienCocGoc = tienCocGocToanBo;
+  if (isHoanMotPhan && selectedItem?.soThanhVienDangKy) {
+    tienCocGoc = (tienCocGocToanBo / Math.max(1, selectedItem.soThanhVienDangKy)) * soThanhVienKhongDat;
+  }
+
   const tiLeHoan = Number(formValues.tiLeHoanCoc ?? tiLeKhuyenNghi);
   const tienCocDuocHoan = tienCocGoc * (tiLeHoan / 100);
 
@@ -77,7 +89,6 @@ export default function FinancialReconcileForm({
   const noDienNuoc = isDatCoc ? 0 : (Number(formValues.noDienNuoc) || 0);
   const chiPhiHuHong = isDatCoc ? 0 : (Number(formValues.chiPhiHuHong) || 0);
 
-  const tongExtra = extraDeductions.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
   const tongKhauTru = noThue + noDienNuoc + chiPhiHuHong + tongExtra;
   const soTienQuyetToan = tienCocDuocHoan - tongKhauTru;
   const khachDuocHoan = soTienQuyetToan >= 0;
@@ -186,7 +197,10 @@ export default function FinancialReconcileForm({
           )}
 
           <div style={{ background: '#f8fafc', borderLeft: '4px solid #cbd5e1', padding: '12px 16px', borderRadius: '6px', fontSize: '13px', color: '#475569', fontWeight: '500' }}>
-            Ghi chú: Tiền cọc gốc <strong>{tienCocGoc.toLocaleString('vi-VN')} đồng</strong>. Tỷ lệ hoàn cọc áp dụng cho các trường hợp quyết toán theo quy định lưu trú.
+            Ghi chú: Tiền cọc gốc {isHoanMotPhan ? `(tổng)` : ''} <strong>{tienCocGocToanBo.toLocaleString('vi-VN')} đồng</strong>. 
+            {isHoanMotPhan ? ` Phần cọc của ${soThanhVienKhongDat} thành viên không ký là ` : ''}
+            {isHoanMotPhan ? <strong>{tienCocGoc.toLocaleString('vi-VN')} đồng</strong> : ''}
+            . Tỷ lệ hoàn cọc áp dụng cho các trường hợp quyết toán theo quy định lưu trú.
           </div>
         </div>
 
@@ -288,7 +302,7 @@ export default function FinancialReconcileForm({
                   <td style={{ padding: '12px' }}>
                     <input 
                       type="text" 
-                      value={`${extraDeductions.filter(item => item.name === 'ThanhVienKhongDat').length || 1} (người)`} 
+                      value={`${extraDeductions.find(item => item.name === 'SoThanhVienKhongDat')?.desc || extraDeductions.filter(item => item.name === 'ThanhVienKhongDat').length || 1} (người)`} 
                       readOnly
                       style={{ border: '1px solid #cbd5e1', padding: '8px 12px', borderRadius: '6px', width: '100%', fontSize: '13px', backgroundColor: '#f1f5f9', color: '#64748b' }}
                     />
@@ -305,7 +319,7 @@ export default function FinancialReconcileForm({
               )}
 
               {/* Các khoản khấu trừ bổ sung động */}
-              {extraDeductions.filter(item => !['LoaiDoiSoat', 'HinhThuc', 'MaDatCoc', 'ThanhVienKhongDat'].includes(item.name)).map(item => (
+              {extraDeductions.filter(item => !['LoaiDoiSoat', 'HinhThuc', 'MaDatCoc', 'ThanhVienKhongDat', 'SoThanhVienKhongDat'].includes(item.name)).map(item => (
                 <tr key={item.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
                   <td style={{ padding: '12px', fontWeight: '700', color: '#334155' }}>
                     <input
@@ -361,8 +375,14 @@ export default function FinancialReconcileForm({
             <tbody>
               <tr>
                 <td style={{ padding: '8px 0', fontWeight: '500' }}>Tổng tiền cọc:</td>
-                <td style={{ textAlign: 'right', padding: '8px 0', fontWeight: '700', color: '#334155' }}>{tienCocGoc.toLocaleString('vi-VN')} đồng</td>
+                <td style={{ textAlign: 'right', padding: '8px 0', fontWeight: '700', color: '#334155' }}>{tienCocGocToanBo.toLocaleString('vi-VN')} đồng</td>
               </tr>
+              {isHoanMotPhan && soThanhVienKhongDat > 0 && (
+                <tr>
+                  <td style={{ padding: '8px 0', fontWeight: '500', paddingLeft: '16px', fontSize: '12.5px', color: '#64748b' }}>↳ Cọc của {soThanhVienKhongDat} khách không ký:</td>
+                  <td style={{ textAlign: 'right', padding: '8px 0', fontWeight: '600', color: '#64748b', fontSize: '12.5px' }}>{tienCocGoc.toLocaleString('vi-VN')} đồng</td>
+                </tr>
+              )}
               <tr>
                 <td style={{ padding: '8px 0', fontWeight: '500' }}>Tiền cọc được hoàn ({tiLeHoan}%):</td>
                 <td style={{ textAlign: 'right', padding: '8px 0', fontWeight: '700', color: '#334155' }}>{tienCocDuocHoan.toLocaleString('vi-VN')} đồng</td>

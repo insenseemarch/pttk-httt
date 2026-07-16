@@ -116,7 +116,7 @@ export default function CheckoutRequestForm({
           </div>
           
           <h2 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--primary-color)', margin: '0 0 20px 0', letterSpacing: '-0.02em' }}>
-            {selectedItem.maSo}
+            {selectedItem?.maSo ? selectedItem.maSo.split('~')[0] : ''}
           </h2>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>

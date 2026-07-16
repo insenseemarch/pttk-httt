@@ -8,7 +8,16 @@ export default function PayoutForm({
   onCancel
 }) {
   const isDatCoc = selectedItem?.loai === 'dat_coc';
-  const tienCocGoc = selectedItem.tienCoc || 0;
+  
+  const isHoanMotPhan = selectedItem?.loaiDoiSoat === 'HOAN_COC_THANH_VIEN_KHONG_DAT';
+  const soThanhVienKhongDat = Number((selectedItem.danhSachKhauTruKhac || []).find(item => item.name === 'SoThanhVienKhongDat')?.desc || (selectedItem.danhSachKhauTruKhac || []).filter(item => item.name === 'ThanhVienKhongDat').length || 0);
+
+  const tienCocGocToanBo = Number(selectedItem.tienCoc) || 0;
+  let tienCocGoc = tienCocGocToanBo;
+  if (isHoanMotPhan && selectedItem?.soThanhVienDangKy) {
+    tienCocGoc = (tienCocGocToanBo / Math.max(1, selectedItem.soThanhVienDangKy)) * soThanhVienKhongDat;
+  }
+
   const tiLeHoan = selectedItem.tiLeHoanCoc || 100;
   const tienCocDuocHoan = tienCocGoc * (tiLeHoan / 100);
 
@@ -16,7 +25,10 @@ export default function PayoutForm({
   const noDienNuoc = isDatCoc ? 0 : (selectedItem.noDienNuoc || 0);
   const chiPhiHuHong = isDatCoc ? 0 : (selectedItem.chiPhiHuHong || 0);
 
-  const danhSachKhauTruKhac = selectedItem.danhSachKhauTruKhac || [];
+  const danhSachKhauTruKhac = (selectedItem.danhSachKhauTruKhac || []).filter(item => 
+    !['LoaiDoiSoat', 'HinhThuc', 'MaDatCoc', 'ThanhVienKhongDat', 'SoThanhVienKhongDat'].includes(item.name) && 
+    item.id !== '_meta'
+  );
   const tongKhauTruKhac = danhSachKhauTruKhac.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
   const tongKhauTru = noThue + noDienNuoc + chiPhiHuHong + tongKhauTruKhac;
   const soTienQuyetToan = tienCocDuocHoan - tongKhauTru;
@@ -53,7 +65,7 @@ export default function PayoutForm({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '14px', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '16px 20px', borderRadius: '12px', marginBottom: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: '#64748b', fontWeight: '500' }}>{isDatCoc ? 'Mã phiếu cọc:' : 'Mã hợp đồng:'}</span>
-              <strong style={{ color: 'var(--primary-color)' }}>{selectedItem.maSo}</strong>
+              <strong style={{ color: 'var(--primary-color)' }}>{selectedItem.maSo.split('~')[0]}</strong>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ color: '#64748b', fontWeight: '500' }}>Khách hàng:</span>

@@ -43,17 +43,24 @@ export function tinhTienCocHopDong(hopDong, datCoc, chiTiet) {
 
 export function tinhSoTienQuyetToan(item) {
   const tienCocGoc = Number(item.tienCoc || 0);
+  const isHoanMotPhan = item.loaiDoiSoat === LOAI_DOI_SOAT_HOAN_THANH_VIEN;
+  const soThanhVienKhongDat = (item.danhSachKhauTruKhac || []).filter(k => k.name === 'ThanhVienKhongDat').length;
+  let tienCocCoSo = tienCocGoc;
+  if (isHoanMotPhan && item.soThanhVienDangKy) {
+    tienCocCoSo = (tienCocGoc / Math.max(1, item.soThanhVienDangKy)) * soThanhVienKhongDat;
+  }
+  
   const tiLeHoan = Number(item.tiLeHoanCoc ?? 100);
-  const tienCocDuocHoan = item.loaiDoiSoat === LOAI_DOI_SOAT_HOAN_THANH_VIEN
-    ? tienCocGoc
-    : tienCocGoc * (tiLeHoan / 100);
+  const tienCocDuocHoan = tienCocCoSo * (tiLeHoan / 100);
+  
   const noThue = Number(item.noThue || 0);
   const noDienNuoc = Number(item.noDienNuoc || 0);
   const chiPhiHuHong = Number(item.chiPhiHuHong || 0);
-  const tongExtra = (item.danhSachKhauTruKhac || []).reduce(
-    (s, k) => s + (Number(k.amount) || 0),
-    0
-  );
+  
+  const tongExtra = (item.danhSachKhauTruKhac || [])
+    .filter(k => !['LoaiDoiSoat', 'HinhThuc', 'MaDatCoc', 'ThanhVienKhongDat', 'SoThanhVienKhongDat'].includes(k.name))
+    .reduce((s, k) => s + (Number(k.amount) || 0), 0);
+    
   return tienCocDuocHoan - (noThue + noDienNuoc + chiPhiHuHong + tongExtra);
 }
 
@@ -87,7 +94,7 @@ export function laPhieuHoanCocThanhVienKhongDat(pds) {
 /** Phiếu hoàn cọc tách biệt — không đồng bộ trạng thái DatCoc/HĐ khi xử lý checkout */
 export function laPhieuHoanCocDocLap(pds) {
   const loai = layLoaiDoiSoatTuPds(pds);
-  return loai === LOAI_DOI_SOAT_HOAN_THANH_VIEN || loai === LOAI_DOI_SOAT_TU_CHOI_KY;
+  return loai === LOAI_DOI_SOAT_HOAN_THANH_VIEN;
 }
 
 export function taoMaSoPhieuHoanCoc(maDatCoc, maPhieu) {
@@ -178,6 +185,8 @@ export function mapDatCocRaDTO(d, pds, giuongDatCoc) {
     maPhieu: pds?.MaPhieu || null,
     maDatCoc: d.MaDatCoc,
     loaiDoiSoat,
+    soGiuongThue: d.SoGiuongThue || 1,
+    soThanhVienDangKy: d.NhomThue?.SoThanhVienDangKy || 1,
     tenKhachHang: laHoanThanhVien
       ? `${d.KhachHang?.HoTen || 'Khách cọc'} — hoàn cọc ${soThanhVienHoan} thành viên bị loại`
       : d.KhachHang?.HoTen || 'Khách cọc',
@@ -185,9 +194,7 @@ export function mapDatCocRaDTO(d, pds, giuongDatCoc) {
     email: d.KhachHang?.Email || '',
     phongCoSo,
     giaThue: 0,
-    tienCoc: laHoanThanhVien
-      ? tinhTienHoanThanhVienTuPds(pds, khauTru)
-      : Number(d.SoTienCoc) || 0,
+    tienCoc: Number(d.SoTienCoc) || 0,
     ngayBatDau: d.ThoiDiemTao ? d.ThoiDiemTao.split('T')[0] : '',
     ngayKetThuc: '',
     trangThai: laHoanThanhVien
@@ -197,7 +204,7 @@ export function mapDatCocRaDTO(d, pds, giuongDatCoc) {
     noDienNuoc: pds ? Number(pds.KhauTruTienDichVu) : 0,
     chiPhiHuHong: pds ? Number(pds.KhauTruSuaChua) : 0,
     moTaHuHong: pds?.MoTaHuHong || '',
-    tiLeHoanCoc: laHoanThanhVien ? 100 : (pds ? Number(pds.TyLeHoanTien) : 80),
+    tiLeHoanCoc: pds ? Number(pds.TyLeHoanTien) : 80,
     yKienTranhChap: pds?.YKienTranhChap || '',
     loaiHinhTraPhong: pds?.LoaiHinhTraPhong || 'huy_thue',
     ngayTraDuKien: pds?.NgayDKTraPhong || '',

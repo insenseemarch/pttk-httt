@@ -1542,10 +1542,10 @@ async function capNhatThanhVienDaHoanCoc(pds) {
   if (!laPhieuHoanCocThanhVienKhongDat(pds) || !pds?.MaDatCoc) return;
   const { data: dc } = await supabase
     .from('DatCoc')
-    .select('MaNhom')
+    .select('*, NhomThue (*)')
     .eq('MaDatCoc', pds.MaDatCoc)
     .maybeSingle();
-  if (!dc?.MaNhom) return;
+  if (!dc?.MaNhom || !dc.NhomThue) return;
 
   const dsTv = (pds.DanhSachKhauTru || []).filter((k) => k.name === 'ThanhVienKhongDat');
   for (const tv of dsTv) {
@@ -1557,12 +1557,34 @@ async function capNhatThanhVienDaHoanCoc(pds) {
       .eq('MaNhom', dc.MaNhom)
       .eq('CCCD', cccd);
   }
+
+  // Cập nhật lại số tiền cọc sau khi hoàn
+  const nhom = dc.NhomThue;
+  const soThanhVienDangKy = Number(nhom.SoThanhVienDangKy) || 1;
+  const soThanhVienKhongKy = soThanhVienDangKy - Number(nhom.SoThanhVienDuDieuKien || 0);
+
+  if (soThanhVienKhongKy > 0) {
+    const tienCocGoc = Number(dc.SoTienCoc) || 0;
+    const tienCocKhongKy = (tienCocGoc / soThanhVienDangKy) * soThanhVienKhongKy;
+    const tienCocMoi = tienCocGoc - tienCocKhongKy;
+    
+    await supabase
+      .from('DatCoc')
+      .update({ SoTienCoc: tienCocMoi })
+      .eq('MaDatCoc', dc.MaDatCoc);
+  }
 }
 
 async function luuPhieuDoiSoatDatCoc(maDatCoc, fields) {
   const existing = await taiPhieuDoiSoatDatCoc(maDatCoc);
+  const defaultNgayDK = existing?.NgayDKTraPhong || new Date().toISOString().split('T')[0];
+
   if (existing && laPhieuHoanCocDocLap(existing)) {
-    const { error } = await supabase.from('PhieuDoiSoat').insert({ ...fields, MaDatCoc: maDatCoc });
+    const { error } = await supabase.from('PhieuDoiSoat').insert({ 
+      NgayDKTraPhong: defaultNgayDK,
+      ...fields, 
+      MaDatCoc: maDatCoc 
+    });
     if (error) throw error;
     return;
   }
@@ -1582,7 +1604,11 @@ async function luuPhieuDoiSoatDatCoc(maDatCoc, fields) {
     return;
   }
 
-  const insertPayload = { ...payload, MaDatCoc: maDatCoc };
+  const insertPayload = { 
+    NgayDKTraPhong: fields.NgayDKTraPhong || defaultNgayDK,
+    ...payload, 
+    MaDatCoc: maDatCoc 
+  };
   const { error } = await supabase.from('PhieuDoiSoat').insert(insertPayload);
   if (error) throw error;
 }
@@ -1653,7 +1679,7 @@ async function layItemQuyetToanTuMaSo(maSo) {
 
   const { data: d, error } = await supabase
     .from('DatCoc')
-    .select('*, KhachHang (*)')
+    .select('*, KhachHang (*), NhomThue (*)')
     .eq('MaDatCoc', parsed.maDatCoc)
     .single();
   if (error || !d) return null;
@@ -1982,14 +2008,15 @@ app.post('/api/checkout/reconcile', async (req, res) => {
       const laHoanThanhVien = laPhieuHoanCocThanhVienKhongDat(pdsHienTai);
 
       if (laHoanThanhVien && pdsHienTai?.MaPhieu) {
-        const soTienHoan = Number(pdsHienTai.SoTienHoanTamTinh)
-          || (pdsHienTai.DanhSachKhauTru || [])
+        const tiLe = Number(tiLeHoanCoc) || 100;
+        const tienCocHienTai = (pdsHienTai.DanhSachKhauTru || [])
             .filter((k) => k.name === 'ThanhVienKhongDat')
             .reduce((s, k) => s + (Number(k.amount) || 0), 0);
+        const soTienHoan = tienCocHienTai * (tiLe / 100);
         const danhSachKhauTru = pdsHienTai.DanhSachKhauTru || [];
 
         await supabase.from('PhieuDoiSoat').update({
-          TyLeHoanTien: 100,
+          TyLeHoanTien: tiLe,
           KhauTruTienThue: 0,
           KhauTruTienDichVu: 0,
           KhauTruSuaChua: 0,
