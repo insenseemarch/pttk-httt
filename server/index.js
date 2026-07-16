@@ -10,7 +10,7 @@ import contractRoutes from './routes/contract.routes.js';
 import handoverRoutes from './routes/handover.routes.js';
 import paymentRoutes from './routes/payment.routes.js';
 import liquidationRoutes from './routes/liquidation.routes.js';
-import datCocRoutes, { huyDatCocQuaHan, TRANG_THAI_COC } from './routes/datCoc.routes.js';
+import datCocRoutes, { huyDatCocQuaHan } from './routes/datCoc.routes.js';
 import { ganRouteAuthDashboard } from './routes/authDashboard.js';
 import { ganRouteQuanTri } from './routes/quanTri.js';
 import { syncPhongGiuong } from './syncPhongGiuong.js';
@@ -198,38 +198,28 @@ function phongConTrongHoanToan(phong, giuongTheoPhong, giuongDangKhoaSet = new S
 async function layGiuongDangKhoaSet(maGiuongList = []) {
   const ids = [...new Set(maGiuongList.map(Number).filter(Number.isFinite))];
   if (ids.length === 0) return new Set();
-  const khoaTamRes = await supabase
-    .from('KhoaGiuongDatCoc')
-    .select('MaGiuong')
-    .in('MaGiuong', ids);
-  if (khoaTamRes.error) {
-    if (khoaTamRes.error.code !== '42P01') throw khoaTamRes.error;
-  }
-  const { data: phieuDangGiu, error: errPhieuDangGiu } = await supabase
+  const { data: phieuDaCoc, error: errPhieuDaCoc } = await supabase
     .from('DatCoc')
     .select('MaDatCoc')
-    .in('TrangThai', TRANG_THAI_KHOA_PHONG_CHOT);
-  if (errPhieuDangGiu) {
-    if (errPhieuDangGiu.code !== '42P01') throw errPhieuDangGiu;
+    .not('DatCocThanhCong', 'is', null);
+  if (errPhieuDaCoc) {
+    if (errPhieuDaCoc.code !== '42P01') throw errPhieuDaCoc;
   }
-  const maDatCocDangGiu = (phieuDangGiu || []).map((item) => Number(item.MaDatCoc)).filter(Number.isFinite);
-  let giuongTrongPhieu = [];
-  if (maDatCocDangGiu.length) {
+  const maDatCocDaCoc = (phieuDaCoc || []).map((item) => Number(item.MaDatCoc)).filter(Number.isFinite);
+  let giuongDaCoc = [];
+  if (maDatCocDaCoc.length) {
     const { data, error } = await supabase
       .from('GiuongDatCoc')
       .select('MaGiuong')
       .in('MaGiuong', ids)
-      .in('MaDatCoc', maDatCocDangGiu);
+      .in('MaDatCoc', maDatCocDaCoc);
     if (error) {
       if (error.code !== '42P01') throw error;
     } else {
-      giuongTrongPhieu = data || [];
+      giuongDaCoc = data || [];
     }
   }
-  return new Set([
-    ...(khoaTamRes.data || []).map((item) => Number(item.MaGiuong)),
-    ...giuongTrongPhieu.map((item) => Number(item.MaGiuong)),
-  ]);
+  return new Set(giuongDaCoc.map((item) => Number(item.MaGiuong)));
 }
 
 function laGiaTriTatCa(value) {
@@ -719,17 +709,6 @@ async function traCuuPhongPhuHop(tc) {
   }
 }
 
-const TRANG_THAI_KHOA_PHONG_CHOT = [
-  TRANG_THAI_COC.MOI,
-  TRANG_THAI_COC.CHO_KIEM_TRA_PHONG,
-  TRANG_THAI_COC.CON_TRONG_CHO_GUI_KE_TOAN,
-  TRANG_THAI_COC.CHO_TINH_COC,
-  TRANG_THAI_COC.CHO_THANH_TOAN,
-  TRANG_THAI_COC.CHO_XAC_NHAN_THANH_TOAN,
-  TRANG_THAI_COC.DA_XAC_NHAN,
-  TRANG_THAI_COC.TU_CHOI_CHUNG_TU,
-];
-
 function tachYeuCauListTuText(value) {
   const raw = String(value || '');
   const cacPhan = raw.split('|').map((item) => item.trim()).filter(Boolean);
@@ -884,7 +863,7 @@ async function khachDaDatCocPhong(cccd, maPhong) {
     .select('MaDatCoc')
     .eq('CCCD', cccdSo)
     .eq('MaPhong', maPhongSo)
-    .in('TrangThai', TRANG_THAI_KHOA_PHONG_CHOT)
+    .not('DatCocThanhCong', 'is', null)
     .limit(1);
   if (error) throw error;
   return Array.isArray(data) && data.length > 0;
