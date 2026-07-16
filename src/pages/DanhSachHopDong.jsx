@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import KhungNhanVien from '../components/KhungNhanVien';
 import CheckoutRequestForm from '../components/checkout/CheckoutRequestForm';
 import ManagerRoomInspectForm from '../components/contracts/ManagerRoomInspectForm';
-import { chuanHoaLoaiHinhTraPhong } from '../utils/tinhTyLeHoanCoc';
+import { chuanHoaLoaiHinhTraPhong, goiYLoaiHinhTraPhong } from '../utils/tinhTyLeHoanCoc';
+import { ROUTES } from '../config/routes';
 
 const KY_HAN_OPTIONS = [1, 3, 6, 12, 24];
 import ReconcileConfirmForm from '../components/checkout/ReconcileConfirmForm';
@@ -68,12 +70,14 @@ function mapHdSangCheckoutItem(src) {
     ngayBatDau: src.ngayBatDauISO || src.ngayBatDau,
     ngayKetThuc: src.ngayKetThucISO || src.ngayHetHan,
     giaThue: src.giaThueSo || 0,
-    tienCoc: src.tienCocSo || src.giaThueSo || 0,
+    tienCoc: src.tienCocSo || 0,
     loai: 'hop_dong',
   };
 }
 
 export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
+  const navigate = useNavigate();
+  const { maSo } = useParams();
   const [danhSach, setDanhSach] = useState([]);
   const [chiNhanh, setChiNhanh] = useState([]);
   const [soCanBao, setSoCanBao] = useState(0);
@@ -249,16 +253,43 @@ export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
       showToast('Chỉ gửi yêu cầu khi hợp đồng đang hiệu lực.', 'error');
       return;
     }
+    navigate(`${ROUTES.hopDongYeuCau}/${src.maHopDong}`);
+  };
+
+  const moFormYeuCau = (src) => {
+    if (!src || !coTheYeuCauTraPhong(src)) {
+      showToast('Chỉ gửi yêu cầu khi hợp đồng đang hiệu lực.', 'error');
+      navigate(ROUTES.hopDong);
+      return;
+    }
+    const item = mapHdSangCheckoutItem(src);
     const today = new Date().toISOString().slice(0, 10);
     setFormYeuCau({
-      loaiHinhTraPhong: 'dung_han',
+      loaiHinhTraPhong: goiYLoaiHinhTraPhong({ ...item, ngayTraDuKien: today }),
       ngayTraDuKien: today,
       lyDo: '',
       phuongThucHoanTien: 'chuyen_khoan',
     });
-    setManYeuCau(mapHdSangCheckoutItem(src));
+    setManYeuCau(item);
     dongModalXem();
   };
+
+  const dongFormYeuCau = () => {
+    setManYeuCau(null);
+    navigate(ROUTES.hopDong);
+  };
+
+  // Mở form yêu cầu trả phòng theo URL /hop-dong/yeu-cau/:maSo
+  useEffect(() => {
+    if (!maSo) {
+      if (manYeuCau) setManYeuCau(null);
+      return;
+    }
+    if (manYeuCau) return;
+    const found = danhSach.find((hd) => String(hd.maHopDong) === String(maSo));
+    if (found) moFormYeuCau(found);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maSo, danhSach]);
 
   const guiYeuCauTraPhong = async (e) => {
     e.preventDefault();
@@ -282,6 +313,7 @@ export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
       }).then((r) => r.json());
       if (res.ok) {
         setManYeuCau(null);
+        navigate(ROUTES.hopDong);
         showToast('Đã gửi yêu cầu trả phòng. Hợp đồng chuyển sang Chờ kiểm tra.');
         await taiDanhSach();
       } else {
@@ -340,10 +372,19 @@ export default function DanhSachHopDong({ nguoiDung, dangXuat }) {
               nguoiDung={nguoiDung}
               onChange={(e) => {
                 const { name, value } = e.target;
-                setFormYeuCau((p) => ({ ...p, [name]: value }));
+                setFormYeuCau((p) => {
+                  const next = { ...p, [name]: value };
+                  if (name === 'ngayTraDuKien') {
+                    next.loaiHinhTraPhong = goiYLoaiHinhTraPhong({
+                      ...manYeuCau,
+                      ngayTraDuKien: value,
+                    });
+                  }
+                  return next;
+                });
               }}
               onSubmit={guiYeuCauTraPhong}
-              onCancel={() => setManYeuCau(null)}
+              onCancel={dongFormYeuCau}
             />
           </fieldset>
         </div>

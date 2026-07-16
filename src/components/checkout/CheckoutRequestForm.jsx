@@ -62,9 +62,6 @@ export default function CheckoutRequestForm({
 
   // Tỷ lệ hoàn cọc theo đề bài 3.1.4 — 3 trường hợp hợp đồng + hủy cọc
   const selectedLoaiHinh = formValues.loaiHinhTraPhong;
-  const soThangDaO = timelineInfo
-    ? Math.floor((homNay - new Date(ngayBatDauStr)) / (1000 * 60 * 60 * 24 * 30))
-    : 0;
 
   const tiLeHoan = tinhTyLeHoanCoc({
     ...selectedItem,
@@ -85,20 +82,16 @@ export default function CheckoutRequestForm({
     colorCanhBaoBg = '#f0fdf4';
     colorCanhBaoBorder = '#a7f3d0';
     colorCanhBaoText = '#15803d';
-  } else if (
-    selectedLoaiHinh === 'truoc_han_duoi_6'
-    || (selectedLoaiHinh === 'truoc_han' && soThangDaO < 6)
-    || tiLeHoan === 50
-  ) {
-    textCanhBao = `ĐÃ KÝ HỢP ĐỒNG, CHƯA HẾT HẠN, LƯU TRÚ DƯỚI 6 THÁNG — Hoàn 50% tiền cọc (tương đương ${tienHoan} đồng).`;
-    colorCanhBaoBg = '#fef2f2';
-    colorCanhBaoBorder = '#fca5a5';
-    colorCanhBaoText = '#b91c1c';
-  } else {
+  } else if (selectedLoaiHinh === 'truoc_han_tren_6') {
     textCanhBao = `ĐÃ KÝ HỢP ĐỒNG, CHƯA HẾT HẠN, LƯU TRÚ TRÊN 6 THÁNG — Hoàn 70% tiền cọc (tương đương ${tienHoan} đồng).`;
     colorCanhBaoBg = '#fff7ed';
     colorCanhBaoBorder = '#fed7aa';
     colorCanhBaoText = '#c2410c';
+  } else {
+    textCanhBao = `ĐÃ KÝ HỢP ĐỒNG, CHƯA HẾT HẠN, LƯU TRÚ DƯỚI 6 THÁNG — Hoàn 50% tiền cọc (tương đương ${tienHoan} đồng).`;
+    colorCanhBaoBg = '#fef2f2';
+    colorCanhBaoBorder = '#fca5a5';
+    colorCanhBaoText = '#b91c1c';
   }
 
   return (
@@ -149,6 +142,17 @@ export default function CheckoutRequestForm({
                 </strong>
               </div>
             </div>
+
+            {!isDatCoc && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div>
+                  <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '700', textTransform: 'uppercase', display: 'block' }}>Tiền đặt cọc</span>
+                  <strong style={{ fontSize: '14.5px', color: '#0f172a' }}>
+                    {`${Number(selectedItem.tienCoc || 0).toLocaleString('vi-VN')} đồng`}
+                  </strong>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
