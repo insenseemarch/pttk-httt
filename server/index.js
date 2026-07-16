@@ -517,6 +517,7 @@ async function taoYeuCauThue(yc, cccd, maNV = 101) {
       LoaiPhong: layMaLoaiPhongYeuCau(yc),
       LoaiThue: loaiThue,
       NganSach: laySoTienNumber(yc.mucGiaDen), // default to max budget
+      NganSachToiThieu: laySoTienNumber(yc.mucGiaTu) || null,
       ThoiGianVao: new Date(yc.thoiGianVao).toISOString(),
       ThoiGianThue: thoiGianThueDate,
       YeuCau: taoNoiDungYeuCauThue(yc),
@@ -717,7 +718,7 @@ function taoTieuChiTraCuuTuYeuCau(yeuCauThue) {
     kieuThue: laNguyenPhong ? 'PHONG' : 'GIUONG',
     loaiPhong: laNguyenPhong ? 'Nguyên phòng' : 'Giường ghép',
     khuVucMongMuon: laGiaTriTatCa(khuVuc) ? '' : khuVuc,
-    mucGiaTu: '',
+    mucGiaTu: Number(yeuCauThue?.NganSachToiThieu) || '',
     mucGiaDen: mucGia,
     gioiTinh: yeuCauThue?.GioiTinh || 'Tất cả',
     soNguoi: Number(yeuCauThue?.SoNguoiDuKien) || 1,
@@ -1181,9 +1182,11 @@ async function datLichXemPhong(yc) {
     }
 
     // 2. Create YeuCauThue
-    const thoiGianThueDate = tinhNgayKetThuc(new Date().toISOString().split('T')[0], 6);
     const yeuCauHen = yc.yeuCauThue || {};
     const boLocHen = yc.boLocTraCuu || {};
+    const ngayVaoHen = String(yeuCauHen.thoiGianVao || '').trim() || new Date().toISOString().split('T')[0];
+    const thoiHanHen = yeuCauHen.thoiHanThue || 6;
+    const thoiGianThueDate = tinhNgayKetThuc(ngayVaoHen, thoiHanHen);
     const loaiPhongBoLoc = chuanHoaTimKiem(boLocHen.loaiPhong || '');
     const loaiPhongYeuCau = yeuCauHen.loaiPhong
       || (loaiPhongBoLoc.includes('phong') && !loaiPhongBoLoc.includes('giuong') ? 'Nguyên phòng' : '')
@@ -1197,11 +1200,12 @@ async function datLichXemPhong(yc) {
       .insert({
         SoNguoiDuKien: Number(yeuCauHen.soNguoi || boLocHen.soNguoi) || 1,
         NganSach: laySoTienNumber(yeuCauHen.mucGiaDen ?? boLocHen.mucGiaDen),
+        NganSachToiThieu: laySoTienNumber(yeuCauHen.mucGiaTu ?? boLocHen.mucGiaTu) || null,
         GioiTinh: yeuCauHen.gioiTinh || boLocHen.gioiTinh || 'Tất cả',
         KhuVucMongMuon: yeuCauHen.khuVucMongMuon || boLocHen.khuVuc || 'Tất cả',
         LoaiPhong: layMaLoaiPhongYeuCau(yeuCauHen),
         LoaiThue: loaiThueYeuCau,
-        ThoiGianVao: new Date().toISOString(),
+        ThoiGianVao: new Date(ngayVaoHen).toISOString(),
         ThoiGianThue: thoiGianThueDate,
         TrangThai: false,
         YeuCau: taoNoiDungYeuCauThue(
@@ -1288,6 +1292,7 @@ async function xuLyLayDanhSachLichHen(req, res) {
           LoaiPhong,
           LoaiThue,
           NganSach,
+          NganSachToiThieu,
           YeuCau,
           KhachHang (
             CCCD,

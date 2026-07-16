@@ -23,6 +23,19 @@ export function layDanhSachTieuChiDangKyThue(tieuChiUuTien, tuyChonTienIch = [])
     .filter(Boolean);
 }
 
+function layNgayHomNayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function themThangISO(ngayISO, soThang) {
+  const [nam, thang, ngay] = String(ngayISO || '').split('-').map(Number);
+  if (!nam || !thang || !ngay) return '';
+  const d = new Date(nam, thang - 1, ngay);
+  d.setMonth(d.getMonth() + (Number(soThang) || 0));
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export function kiemTraThongTinDangKyThue(khachHang, yeuCauThue) {
   const cccd = String(khachHang.cccd || '').replace(/\D/g, '');
   const sdt = String(khachHang.sdt || '').replace(/\D/g, '');
@@ -37,6 +50,19 @@ export function kiemTraThongTinDangKyThue(khachHang, yeuCauThue) {
   if (Number(yeuCauThue.soNguoi) < 1) return 'Số người thuê phải lớn hơn 0.';
   if (yeuCauThue.mucGiaTu && yeuCauThue.mucGiaDen && Number(yeuCauThue.mucGiaTu) > Number(yeuCauThue.mucGiaDen)) {
     return 'Giá từ không được lớn hơn giá đến.';
+  }
+
+  const thoiGianVao = String(yeuCauThue.thoiGianVao || '').trim();
+  if (!thoiGianVao) return 'Vui lòng chọn thời gian dự kiến vào ở.';
+  const ngayToiThieu = layNgayHomNayISO();
+  const ngayToiDa = themThangISO(ngayToiThieu, 1);
+  if (thoiGianVao < ngayToiThieu || thoiGianVao > ngayToiDa) {
+    return 'Thời gian dự kiến vào ở phải từ hôm nay đến trong vòng 1 tháng.';
+  }
+
+  const thoiHanThue = String(yeuCauThue.thoiHanThue || '').trim();
+  if (!['6', '12'].includes(thoiHanThue)) {
+    return 'Vui lòng chọn thời gian thuê 6 tháng hoặc 12 tháng.';
   }
 
   return '';

@@ -69,7 +69,13 @@ router.get('/cho-thu', async (req, res) => {
       const soNguoi = (hd.ChiTiet || []).reduce((s, ct) => s + Number(ct.SoLuong || 1), 0);
       const bieuPhi = Array.isArray(hd.BieuPhiDichVu) ? hd.BieuPhiDichVu : [];
       const giaThueNum = Number(hd.GiaThue || 0);
-      const tongCanThuNum = uocTinhTongCanThu({ giaThue: giaThueNum, bieuPhi, soNguoi, soLuongXe: 1 });
+      const tongCanThuNum = uocTinhTongCanThu({
+        giaThue: giaThueNum,
+        kyThanhToan: hd.KyThanhToan,
+        bieuPhi,
+        soNguoi,
+        soLuongXe: 1,
+      });
       return {
         maHopDong: hd.MaHopDong,
         maHD: `HD-${String(hd.MaHopDong).padStart(5, '0')}`,

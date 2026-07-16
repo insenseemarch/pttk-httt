@@ -386,8 +386,8 @@ export default function App({
     mucGiaDen: '',
     soNguoi: '',
     gioiTinh: '',
-    thoiGianVao: '',
-    thoiHanThue: '',
+    thoiGianVao: new Date().toISOString().split('T')[0],
+    thoiHanThue: '6',
     yeuCauThem: ''
   });
 
