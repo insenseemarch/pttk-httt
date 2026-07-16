@@ -625,6 +625,7 @@ export default function App({
             khuVucMongMuon: paramKhuVuc,
             mucGiaTu: boLocHienTai.mucGiaTu,
             mucGiaDen: boLocHienTai.mucGiaDen,
+            gioiTinh: boLocHienTai.gioiTinh,
             soNguoi: boLocHienTai.soNguoi,
             yeuCauList: paramYeuCauList
           }),

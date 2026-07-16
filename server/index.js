@@ -258,24 +258,28 @@ function laTraCuuNguyenPhong(tc) {
   );
 }
 
-function gioiTinhGiuongPhuHop(gioiTinhGiuong, gioiTinhKhach) {
+function gioiTinhYeuCauPhuHop(gioiTinhYeuCau, gioiTinhKhach) {
   const khach = chuanHoaTimKiem(gioiTinhKhach);
   if (!khach || khach.includes('tat ca')) return true;
 
-  const giuong = chuanHoaTimKiem(gioiTinhGiuong);
+  const yeuCau = chuanHoaTimKiem(gioiTinhYeuCau);
   if (
-    !giuong ||
-    giuong.includes('tat ca') ||
-    giuong.includes('khong yeu cau') ||
-    giuong.includes('chung')
+    !yeuCau ||
+    yeuCau.includes('tat ca') ||
+    yeuCau.includes('khong yeu cau') ||
+    yeuCau.includes('chung')
   ) {
     return true;
   }
 
-  if (giuong.includes('nam') && giuong.includes('nu')) return true;
-  if (khach.includes('nam')) return giuong.includes('nam');
-  if (khach.includes('nu')) return giuong.includes('nu');
-  return giuong === khach;
+  if (yeuCau.includes('nam') && yeuCau.includes('nu')) return true;
+  if (khach.includes('nam')) return yeuCau.includes('nam');
+  if (khach.includes('nu')) return yeuCau.includes('nu');
+  return yeuCau === khach;
+}
+
+function gioiTinhGiuongPhuHop(gioiTinhGiuong, gioiTinhKhach) {
+  return gioiTinhYeuCauPhuHop(gioiTinhGiuong, gioiTinhKhach);
 }
 
 function chuanHoaLoaiThue(value, fallback = 'Thuê giường lẻ') {
@@ -636,6 +640,7 @@ async function traCuuPhongPhuHop(tc) {
     const soNguoiCanThue = Number(tc.soNguoi) || 0;
     let filtered = (results || []).filter((room) => {
       if (!phongConTrongHoanToan(room, giuongTheoPhong, giuongDangKhoaSet)) return false;
+      if (!gioiTinhYeuCauPhuHop(room.GioiTinhYeuCau, tc.gioiTinh)) return false;
       if (!soNguoiCanThue) return true;
       const { tongGiuong } = laySucChuaKhaDungPhong(room, giuongTheoPhong.get(Number(room.MaPhong)) || [], giuongDangKhoaSet);
       return tongGiuong >= soNguoiCanThue;
@@ -656,7 +661,7 @@ async function traCuuPhongPhuHop(tc) {
       tienIch: r.TienIch,
       chiNhanh: r.ChiNhanh?.TenCN || 'Chưa rõ',
       diaChi: r.ChiNhanh?.DiaChi || '',
-      gioiTinh: 'Tất cả'
+      gioiTinh: r.GioiTinhYeuCau || 'Tất cả'
     }));
   } else {
     // Dorm search
@@ -850,6 +855,7 @@ async function phongConKhaDungChoYeuCau(maPhong, yeuCauThue) {
 
   if (tieuChi.kieuThue === 'PHONG') {
     if (phong.TinhTrang !== true) return false;
+    if (!gioiTinhYeuCauPhuHop(phong.GioiTinhYeuCau, tieuChi.gioiTinh)) return false;
     if (!giaNamTrongKhoang(phong.GiaThue, tieuChi.mucGiaTu, tieuChi.mucGiaDen)) return false;
     const giuongTheoPhong = new Map([
       [maPhongSo, danhSachGiuong.map((giuong) => ({ ...giuong, MaPhong: maPhongSo }))],

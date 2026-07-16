@@ -54,6 +54,24 @@ export default function TraCuuPhongGiuongPage({
       .filter((value) => !danhSachTienIchOption.some((option) => option.value === value))
       .map((value) => ({ value, label: value })),
   ];
+  const layGioiTinhCuThe = (value) => {
+    const raw = String(value || '').trim();
+    const lower = raw.toLowerCase();
+    if (lower === 'nam') return 'Nam';
+    if (lower === 'nữ' || lower === 'nu') return 'Nữ';
+    return '';
+  };
+  const layNhanKieuCho = (item) => {
+    const gioiTinh = layGioiTinhCuThe(item?.gioiTinh);
+    if (item?.kieu === 'Phong') return gioiTinh ? `Nguyên căn (${gioiTinh})` : 'Nguyên căn';
+    return gioiTinh ? `Ghép (${gioiTinh})` : 'Ghép';
+  };
+  const layNhanSucChuaGioiTinh = (item) => {
+    const gioiTinh = layGioiTinhCuThe(item?.gioiTinh);
+    if (item?.kieu === 'Phong') return `${item.sucChua} Người${gioiTinh ? ` (${gioiTinh})` : ''}`;
+    return `1 Giường${gioiTinh ? ` (${gioiTinh})` : ''}`;
+  };
+  const layNhanGioiTinhYeuCau = (value) => layGioiTinhCuThe(value) || 'Tất cả';
 
   useEffect(() => {
     if (moModalTienIch) {
@@ -238,7 +256,7 @@ export default function TraCuuPhongGiuongPage({
                       <img src={layAnhMinhHoaPhong(item)} alt={item.ten} className="vacancy-card-img" />
                       <div className="vacancy-card-badges">
                         <span className={`badge-type ${item.kieu === 'Phong' ? 'badge-phong-loai' : 'badge-giuong-loai'}`}>
-                          {item.kieu === 'Phong' ? 'Nguyên căn' : 'Ghép'}
+                          {layNhanKieuCho(item)}
                         </span>
                         <span className="badge-status-empty">Trống</span>
                       </div>
@@ -255,7 +273,7 @@ export default function TraCuuPhongGiuongPage({
                       </div>
 
                       <div className="vacancy-card-details">
-                        <span>👤 {item.kieu === 'Phong' ? `${item.sucChua} Người` : `1 Giường (${item.gioiTinh})`}</span>
+                        <span>👤 {layNhanSucChuaGioiTinh(item)}</span>
                         <div className="card-utils-mini">
                           {layDanhSachTienIchHienThi(item.tienIch, 3).length > 0 ? (
                             layDanhSachTienIchHienThi(item.tienIch, 3).map((u) => (
@@ -381,7 +399,7 @@ export default function TraCuuPhongGiuongPage({
                     </div>
                     <div className="modal-detail-row">
                       <strong>Giới tính yêu cầu:</strong>
-                      <span>{chiTietPhongModal.kieu === 'Phong' ? 'Tất cả' : chiTietPhongModal.gioiTinh}</span>
+                      <span>{layNhanGioiTinhYeuCau(chiTietPhongModal.gioiTinh)}</span>
                     </div>
                     <div className="modal-detail-row" style={{ flexDirection: 'column', gap: '8px', alignItems: 'flex-start' }}>
                       <strong>Tiện ích đi kèm:</strong>
