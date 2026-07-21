@@ -160,19 +160,14 @@ async function ghiChiTietHopDong(maHopDong, dc, soGiuongThue, giaThueCoBan) {
 
   await supabase.from('ChiTiet').delete().eq('MaHopDong', maHopDong);
 
-  let conLai = soGiuongThue;
   const chiTiet = [];
   for (const g of giuongList) {
-    if (conLai <= 0) break;
-    const sl = Number(g.SoGiuongCoc || 1);
-    const dung = Math.min(sl, conLai);
     chiTiet.push({
       MaGiuong: g.MaGiuong,
       MaHopDong: maHopDong,
-      SoLuong: dung,
+      SoLuong: Number(g.SoGiuongCoc || 1),
       GiaThucTe: Number(g.Giuong?.GiaThue || giaThueCoBan || 0),
     });
-    conLai -= dung;
   }
   if (chiTiet.length) {
     const { error: errCT } = await supabase.from('ChiTiet').insert(chiTiet);
