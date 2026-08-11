@@ -1,6 +1,6 @@
 # HomeStay Dorm Management System
 
-A comprehensive digital homestay and real estate management application that allows administrators to manage rooms, contracts, and tenants with advanced features like real-time notifications, digital signatures, and branch management.
+A comprehensive application for a dormitory room rental registration system. Additionally, it enables contract creation, payment collection, and checkout management, with automated rent calculation based on the number of days stayed.
 
 ## 🌟 Features
 
